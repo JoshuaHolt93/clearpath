@@ -1,0 +1,16 @@
+﻿node_modules/
+.pnpm-store/
+.turbo/
+.next/
+dist/
+build/
+.venv/
+__pycache__/
+.pytest_cache/
+*.pyc
+*.db
+*.sqlite
+*.sqlite3
+.env
+.env.*
+!.env.example

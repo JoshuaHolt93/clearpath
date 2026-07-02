@@ -1,0 +1,53 @@
+name: API
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16.6
+        env:
+          POSTGRES_DB: clearpath_test
+          POSTGRES_PASSWORD: clearpath
+          POSTGRES_USER: clearpath
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U clearpath -d clearpath_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    defaults:
+      run:
+        working-directory: apps/api
+
+    env:
+      CUSTOMER_DATA_ENCRYPTION_KEY: J8b9pRw3dDpBYKKsjgT4EODDNDgl17q5G1E5FO5vpNY=
+      DATABASE_URL: postgresql+psycopg://clearpath:clearpath@localhost:5432/clearpath_test
+      PASSWORD_HASH_METHOD: pbkdf2:sha256:1000
+      PLAID_TOKEN_ENCRYPTION_KEY: RGyTuxR5cmBhCR06QkIh7MkySZJY-jdi6CGP478Rypg=
+      POSTGRES_TEST_DATABASE_URL: postgresql+psycopg://clearpath:clearpath@localhost:5432/clearpath_test
+      SECRET_KEY: ci-secret-key-that-is-long-enough-for-tests
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          version: "0.11.26"
+
+      - name: Install Python 3.12
+        run: uv python install 3.12
+
+      - name: Install dependencies (locked)
+        run: uv sync --extra test --frozen
+
+      - name: Run API tests
+        run: uv run pytest -q

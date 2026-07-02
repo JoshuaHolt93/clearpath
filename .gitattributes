@@ -1,0 +1,11 @@
+# Normalize line endings: store LF in the repo, regardless of OS.
+# Keeps the Windows dev checkout and the Ubuntu CI runner consistent.
+* text=auto eol=lf
+
+# Treat binary assets as binary (never normalized).
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.pdf binary

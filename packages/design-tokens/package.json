@@ -1,0 +1,17 @@
+﻿{
+  "name": "@clearpath/design-tokens",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "scripts": {
+    "build": "tsc --noEmit",
+    "test": "echo \"No tests yet for @clearpath/design-tokens\"",
+    "typecheck": "tsc --noEmit",
+    "lint": "echo \"No lint configured yet for @clearpath/design-tokens\""
+  },
+  "devDependencies": {
+    "typescript": "^5.8.0"
+  }
+}

@@ -1,0 +1,266 @@
+from __future__ import annotations
+
+import os
+import sqlite3
+import subprocess
+import sys
+import tempfile
+from pathlib import Path
+
+import pytest
+from alembic import command
+from alembic.config import Config
+from cryptography.fernet import Fernet
+from sqlalchemy import create_engine, text
+
+from scripts.copy_from_flask_sqlite import CUSTOMER_DATA_PREFIX, CopyScriptError, copy_phase1, validate_encryption_keys
+
+API_ROOT = Path(__file__).resolve().parents[1]
+PHASE1_TABLES = ["household_invite", "onboarding_profile", "household_member", "login_attempt", "user", "alembic_version"]
+
+
+def encrypted_customer_value(key: str, value: str) -> str:
+    token = Fernet(key.encode("ascii")).encrypt(value.encode("utf-8")).decode("ascii")
+    return f"{CUSTOMER_DATA_PREFIX}{token}"
+
+
+def plaid_token_value(key: str, value: str) -> str:
+    return Fernet(key.encode("ascii")).encrypt(value.encode("utf-8")).decode("ascii")
+
+
+def create_sample_flask_sqlite(path: Path, *, customer_key: str, plaid_key: str) -> None:
+    conn = sqlite3.connect(path)
+    try:
+        conn.executescript(
+            """
+            CREATE TABLE "user" (
+                id INTEGER PRIMARY KEY,
+                email TEXT NOT NULL,
+                password_hash TEXT NOT NULL,
+                display_name TEXT,
+                household_name TEXT,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            );
+            CREATE TABLE household_member (
+                id INTEGER PRIMARY KEY,
+                owner_user_id INTEGER NOT NULL,
+                invited_by_user_id INTEGER NOT NULL,
+                email TEXT NOT NULL,
+                password_hash TEXT NOT NULL,
+                display_name TEXT,
+                role TEXT NOT NULL,
+                status TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            );
+            CREATE TABLE onboarding_profile (
+                id INTEGER PRIMARY KEY,
+                user_id INTEGER NOT NULL,
+                income_amount REAL,
+                monthly_income REAL,
+                include_payroll_taxes INTEGER,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            );
+            CREATE TABLE household_invite (
+                id INTEGER PRIMARY KEY,
+                owner_user_id INTEGER NOT NULL,
+                invited_by_user_id INTEGER NOT NULL,
+                accepted_member_id INTEGER,
+                email TEXT NOT NULL,
+                token_hash TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            );
+            CREATE TABLE login_attempt (
+                id INTEGER PRIMARY KEY,
+                key TEXT NOT NULL,
+                attempted_at TEXT NOT NULL,
+                success INTEGER NOT NULL,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            );
+            CREATE TABLE plaid_item (
+                id INTEGER PRIMARY KEY,
+                access_token_encrypted TEXT,
+                sync_cursor TEXT
+            );
+            """
+        )
+        now = "2026-07-02T10:11:12"
+        conn.execute(
+            'INSERT INTO "user" (id, email, password_hash, display_name, household_name, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
+            (1, "owner@example.com", "scrypt:32768:8:1$fake$hash", encrypted_customer_value(customer_key, "Owner Name"), encrypted_customer_value(customer_key, "Owner Household"), now, now),
+        )
+        conn.execute(
+            "INSERT INTO household_member (id, owner_user_id, invited_by_user_id, email, password_hash, display_name, role, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (10, 1, 1, "shared@example.com", "scrypt:32768:8:1$fake$hash", encrypted_customer_value(customer_key, "Shared Name"), "viewer", "active", now, now),
+        )
+        conn.execute(
+            "INSERT INTO onboarding_profile (id, user_id, income_amount, monthly_income, include_payroll_taxes, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (100, 1, 5000.0, 5000.0, 1, now, now),
+        )
+        conn.execute(
+            "INSERT INTO household_invite (id, owner_user_id, invited_by_user_id, accepted_member_id, email, token_hash, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            (200, 1, 1, 10, "accepted@example.com", "abc123", now, now),
+        )
+        conn.execute(
+            "INSERT INTO login_attempt (id, key, attempted_at, success, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)",
+            (300, "login:owner@example.com", now, 0, now, now),
+        )
+        conn.execute(
+            "INSERT INTO plaid_item (id, access_token_encrypted, sync_cursor) VALUES (?, ?, ?)",
+            (400, plaid_token_value(plaid_key, "access-sandbox-token"), encrypted_customer_value(customer_key, "cursor-value")),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def test_validate_encryption_keys_checks_plaid_sync_cursor():
+    customer_key = Fernet.generate_key().decode("ascii")
+    plaid_key = Fernet.generate_key().decode("ascii")
+    original_customer_key = os.environ.get("CUSTOMER_DATA_ENCRYPTION_KEY")
+    original_plaid_key = os.environ.get("PLAID_TOKEN_ENCRYPTION_KEY")
+    temp = tempfile.NamedTemporaryFile(delete=False, suffix=".db")
+    temp.close()
+    source = Path(temp.name)
+    conn = sqlite3.connect(source)
+    try:
+        conn.execute("CREATE TABLE plaid_item (id INTEGER PRIMARY KEY, sync_cursor TEXT)")
+        conn.execute("INSERT INTO plaid_item (id, sync_cursor) VALUES (?, ?)", (1, encrypted_customer_value(customer_key, "cursor")))
+        conn.commit()
+        os.environ["CUSTOMER_DATA_ENCRYPTION_KEY"] = customer_key
+        os.environ["PLAID_TOKEN_ENCRYPTION_KEY"] = plaid_key
+        validate_encryption_keys(conn)
+
+        os.environ["CUSTOMER_DATA_ENCRYPTION_KEY"] = Fernet.generate_key().decode("ascii")
+        try:
+            validate_encryption_keys(conn)
+        except CopyScriptError as exc:
+            assert "plaid_item.sync_cursor" in str(exc)
+        else:
+            raise AssertionError("Expected plaid_item.sync_cursor validation to fail with the wrong customer key.")
+    finally:
+        conn.close()
+        source.unlink(missing_ok=True)
+        if original_customer_key is None:
+            os.environ.pop("CUSTOMER_DATA_ENCRYPTION_KEY", None)
+        else:
+            os.environ["CUSTOMER_DATA_ENCRYPTION_KEY"] = original_customer_key
+        if original_plaid_key is None:
+            os.environ.pop("PLAID_TOKEN_ENCRYPTION_KEY", None)
+        else:
+            os.environ["PLAID_TOKEN_ENCRYPTION_KEY"] = original_plaid_key
+
+
+
+def test_copy_phase1_supplies_defaults_and_truncates_with_sqlite():
+    from app.models import Base
+
+    customer_key = Fernet.generate_key().decode("ascii")
+    plaid_key = Fernet.generate_key().decode("ascii")
+    original_customer_key = os.environ.get("CUSTOMER_DATA_ENCRYPTION_KEY")
+    original_plaid_key = os.environ.get("PLAID_TOKEN_ENCRYPTION_KEY")
+    source_temp = tempfile.NamedTemporaryFile(delete=False, suffix=".db")
+    target_temp = tempfile.NamedTemporaryFile(delete=False, suffix=".db")
+    source_temp.close()
+    target_temp.close()
+    source_path = Path(source_temp.name)
+    target_path = Path(target_temp.name)
+    source_conn: sqlite3.Connection | None = None
+    target_engine = None
+    try:
+        os.environ["CUSTOMER_DATA_ENCRYPTION_KEY"] = customer_key
+        os.environ["PLAID_TOKEN_ENCRYPTION_KEY"] = plaid_key
+        create_sample_flask_sqlite(source_path, customer_key=customer_key, plaid_key=plaid_key)
+        source_conn = sqlite3.connect(source_path)
+        source_conn.row_factory = sqlite3.Row
+        target_engine = create_engine(f"sqlite:///{target_path.as_posix()}", future=True)
+        Base.metadata.create_all(target_engine)
+
+        counts = copy_phase1(source_conn, target_engine, truncate=True)
+        assert counts == {"user": 1, "household_member": 1, "onboarding_profile": 1, "household_invite": 1, "login_attempt": 1}
+        second_counts = copy_phase1(source_conn, target_engine, truncate=True)
+        assert second_counts == counts
+
+        with target_engine.begin() as conn:
+            row = conn.execute(text('SELECT is_admin, mfa_enabled, selected_plan FROM "user" WHERE id = 1')).one()
+            profile = conn.execute(text("SELECT include_payroll_taxes, paycheck_cadence FROM onboarding_profile WHERE id = 100")).one()
+        assert row.is_admin in {False, 0}
+        assert row.mfa_enabled in {False, 0}
+        assert row.selected_plan == "basic"
+        assert profile.include_payroll_taxes in {True, 1}
+        assert profile.paycheck_cadence == "semimonthly"
+    finally:
+        if source_conn is not None:
+            source_conn.close()
+        if target_engine is not None:
+            target_engine.dispose()
+        source_path.unlink(missing_ok=True)
+        target_path.unlink(missing_ok=True)
+        if original_customer_key is None:
+            os.environ.pop("CUSTOMER_DATA_ENCRYPTION_KEY", None)
+        else:
+            os.environ["CUSTOMER_DATA_ENCRYPTION_KEY"] = original_customer_key
+        if original_plaid_key is None:
+            os.environ.pop("PLAID_TOKEN_ENCRYPTION_KEY", None)
+        else:
+            os.environ["PLAID_TOKEN_ENCRYPTION_KEY"] = original_plaid_key
+
+@pytest.mark.integration
+@pytest.mark.skipif(not os.getenv("POSTGRES_TEST_DATABASE_URL"), reason="POSTGRES_TEST_DATABASE_URL is required for the real-Postgres migration/copy gate.")
+def test_alembic_upgrade_and_sqlite_copy_against_real_postgres(tmp_path):
+    postgres_url = os.environ["POSTGRES_TEST_DATABASE_URL"]
+    customer_key = Fernet.generate_key().decode("ascii")
+    plaid_key = Fernet.generate_key().decode("ascii")
+    source = tmp_path / "flask_source.db"
+    create_sample_flask_sqlite(source, customer_key=customer_key, plaid_key=plaid_key)
+
+    engine = create_engine(postgres_url, future=True)
+    with engine.begin() as conn:
+        for table in PHASE1_TABLES:
+            conn.exec_driver_sql(f'DROP TABLE IF EXISTS "{table}" CASCADE')
+
+    alembic_cfg = Config(str(API_ROOT / "alembic.ini"))
+    alembic_cfg.set_main_option("script_location", str(API_ROOT / "migrations"))
+    alembic_cfg.set_main_option("sqlalchemy.url", postgres_url)
+    previous_database_url = os.environ.get("DATABASE_URL")
+    os.environ["DATABASE_URL"] = postgres_url
+    try:
+        command.upgrade(alembic_cfg, "head")
+    finally:
+        if previous_database_url is None:
+            os.environ.pop("DATABASE_URL", None)
+        else:
+            os.environ["DATABASE_URL"] = previous_database_url
+
+    env = os.environ.copy()
+    env["CUSTOMER_DATA_ENCRYPTION_KEY"] = customer_key
+    env["PLAID_TOKEN_ENCRYPTION_KEY"] = plaid_key
+    command_line = [sys.executable, str(API_ROOT / "scripts" / "copy_from_flask_sqlite.py"), "--source", str(source), "--target-url", postgres_url, "--truncate"]
+    first = subprocess.run(command_line, cwd=API_ROOT, env=env, text=True, capture_output=True, check=True)
+    assert "user: 1" in first.stdout
+    assert "household_member: 1" in first.stdout
+    assert "onboarding_profile: 1" in first.stdout
+    assert "household_invite: 1" in first.stdout
+    assert "login_attempt: 1" in first.stdout
+
+    subprocess.run(command_line, cwd=API_ROOT, env=env, text=True, capture_output=True, check=True)
+
+    with engine.begin() as conn:
+        assert conn.scalar(text('SELECT count(*) FROM "user"')) == 1
+        assert conn.scalar(text("SELECT count(*) FROM household_member")) == 1
+        assert conn.scalar(text("SELECT count(*) FROM onboarding_profile")) == 1
+        assert conn.scalar(text("SELECT count(*) FROM household_invite")) == 1
+        assert conn.scalar(text("SELECT count(*) FROM login_attempt")) == 1
+        user_row = conn.execute(text('SELECT display_name, is_admin, mfa_enabled FROM "user" WHERE id = 1')).one()
+        profile_row = conn.execute(text("SELECT include_payroll_taxes, paycheck_cadence FROM onboarding_profile WHERE id = 100")).one()
+
+    decrypted_name = Fernet(customer_key.encode("ascii")).decrypt(user_row.display_name[len(CUSTOMER_DATA_PREFIX) :].encode("ascii")).decode("utf-8")
+    assert decrypted_name == "Owner Name"
+    assert user_row.is_admin is False
+    assert user_row.mfa_enabled is False
+    assert profile_row.include_payroll_taxes is True
+    assert profile_row.paycheck_cadence == "semimonthly"
