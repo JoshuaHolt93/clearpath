@@ -21,8 +21,30 @@ class CopyScriptError(RuntimeError):
     pass
 
 # Insert parents before children; delete in reverse order for Postgres FK safety.
-PHASE1_TABLES = ["user", "household_member", "onboarding_profile", "household_invite", "login_attempt"]
-PHASE1_TRUNCATE_TABLES = ["login_attempt", "household_invite", "onboarding_profile", "household_member", "user"]
+PHASE1_TABLES = [
+    "user",
+    "household_member",
+    "onboarding_profile",
+    "household_invite",
+    "login_attempt",
+    "account",
+    "category",
+    "category_rule",
+    "transaction",
+    "transaction_split",
+]
+PHASE1_TRUNCATE_TABLES = [
+    "transaction_split",
+    "transaction",
+    "category_rule",
+    "category",
+    "account",
+    "login_attempt",
+    "household_invite",
+    "onboarding_profile",
+    "household_member",
+    "user",
+]
 
 PHASE1_ENCRYPTED_COLUMNS = {
     "user": [
@@ -43,6 +65,10 @@ PHASE1_ENCRYPTED_COLUMNS = {
         "retirement_family_notes",
         "notes",
     ],
+    "account": ["name", "institution"],
+    "category_rule": ["match_text", "conditions_json"],
+    "transaction": ["description", "merchant", "source_name", "notes", "plaid_metadata"],
+    "transaction_split": ["notes"],
 }
 
 
@@ -114,6 +140,37 @@ def _base_defaults() -> dict[str, dict[str, Any]]:
             "retirement_has_personal_plan": False,
             "retirement_monthly_contribution": 0.0,
             "retirement_personal_monthly_contribution": 0.0,
+            "created_at": now,
+            "updated_at": now,
+        },
+        "account": {
+            "account_type": "checking",
+            "current_balance": 0.0,
+            "cash_projection_role": "auto",
+            "is_manual": True,
+            "created_at": now,
+            "updated_at": now,
+        },
+        "category": {
+            "kind": "expense",
+            "monthly_target": 0.0,
+            "is_default": False,
+            "created_at": now,
+            "updated_at": now,
+        },
+        "category_rule": {
+            "match_type": "contains",
+            "rule_logic": "all",
+            "created_at": now,
+            "updated_at": now,
+        },
+        "transaction": {
+            "transaction_type": "expense",
+            "pending": False,
+            "created_at": now,
+            "updated_at": now,
+        },
+        "transaction_split": {
             "created_at": now,
             "updated_at": now,
         },

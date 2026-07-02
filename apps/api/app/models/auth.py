@@ -45,6 +45,11 @@ class User(TimestampMixin, Base):
     cash_projection_calendar_generated_at: Mapped[datetime | None] = mapped_column(DateTime)
     cash_projection_default_horizon: Mapped[str] = mapped_column(String(20), default="1m", nullable=False)
 
+    accounts: Mapped[list["Account"]] = relationship("Account", back_populates="user", cascade="all, delete-orphan")
+    categories: Mapped[list["Category"]] = relationship("Category", back_populates="user", cascade="all, delete-orphan")
+    category_rules: Mapped[list["CategoryRule"]] = relationship("CategoryRule", back_populates="user", cascade="all, delete-orphan")
+    transactions: Mapped[list["Transaction"]] = relationship("Transaction", back_populates="user", cascade="all, delete-orphan")
+    transaction_splits: Mapped[list["TransactionSplit"]] = relationship("TransactionSplit", back_populates="user", cascade="all, delete-orphan")
     profile: Mapped[OnboardingProfile | None] = relationship(back_populates="user", cascade="all, delete-orphan")
     household_members: Mapped[list[HouseholdMember]] = relationship(
         back_populates="owner_user",

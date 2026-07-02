@@ -1,0 +1,232 @@
+from __future__ import annotations
+
+from datetime import date, datetime
+
+from pydantic import BaseModel, ConfigDict, Field
+
+
+class AccountResponse(BaseModel):
+    id: int
+    name: str
+    account_type: str
+    institution: str | None = None
+    current_balance: float
+    cash_projection_role: str
+    is_manual: bool
+    plaid_account_id: str | None = None
+    plaid_item_id: int | None = None
+    mask: str | None = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class CategoryResponse(BaseModel):
+    id: int
+    name: str
+    kind: str
+    monthly_target: float
+    is_default: bool
+    budget_group_key: str | None = None
+    budget_sort_order: int | None = None
+    can_manage: bool | None = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class TransactionSplitResponse(BaseModel):
+    id: int
+    category: CategoryResponse
+    amount: float
+    notes: str | None = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class TransactionResponse(BaseModel):
+    id: int
+    posted_date: date
+    description: str
+    merchant: str | None = None
+    amount: float
+    transaction_type: str
+    source_name: str | None = None
+    import_hash: str
+    notes: str | None = None
+    plaid_transaction_id: str | None = None
+    plaid_metadata: str | None = None
+    pending: bool
+    category: CategoryResponse | None = None
+    account: AccountResponse | None = None
+    splits: list[TransactionSplitResponse] = Field(default_factory=list)
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class DuplicateSuggestionResponse(BaseModel):
+    plaid_transaction_id: int
+    manual_transaction_id: int
+    score: float
+    confidence_label: str
+
+
+class TransactionListResponse(BaseModel):
+    items: list[TransactionResponse]
+    total: int
+    page: int
+    per_page: int
+    categories: list[CategoryResponse]
+    accounts: list[AccountResponse]
+    duplicate_suggestions: list[DuplicateSuggestionResponse]
+
+
+class TransactionCreateRequest(BaseModel):
+    posted_date: date
+    description: str
+    amount: float
+    merchant: str | None = None
+    account_id: int | None = None
+    account_name: str | None = None
+    category_id: int | None = None
+    category_name: str | None = None
+    notes: str | None = None
+
+
+class TransactionCategoryUpdateRequest(BaseModel):
+    category_id: int | None = None
+    new_category_name: str | None = None
+
+
+class TransactionSplitInput(BaseModel):
+    category_id: int
+    amount: float
+    notes: str | None = None
+
+
+class TransactionSplitsUpdateRequest(BaseModel):
+    clear_splits: bool = False
+    splits: list[TransactionSplitInput] = Field(default_factory=list)
+
+
+class DuplicateTransactionMergeRequest(BaseModel):
+    first_transaction_id: int
+    second_transaction_id: int
+
+
+class DuplicateTransactionMergeResponse(BaseModel):
+    merged: bool
+    surviving_transaction: TransactionResponse
+    deleted_transaction_id: int
+
+
+class TransactionImportMapping(BaseModel):
+    date: str
+    description: str
+    amount: str | None = None
+    debit: str | None = None
+    credit: str | None = None
+    account: str | None = None
+
+
+class TransactionImportPreviewRequest(BaseModel):
+    csv_text: str | None = None
+    csv_base64: str | None = None
+    mapping: TransactionImportMapping | None = None
+    fallback_account: str | None = None
+
+
+class TransactionImportRow(BaseModel):
+    posted_date: date
+    description: str
+    amount: float
+    transaction_type: str
+    source_name: str
+    category_id: int | None = None
+    category_name: str | None = None
+
+
+class TransactionImportPreviewResponse(BaseModel):
+    staged_import_id: str
+    headers: list[str]
+    sample_rows: list[dict]
+    mapping: dict[str, str | None]
+    new_transactions: list[TransactionImportRow]
+    new_count: int
+    duplicate_count: int
+
+
+class TransactionImportStagedResponse(BaseModel):
+    staged_import_id: str
+    new_transactions: list[TransactionImportRow]
+    new_count: int
+
+
+class TransactionImportCommitRequest(BaseModel):
+    confirm: bool = True
+
+
+class TransactionImportCommitResponse(BaseModel):
+    imported: int
+    duplicate_count: int
+    transactions: list[TransactionResponse]
+
+
+class CategoryCreateRequest(BaseModel):
+    name: str
+    kind: str = "expense"
+
+
+class CategoryUpdateRequest(BaseModel):
+    name: str | None = None
+    kind: str | None = None
+
+
+class CategoryDeleteRequest(BaseModel):
+    replacement_category_id: int | None = None
+
+
+class CategoryDeleteResponse(BaseModel):
+    deleted_category_id: int
+    replacement_category: CategoryResponse | None = None
+
+
+class CategoryRuleCondition(BaseModel):
+    field: str
+    operator: str = "contains"
+    value: str
+    value_secondary: str = ""
+    group: str = "primary"
+    join: str = "and"
+
+
+class CategoryRuleCreateRequest(BaseModel):
+    category_id: int
+    conditions: list[CategoryRuleCondition] = Field(default_factory=list)
+    match_text: str | None = None
+
+
+class CategoryRuleUpdateRequest(BaseModel):
+    category_id: int
+    conditions: list[CategoryRuleCondition] = Field(default_factory=list)
+    match_text: str | None = None
+
+
+class CategoryRuleDeleteRequest(BaseModel):
+    confirm: bool = True
+
+
+class CategoryRuleResponse(BaseModel):
+    id: int
+    category: CategoryResponse
+    match_text: str
+    match_type: str
+    rule_logic: str
+    conditions: list[dict]
+    summary: str
+    created_at: datetime
+    updated_at: datetime
+    applied_count: int | None = None
+
+
+class CategoryRuleListResponse(BaseModel):
+    rules: list[CategoryRuleResponse]
+    categories: list[CategoryResponse]

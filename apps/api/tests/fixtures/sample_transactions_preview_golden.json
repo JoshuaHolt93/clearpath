@@ -1,0 +1,66 @@
+[
+  {
+    "posted_date": "2026-04-01",
+    "description": "Payroll Deposit",
+    "amount": 3100.0,
+    "transaction_type": "income",
+    "source_name": "Main Checking",
+    "category_name": "Other"
+  },
+  {
+    "posted_date": "2026-04-02",
+    "description": "Rent Payment",
+    "amount": -1800.0,
+    "transaction_type": "expense",
+    "source_name": "Main Checking",
+    "category_name": "Other"
+  },
+  {
+    "posted_date": "2026-04-04",
+    "description": "Kroger Store 214",
+    "amount": -142.16,
+    "transaction_type": "expense",
+    "source_name": "Main Checking",
+    "category_name": "Other"
+  },
+  {
+    "posted_date": "2026-04-07",
+    "description": "Shell Oil 0442",
+    "amount": -58.02,
+    "transaction_type": "expense",
+    "source_name": "Main Checking",
+    "category_name": "Other"
+  },
+  {
+    "posted_date": "2026-04-09",
+    "description": "Netflix",
+    "amount": -18.99,
+    "transaction_type": "expense",
+    "source_name": "Main Checking",
+    "category_name": "Other"
+  },
+  {
+    "posted_date": "2026-04-11",
+    "description": "Local Bistro",
+    "amount": -76.4,
+    "transaction_type": "expense",
+    "source_name": "Main Checking",
+    "category_name": "Other"
+  },
+  {
+    "posted_date": "2026-04-15",
+    "description": "Target",
+    "amount": -64.29,
+    "transaction_type": "expense",
+    "source_name": "Main Checking",
+    "category_name": "Other"
+  },
+  {
+    "posted_date": "2026-04-18",
+    "description": "Family Diner",
+    "amount": -82.3,
+    "transaction_type": "expense",
+    "source_name": "Main Checking",
+    "category_name": "Other"
+  }
+]

@@ -16,7 +16,19 @@ from sqlalchemy import create_engine, text
 from scripts.copy_from_flask_sqlite import CUSTOMER_DATA_PREFIX, CopyScriptError, copy_phase1, validate_encryption_keys
 
 API_ROOT = Path(__file__).resolve().parents[1]
-PHASE1_TABLES = ["household_invite", "onboarding_profile", "household_member", "login_attempt", "user", "alembic_version"]
+PHASE1_TABLES = [
+    "transaction_split",
+    "transaction",
+    "category_rule",
+    "category",
+    "account",
+    "household_invite",
+    "onboarding_profile",
+    "household_member",
+    "login_attempt",
+    "user",
+    "alembic_version",
+]
 
 
 def encrypted_customer_value(key: str, value: str) -> str:
@@ -81,6 +93,63 @@ def create_sample_flask_sqlite(path: Path, *, customer_key: str, plaid_key: str)
                 created_at TEXT NOT NULL,
                 updated_at TEXT NOT NULL
             );
+            CREATE TABLE account (
+                id INTEGER PRIMARY KEY,
+                user_id INTEGER NOT NULL,
+                name TEXT NOT NULL,
+                account_type TEXT,
+                institution TEXT,
+                current_balance REAL,
+                is_manual INTEGER,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            );
+            CREATE TABLE category (
+                id INTEGER PRIMARY KEY,
+                user_id INTEGER,
+                name TEXT NOT NULL,
+                kind TEXT,
+                monthly_target REAL,
+                is_default INTEGER,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            );
+            CREATE TABLE category_rule (
+                id INTEGER PRIMARY KEY,
+                user_id INTEGER NOT NULL,
+                category_id INTEGER NOT NULL,
+                match_text TEXT NOT NULL,
+                match_type TEXT,
+                conditions_json TEXT,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            );
+            CREATE TABLE "transaction" (
+                id INTEGER PRIMARY KEY,
+                user_id INTEGER NOT NULL,
+                account_id INTEGER,
+                category_id INTEGER,
+                posted_date TEXT NOT NULL,
+                description TEXT NOT NULL,
+                merchant TEXT,
+                amount REAL NOT NULL,
+                source_name TEXT,
+                import_hash TEXT NOT NULL,
+                notes TEXT,
+                pending INTEGER,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            );
+            CREATE TABLE transaction_split (
+                id INTEGER PRIMARY KEY,
+                user_id INTEGER NOT NULL,
+                transaction_id INTEGER NOT NULL,
+                category_id INTEGER NOT NULL,
+                amount REAL NOT NULL,
+                notes TEXT,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            );
             CREATE TABLE plaid_item (
                 id INTEGER PRIMARY KEY,
                 access_token_encrypted TEXT,
@@ -108,6 +177,50 @@ def create_sample_flask_sqlite(path: Path, *, customer_key: str, plaid_key: str)
         conn.execute(
             "INSERT INTO login_attempt (id, key, attempted_at, success, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)",
             (300, "login:owner@example.com", now, 0, now, now),
+        )
+        conn.execute(
+            "INSERT INTO account (id, user_id, name, account_type, institution, current_balance, is_manual, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (500, 1, encrypted_customer_value(customer_key, "Main Checking"), "checking", encrypted_customer_value(customer_key, "Test Bank"), 123.45, 1, now, now),
+        )
+        conn.execute(
+            "INSERT INTO category (id, user_id, name, kind, monthly_target, is_default, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            (600, 1, "Groceries", "expense", 600.0, 0, now, now),
+        )
+        conn.execute(
+            "INSERT INTO category_rule (id, user_id, category_id, match_text, match_type, conditions_json, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            (
+                700,
+                1,
+                600,
+                encrypted_customer_value(customer_key, "kroger"),
+                "contains",
+                encrypted_customer_value(customer_key, '[{"field":"description","operator":"contains","value":"kroger","value_secondary":"","group":"primary","join":"and"}]'),
+                now,
+                now,
+            ),
+        )
+        conn.execute(
+            'INSERT INTO "transaction" (id, user_id, account_id, category_id, posted_date, description, merchant, amount, source_name, import_hash, notes, pending, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+            (
+                800,
+                1,
+                500,
+                600,
+                "2026-07-02",
+                encrypted_customer_value(customer_key, "Kroger Store 214"),
+                encrypted_customer_value(customer_key, "Kroger Store 214"),
+                -42.25,
+                encrypted_customer_value(customer_key, "Main Checking"),
+                "hash-800",
+                encrypted_customer_value(customer_key, "paper receipt"),
+                0,
+                now,
+                now,
+            ),
+        )
+        conn.execute(
+            "INSERT INTO transaction_split (id, user_id, transaction_id, category_id, amount, notes, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            (900, 1, 800, 600, 42.25, encrypted_customer_value(customer_key, "split note"), now, now),
         )
         conn.execute(
             "INSERT INTO plaid_item (id, access_token_encrypted, sync_cursor) VALUES (?, ?, ?)",
@@ -181,18 +294,35 @@ def test_copy_phase1_supplies_defaults_and_truncates_with_sqlite():
         Base.metadata.create_all(target_engine)
 
         counts = copy_phase1(source_conn, target_engine, truncate=True)
-        assert counts == {"user": 1, "household_member": 1, "onboarding_profile": 1, "household_invite": 1, "login_attempt": 1}
+        assert counts == {
+            "user": 1,
+            "household_member": 1,
+            "onboarding_profile": 1,
+            "household_invite": 1,
+            "login_attempt": 1,
+            "account": 1,
+            "category": 1,
+            "category_rule": 1,
+            "transaction": 1,
+            "transaction_split": 1,
+        }
         second_counts = copy_phase1(source_conn, target_engine, truncate=True)
         assert second_counts == counts
 
         with target_engine.begin() as conn:
             row = conn.execute(text('SELECT is_admin, mfa_enabled, selected_plan FROM "user" WHERE id = 1')).one()
             profile = conn.execute(text("SELECT include_payroll_taxes, paycheck_cadence FROM onboarding_profile WHERE id = 100")).one()
+            account = conn.execute(text("SELECT cash_projection_role, is_manual FROM account WHERE id = 500")).one()
+            transaction = conn.execute(text('SELECT pending, transaction_type FROM "transaction" WHERE id = 800')).one()
         assert row.is_admin in {False, 0}
         assert row.mfa_enabled in {False, 0}
         assert row.selected_plan == "basic"
         assert profile.include_payroll_taxes in {True, 1}
         assert profile.paycheck_cadence == "semimonthly"
+        assert account.cash_projection_role == "auto"
+        assert account.is_manual in {True, 1}
+        assert transaction.pending in {False, 0}
+        assert transaction.transaction_type == "expense"
     finally:
         if source_conn is not None:
             source_conn.close()
@@ -246,6 +376,11 @@ def test_alembic_upgrade_and_sqlite_copy_against_real_postgres(tmp_path):
     assert "onboarding_profile: 1" in first.stdout
     assert "household_invite: 1" in first.stdout
     assert "login_attempt: 1" in first.stdout
+    assert "account: 1" in first.stdout
+    assert "category: 1" in first.stdout
+    assert "category_rule: 1" in first.stdout
+    assert "transaction: 1" in first.stdout
+    assert "transaction_split: 1" in first.stdout
 
     subprocess.run(command_line, cwd=API_ROOT, env=env, text=True, capture_output=True, check=True)
 
@@ -255,12 +390,25 @@ def test_alembic_upgrade_and_sqlite_copy_against_real_postgres(tmp_path):
         assert conn.scalar(text("SELECT count(*) FROM onboarding_profile")) == 1
         assert conn.scalar(text("SELECT count(*) FROM household_invite")) == 1
         assert conn.scalar(text("SELECT count(*) FROM login_attempt")) == 1
+        assert conn.scalar(text("SELECT count(*) FROM account")) == 1
+        assert conn.scalar(text("SELECT count(*) FROM category")) == 1
+        assert conn.scalar(text("SELECT count(*) FROM category_rule")) == 1
+        assert conn.scalar(text('SELECT count(*) FROM "transaction"')) == 1
+        assert conn.scalar(text("SELECT count(*) FROM transaction_split")) == 1
         user_row = conn.execute(text('SELECT display_name, is_admin, mfa_enabled FROM "user" WHERE id = 1')).one()
         profile_row = conn.execute(text("SELECT include_payroll_taxes, paycheck_cadence FROM onboarding_profile WHERE id = 100")).one()
+        account_row = conn.execute(text("SELECT name, is_manual FROM account WHERE id = 500")).one()
+        transaction_row = conn.execute(text('SELECT description, pending FROM "transaction" WHERE id = 800')).one()
 
     decrypted_name = Fernet(customer_key.encode("ascii")).decrypt(user_row.display_name[len(CUSTOMER_DATA_PREFIX) :].encode("ascii")).decode("utf-8")
+    decrypted_account_name = Fernet(customer_key.encode("ascii")).decrypt(account_row.name[len(CUSTOMER_DATA_PREFIX) :].encode("ascii")).decode("utf-8")
+    decrypted_description = Fernet(customer_key.encode("ascii")).decrypt(transaction_row.description[len(CUSTOMER_DATA_PREFIX) :].encode("ascii")).decode("utf-8")
     assert decrypted_name == "Owner Name"
+    assert decrypted_account_name == "Main Checking"
+    assert decrypted_description == "Kroger Store 214"
     assert user_row.is_admin is False
     assert user_row.mfa_enabled is False
     assert profile_row.include_payroll_taxes is True
     assert profile_row.paycheck_cadence == "semimonthly"
+    assert account_row.is_manual is True
+    assert transaction_row.pending is False
