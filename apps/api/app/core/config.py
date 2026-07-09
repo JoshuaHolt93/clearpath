@@ -32,6 +32,8 @@ class Settings(BaseSettings):
     plaid_webhook_url: str | None = Field(default=None, alias="PLAID_WEBHOOK_URL")
     auto_refresh_plaid_on_page_load: bool = Field(default=True, alias="AUTO_REFRESH_PLAID_ON_PAGE_LOAD")
     plaid_auto_refresh_min_interval_minutes: int = Field(default=15, alias="PLAID_AUTO_REFRESH_MIN_INTERVAL_MINUTES")
+    validation_pricing_mode: bool = Field(default=False, alias="VALIDATION_PRICING_MODE")
+    openai_api_key: str | None = Field(default=None, alias="OPENAI_API_KEY")
 
     @property
     def is_production(self) -> bool:

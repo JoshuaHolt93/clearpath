@@ -12,7 +12,17 @@ from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
 from app.core.plaid_policy import assert_plaid_data_purpose, redact_plaid_sensitive_data
-from app.models import Account, Category, PlaidAccountIgnore, PlaidItem, PlaidWebhookEvent, Transaction, User, utc_now
+from app.models import (
+    Account,
+    Category,
+    PlaidAccountIgnore,
+    PlaidItem,
+    PlaidWebhookEvent,
+    SubscriptionTransactionIgnore,
+    Transaction,
+    User,
+    utc_now,
+)
 from app.services.transaction_service import (
     CREDIT_CARD_PAYMENT_CATEGORY_NAME,
     DEFAULT_CATEGORY_TARGETS,
@@ -295,15 +305,22 @@ def sync_plaid_item(db: Session, plaid_item: PlaidItem, *, purpose: str = "accou
     for removed_transaction in removed:
         plaid_transaction_id = removed_transaction.get("transaction_id")
         if plaid_transaction_id:
-            # PHASE 2C: the Flask original also clears SubscriptionTransactionIgnore
-            # rows pointing at these transactions before deleting. Wire that here
-            # when the subscription tables land in Phase 2c.
-            for transaction in db.scalars(
+            doomed = db.scalars(
                 select(Transaction).where(
                     Transaction.user_id == plaid_item.user_id,
                     Transaction.plaid_transaction_id == plaid_transaction_id,
                 )
-            ).all():
+            ).all()
+            doomed_ids = [transaction.id for transaction in doomed]
+            if doomed_ids:
+                for ignore_row in db.scalars(
+                    select(SubscriptionTransactionIgnore).where(
+                        SubscriptionTransactionIgnore.user_id == plaid_item.user_id,
+                        SubscriptionTransactionIgnore.transaction_id.in_(doomed_ids),
+                    )
+                ).all():
+                    db.delete(ignore_row)
+            for transaction in doomed:
                 db.delete(transaction)
 
     plaid_item.sync_cursor = cursor
