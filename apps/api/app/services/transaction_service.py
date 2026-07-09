@@ -773,24 +773,28 @@ def staged_import_dir() -> Path:
     return directory
 
 
-def stage_import_rows(rows: list[dict], *, duplicate_count: int = 0) -> str:
+def stage_import_rows(rows: list[dict], *, user_id: int, duplicate_count: int = 0) -> str:
     staged_id = uuid.uuid4().hex
-    (staged_import_dir() / f"{staged_id}.json").write_text(json.dumps({"rows": rows, "duplicate_count": duplicate_count}), encoding="utf-8")
+    (staged_import_dir() / f"{staged_id}.json").write_text(
+        json.dumps({"rows": rows, "duplicate_count": duplicate_count, "user_id": int(user_id)}), encoding="utf-8"
+    )
     return staged_id
 
 
-def load_staged_import(staged_import_id: str) -> dict | None:
+def load_staged_import(staged_import_id: str, *, user_id: int) -> dict | None:
     if not re.fullmatch(r"[a-f0-9]{32}", staged_import_id or ""):
         return None
     path = staged_import_dir() / f"{staged_import_id}.json"
     if not path.exists():
         return None
     loaded = json.loads(path.read_text(encoding="utf-8"))
-    if isinstance(loaded, list):
-        return {"rows": loaded, "duplicate_count": 0}
-    if isinstance(loaded, dict) and isinstance(loaded.get("rows"), list):
-        return {"rows": loaded["rows"], "duplicate_count": int(loaded.get("duplicate_count") or 0)}
-    return None
+    if not isinstance(loaded, dict) or not isinstance(loaded.get("rows"), list):
+        return None
+    # Staged imports are bound to the user who created them; a payload without a
+    # matching user_id is treated as not found rather than served cross-user.
+    if int(loaded.get("user_id") or 0) != int(user_id):
+        return None
+    return {"rows": loaded["rows"], "duplicate_count": int(loaded.get("duplicate_count") or 0)}
 
 
 def clear_staged_import(staged_import_id: str) -> None:

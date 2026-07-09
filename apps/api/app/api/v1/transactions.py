@@ -249,7 +249,7 @@ def preview_transaction_import(
     if not mapping.get("date") or not mapping.get("description") or (not mapping.get("amount") and not mapping.get("debit")):
         raise HTTPException(status_code=422, detail="Map at least date, description, and either amount or debit/credit columns.")
     result = build_import_preview(db, principal.user, raw_content, mapping, fallback_account=(payload.fallback_account or "").strip() or "Imported Account")
-    staged_id = stage_import_rows(result["new_transactions"], duplicate_count=result["duplicate_count"])
+    staged_id = stage_import_rows(result["new_transactions"], user_id=principal.user.id, duplicate_count=result["duplicate_count"])
     rows = [
         {**row, "category_name": db.get(Category, row["category_id"]).name if row.get("category_id") else None}
         for row in result["new_transactions"]
@@ -271,7 +271,7 @@ def get_staged_transaction_import(
     principal: Annotated[Principal, Depends(require_household_access("editor"))],
     db: Annotated[Session, Depends(get_db)],
 ) -> TransactionImportStagedResponse:
-    staged = load_staged_import(staged_import_id)
+    staged = load_staged_import(staged_import_id, user_id=principal.user.id)
     if staged is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Staged import not found.")
     rows = [
@@ -290,7 +290,7 @@ def commit_transaction_import(
 ) -> TransactionImportCommitResponse:
     if not payload.confirm:
         raise HTTPException(status_code=422, detail="Import confirmation is required.")
-    staged = load_staged_import(staged_import_id)
+    staged = load_staged_import(staged_import_id, user_id=principal.user.id)
     if staged is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Staged import not found.")
     imported = commit_staged_transactions(db, principal.user, staged["rows"])

@@ -100,6 +100,27 @@ def test_csv_import_preview_and_commit_match_flask_golden(client):
     assert duplicate_preview.json()["duplicate_count"] == 8
 
 
+def test_staged_import_is_bound_to_creating_user(client):
+    owner_token = full_session_token(client, "stage-owner@example.com")
+    csv_text = SAMPLE_PATH.read_text(encoding="utf-8")
+    preview = client.post("/v1/transaction-imports/preview", headers=auth_header(owner_token), json={"csv_text": csv_text})
+    assert preview.status_code == 200
+    staged_id = preview.json()["staged_import_id"]
+
+    intruder_token = full_session_token(client, "stage-intruder@example.com")
+    assert client.get(f"/v1/transaction-imports/{staged_id}", headers=auth_header(intruder_token)).status_code == 404
+    assert (
+        client.post(f"/v1/transaction-imports/{staged_id}/commit", headers=auth_header(intruder_token), json={"confirm": True}).status_code
+        == 404
+    )
+
+    # The creating user can still read and commit their own staged import.
+    assert client.get(f"/v1/transaction-imports/{staged_id}", headers=auth_header(owner_token)).status_code == 200
+    committed = client.post(f"/v1/transaction-imports/{staged_id}/commit", headers=auth_header(owner_token), json={"confirm": True})
+    assert committed.status_code == 200
+    assert committed.json()["imported"] == 8
+
+
 def test_category_rule_requires_onboarding_and_returns_applied_count(client):
     token = full_session_token(client, "rules@example.com")
     groceries = category_by_name(client, token, "Groceries")
