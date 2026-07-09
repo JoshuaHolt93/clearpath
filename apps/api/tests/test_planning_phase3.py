@@ -4,7 +4,8 @@ from datetime import date
 
 import pytest
 
-from app.models import OnboardingProfile
+from app.models import FixedExpenseItem, Goal, MonthlyBudgetCategorySnapshot, OnboardingProfile, User, VariableExpenseItem
+from conftest import TestingSessionLocal
 from app.services.planning_service import (
     _monthly_weekday_occurrence,
     _occurrences_for_month,
@@ -227,3 +228,105 @@ def test_payroll_taxes_cap_and_thresholds():
     assert estimate.social_security_tax == 0
     assert estimate.medicare_tax == 0
     assert estimate.annual_total == pytest.approx(13170)
+
+
+def _register_full_user(client, email: str) -> int:
+    from app.core.security import decode_token
+
+    registered = client.post(
+        "/v1/auth/register",
+        json={
+            "email": email,
+            "password": "CorrectHorse1!",
+            "display_name": "Plan User",
+            "household_name": "Plan Household",
+            "policy_acknowledgement": True,
+        },
+    )
+    assert registered.status_code == 201
+    completed = client.post(
+        "/v1/auth/mfa/setup",
+        headers={"Authorization": f"Bearer {registered.json()['access_token']}"},
+        json={"action": "skip"},
+    )
+    assert completed.status_code == 200
+    payload = decode_token(completed.json()["access_token"])
+    return int(payload["user_id"]), completed.json()["access_token"]
+
+
+def test_sync_monthly_plan_and_snapshot_end_to_end(client):
+    from app.services.planning_service import sync_monthly_plan
+
+    user_id, token = _register_full_user(client, "plan-sync@example.com")
+    with TestingSessionLocal() as db:
+        user = db.get(User, user_id)
+        user.selected_plan = "basic"
+        profile = user.profile
+        profile.income_amount = 100000
+        profile.monthly_income = 0
+        profile.income_type = "salary"
+        profile.income_basis = "gross"
+        profile.paycheck_cadence = "monthly"
+        profile.tax_filing_status = "single"
+        profile.tax_state = "TX"
+        profile.include_payroll_taxes = True
+        profile.planned_debt_payment = 300
+        profile.planned_savings_contribution = 0
+        db.add(FixedExpenseItem(user_id=user_id, name="Mortgage Payment", amount=1800, start_date=date(2026, 1, 1), frequency="monthly", due_day=1, is_loan=False))
+        db.add(VariableExpenseItem(user_id=user_id, name="Household Stuff", amount=200, frequency="monthly", use_specific_date=False))
+        db.add(Goal(user_id=user_id, name="Emergency Fund", goal_type="savings", target_amount=10000, current_amount=0, monthly_contribution=400))
+        db.commit()
+
+    # July actuals: the mortgage cleared and one unplanned grocery run.
+    for description, amount in [("Mortgage Payment", -1800.0), ("Kroger Store 214", -100.0)]:
+        created = client.post(
+            "/v1/transactions",
+            headers={"Authorization": f"Bearer {token}"},
+            json={"posted_date": "2026-07-05", "description": description, "amount": amount, "account_name": "Main Checking"},
+        )
+        assert created.status_code == 201
+
+    target = date(2026, 7, 15)
+    with TestingSessionLocal() as db:
+        user = db.get(User, user_id)
+        plan = sync_monthly_plan(db, user, target)
+
+        # Income 100k/12; TX + single/100k taxes are 13,170 federal + 6,200 SS
+        # + 1,450 Medicare = 20,820/yr -> 1,735/mo (hand-computed earlier).
+        assert plan.income == pytest.approx(100000 / 12)
+        assert plan.fixed_expenses == pytest.approx(1800)
+        assert plan.planned_savings == pytest.approx(400)  # goal beats profile target
+        assert plan.planned_debt_payment == pytest.approx(300)
+        assert plan.safe_to_spend_target == pytest.approx(100000 / 12 - 1735 - 1800 - 400 - 300)
+
+        from app.models import MonthlyBudgetSnapshot
+
+        snapshot = db.query(MonthlyBudgetSnapshot).filter_by(user_id=user_id, month=date(2026, 7, 1)).one()
+        assert snapshot.planned_taxes == pytest.approx(1735)
+        assert snapshot.planned_variable_expenses == pytest.approx(200)
+        assert snapshot.expected_cash_flow == pytest.approx(100000 / 12 - 1735 - 1800 - 200 - 400 - 300)
+        assert snapshot.actual_fixed_expenses == pytest.approx(1800)
+        # Flask's variable pool excludes transactions by CATEGORY NAME (the
+        # legacy FIXED_EXPENSE_CATEGORY_NAMES set), not by fixed-item match, so
+        # the Other-categorized mortgage lands in both pools: 1800 + 100.
+        assert snapshot.actual_variable_expenses == pytest.approx(1900)
+        assert snapshot.actual_total_expenses == pytest.approx(1900)
+        assert snapshot.budget_remaining == pytest.approx((1800 + 200 + 1735) - (1800 + 1900))
+        assert snapshot.net_cash_flow == pytest.approx(0 - 1900)
+
+        category_rows = db.query(MonthlyBudgetCategorySnapshot).filter_by(user_id=user_id, month=date(2026, 7, 1)).all()
+        actual_by_name = {row.category_name: row.actual for row in category_rows}
+        # Both transactions defaulted to the user's Other category.
+        assert actual_by_name.get("Other") == pytest.approx(1900)
+
+
+def test_both_post_sync_hooks_registered_in_order():
+    import app.services.planning_service as planning_service
+    import app.services.subscription_service as subscription_service
+    from app.services import plaid_service
+
+    hooks = plaid_service.POST_SYNC_HOOKS
+    assert subscription_service._plaid_post_sync_hook in hooks
+    assert planning_service._plaid_post_sync_hook in hooks
+    # Flask order: subscriptions rescan first, monthly plan second.
+    assert hooks.index(subscription_service._plaid_post_sync_hook) < hooks.index(planning_service._plaid_post_sync_hook)

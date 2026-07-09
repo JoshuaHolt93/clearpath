@@ -1,30 +1,53 @@
 from __future__ import annotations
 
 import calendar
+import json
 import os
+from collections import defaultdict
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload, selectinload
 
 from app.core.config import get_settings
+from app.core.plaid_policy import assert_plaid_data_purpose
 from app.core.planning_constants import (
     ADDITIONAL_MEDICARE_RATE,
     ADDITIONAL_MEDICARE_THRESHOLDS,
+    ANALYTICS_RANGE_OPTIONS,
     DEFAULT_APP_TIMEZONE,
     FEDERAL_TAX_BRACKETS_2026,
+    FIXED_EXPENSE_CATEGORY_NAMES,
     MEDICARE_RATE_2026,
     MONTHLY_WEEK_OPTIONS,
     SOCIAL_SECURITY_RATE_2026,
     SOCIAL_SECURITY_WAGE_BASE_2026,
     STANDARD_DEDUCTIONS_2026,
+    STARTER_CATEGORY_GROUPS,
     STATE_TAX_RULES_2026,
     TAX_FILING_STATUS_OPTIONS,
     WEEKDAY_OPTIONS,
 )
-from app.models import FixedExpenseItem, Goal, LoanPlan, OnboardingProfile, User, VariableExpenseItem
+from app.models import (
+    Category,
+    FixedExpenseItem,
+    ForecastItem,
+    Goal,
+    LoanPlan,
+    MonthlyBudgetCategorySnapshot,
+    MonthlyBudgetSnapshot,
+    MonthlyPlan,
+    OnboardingProfile,
+    RecurringForecastTemplate,
+    Transaction,
+    TransactionSplit,
+    User,
+    VariableExpenseItem,
+)
+from app.services import plaid_service
+from app.services.transaction_service import normalize_text
 
 # Faithful port of the planning foundations from Flask services.py at 9b5dff0:
 # timezone/date helpers, income normalization, retirement and loan-extra
@@ -734,3 +757,1069 @@ def calculate_tax_estimate(profile: OnboardingProfile | None) -> TaxEstimate:
         federal_brackets=federal_brackets,
         standard_deduction=standard_deduction,
     )
+
+
+# --- Pay-period scheduling -------------------------------------------------
+
+
+def _advance_pay_date(pay_date: date, cadence: str | None) -> date:
+    cadence = cadence or "monthly"
+    if cadence == "weekly":
+        return pay_date + timedelta(days=7)
+    if cadence == "biweekly":
+        return pay_date + timedelta(days=14)
+    if cadence == "semimonthly":
+        if pay_date.day <= 15:
+            return _coerce_month_day(pay_date.replace(day=1), 28)
+        return add_months(pay_date, 1).replace(day=15)
+    if cadence == "annual":
+        return date(pay_date.year + 1, pay_date.month, min(pay_date.day, calendar.monthrange(pay_date.year + 1, pay_date.month)[1]))
+    if cadence == "irregular":
+        return pay_date + timedelta(days=30)
+    return add_months(pay_date, 1).replace(day=min(pay_date.day, calendar.monthrange(add_months(pay_date, 1).year, add_months(pay_date, 1).month)[1]))
+
+
+def _previous_pay_date(pay_date: date, cadence: str | None) -> date:
+    cadence = cadence or "monthly"
+    if cadence == "weekly":
+        return pay_date - timedelta(days=7)
+    if cadence == "biweekly":
+        return pay_date - timedelta(days=14)
+    if cadence == "semimonthly":
+        if pay_date.day <= 15:
+            previous_month = add_months(pay_date, -1)
+            return _coerce_month_day(previous_month, 28)
+        return pay_date.replace(day=15)
+    if cadence == "annual":
+        return date(pay_date.year - 1, pay_date.month, min(pay_date.day, calendar.monthrange(pay_date.year - 1, pay_date.month)[1]))
+    if cadence == "irregular":
+        return pay_date - timedelta(days=30)
+    previous_month = add_months(pay_date, -1)
+    return previous_month.replace(day=min(pay_date.day, calendar.monthrange(previous_month.year, previous_month.month)[1]))
+
+
+def current_pay_period_bounds(profile: OnboardingProfile | None, target_date: date | None = None) -> dict:
+    target_date = target_date or app_today()
+    cadence = (profile.paycheck_cadence if profile else None) or "monthly"
+    next_pay_date = profile.next_pay_date if profile and profile.next_pay_date else target_date + timedelta(days=_period_delta_days(cadence))
+
+    while next_pay_date <= target_date:
+        next_pay_date = _advance_pay_date(next_pay_date, cadence)
+
+    start_date = _previous_pay_date(next_pay_date, cadence)
+    end_date = next_pay_date - timedelta(days=1)
+    return {"start": start_date, "end": end_date, "next_pay_date": next_pay_date}
+
+
+def planned_income_for_period(profile: OnboardingProfile | None, period_start: date, period_end: date) -> float:
+    if not profile:
+        return 0.0
+    cadence = profile.paycheck_cadence or "monthly"
+    period_days = (period_end - period_start).days + 1
+    month_start, month_end = month_bounds(period_start)
+    month_days = (month_end - month_start).days + 1
+    if (profile.income_type or "salary") == "salary":
+        if cadence != "irregular":
+            base_income = annual_salary_from_profile(profile) / payments_per_year(cadence)
+        else:
+            base_income = (annual_salary_from_profile(profile) / 12) * (period_days / month_days)
+    else:
+        base_income = (profile.income_amount or 0) * (profile.hourly_hours_per_week or 40) * period_days / 7
+    additional_income = additional_monthly_income_from_profile(profile) * (period_days / month_days)
+    return base_income + additional_income
+
+
+def loan_category_for_item(item: FixedExpenseItem) -> str | None:
+    category = normalize_text(" ".join([item.category_label or "", item.name or ""]))
+    if "mortgage" in category:
+        return "mortgage"
+    if getattr(item, "is_loan", False):
+        return "loan"
+    if any(token in category for token in ["loan", "vehicle payment", "auto payment", "car payment", "credit card", "debt", "heloc", "line of credit"]):
+        return "loan"
+    return None
+
+
+# --- Transaction matching and queries --------------------------------------
+
+
+def category_counts_as_spending(category: Category | None) -> bool:
+    return not category or category.kind == "expense"
+
+
+def transaction_counts_as_spending(transaction: Transaction) -> bool:
+    if transaction.splits:
+        return True
+    return category_counts_as_spending(transaction.category)
+
+
+def transaction_counts_as_income(transaction: Transaction) -> bool:
+    return not transaction.category or transaction.category.kind == "income"
+
+
+def _transaction_matches_planned_item(transaction: Transaction, item_name: str) -> bool:
+    item_text = normalize_text(item_name)
+    category_text = normalize_text(transaction.category.name if transaction.category else "")
+    description_text = normalize_text(transaction.description)
+    merchant_text = normalize_text(transaction.merchant or "")
+    return item_text and (
+        item_text == category_text
+        or item_text in description_text
+        or item_text in merchant_text
+    )
+
+
+def _transaction_matches_subscription(transaction: Transaction, subscription) -> bool:
+    return (
+        _transaction_matches_planned_item(transaction, subscription.name)
+        or normalize_text(subscription.merchant_key) in normalize_text(transaction.description)
+        or normalize_text(subscription.merchant_key) in normalize_text(transaction.merchant or "")
+    )
+
+
+def _subscription_planned_amount_for_period(subscription, start_date: date, end_date: date, *, use_cash_timing: bool) -> float:
+    if not use_cash_timing:
+        return subscription.monthly_amount
+
+    charge_amount = subscription.amount or subscription.monthly_amount
+    cycle_days = max(subscription.cycle_days or 30, 1)
+    next_charge = subscription.next_charge_date or subscription.last_seen or subscription.first_seen
+    if not next_charge:
+        return 0.0
+
+    while next_charge < start_date:
+        next_charge += timedelta(days=cycle_days)
+
+    planned = 0.0
+    while next_charge <= end_date:
+        planned += charge_amount
+        next_charge += timedelta(days=cycle_days)
+    return planned
+
+
+def _transactions_between(db: Session, user: User, start: date, end: date):
+    return (
+        select(Transaction)
+        .options(joinedload(Transaction.category), joinedload(Transaction.account))
+        .where(Transaction.user_id == user.id, Transaction.posted_date >= start, Transaction.posted_date <= end)
+        .order_by(Transaction.posted_date.desc(), Transaction.id.desc())
+    )
+
+
+def _expense_transactions_between(db: Session, user: User, start: date, end: date) -> list[Transaction]:
+    return [
+        transaction
+        for transaction in db.scalars(_transactions_between(db, user, start, end).where(Transaction.amount < 0)).all()
+        if transaction_counts_as_spending(transaction)
+    ]
+
+
+def _month_expense_transactions(db: Session, user: User, target_date: date | None = None) -> list[Transaction]:
+    start, end = month_bounds(target_date)
+    return _expense_transactions_between(db, user, start, end)
+
+
+def _income_transactions_between(db: Session, user: User, start: date, end: date) -> list[Transaction]:
+    return [
+        transaction
+        for transaction in db.scalars(_transactions_between(db, user, start, end).where(Transaction.amount > 0)).all()
+        if transaction_counts_as_income(transaction)
+    ]
+
+
+def _sort_plan_detail_rows(rows: list[dict]) -> list[dict]:
+    return sorted(rows, key=lambda row: (max(row["planned"], row["actual"]), row["label"].lower()), reverse=True)
+
+
+# --- Projected paychecks and income replacement -----------------------------
+
+
+def _projected_paycheck_amount(profile: OnboardingProfile) -> float:
+    cadence = profile.paycheck_cadence or "monthly"
+    payment_count = max(payments_per_year(cadence), 1)
+    income_type = profile.income_type or "salary"
+    if income_type == "bonus" and cadence != "irregular":
+        gross_amount = profile.income_amount or 0
+        annualized_paycheck_income = gross_amount * payment_count
+    elif income_type == "salary" and cadence != "irregular":
+        gross_amount = annual_salary_from_profile(profile) / payment_count
+        annualized_paycheck_income = annual_salary_from_profile(profile)
+    else:
+        annual_income = monthly_income_from_profile(profile) * 12
+        gross_amount = annual_income / payment_count
+        annualized_paycheck_income = annual_income
+
+    if (profile.income_basis or "take_home") != "gross":
+        return gross_amount
+
+    annual_income = max(monthly_income_from_profile(profile) * 12, 0)
+    if not annual_income:
+        return gross_amount
+
+    tax_share = min(max(annualized_paycheck_income / annual_income, 0), 1)
+    estimated_withholding = (calculate_tax_estimate(profile).annual_total * tax_share) / payment_count
+    return max(gross_amount - estimated_withholding, 0)
+
+
+def _income_replacement_templates(db: Session, user: User, through_date: date | None = None) -> list[RecurringForecastTemplate]:
+    query = select(RecurringForecastTemplate).where(
+        RecurringForecastTemplate.user_id == user.id,
+        RecurringForecastTemplate.item_type == "income",
+        RecurringForecastTemplate.income_replacement.is_(True),
+    )
+    if through_date:
+        query = query.where(RecurringForecastTemplate.start_date <= through_date)
+    return db.scalars(query.order_by(RecurringForecastTemplate.start_date.asc(), RecurringForecastTemplate.id.asc())).all()
+
+
+def _profile_from_income_replacement_template(base_profile: OnboardingProfile, template: RecurringForecastTemplate) -> OnboardingProfile:
+    profile = OnboardingProfile()
+    profile.income_amount = template.amount or 0
+    profile.monthly_income = 0
+    profile.income_basis = template.income_basis or base_profile.income_basis or "take_home"
+    profile.income_type = template.income_type or base_profile.income_type or "salary"
+    profile.paycheck_cadence = template.paycheck_cadence or template.frequency or base_profile.paycheck_cadence or "monthly"
+    profile.income_frequency = profile.paycheck_cadence
+    profile.next_pay_date = template.income_next_pay_date or template.start_date
+    profile.hourly_hours_per_week = template.hourly_hours_per_week or base_profile.hourly_hours_per_week or 40
+    profile.additional_income_amount = template.additional_income_amount or 0
+    profile.additional_income_frequency = template.additional_income_frequency or "annual"
+    profile.tax_state = template.tax_state or base_profile.tax_state
+    profile.tax_filing_status = template.tax_filing_status or base_profile.tax_filing_status or "married_joint"
+    profile.tax_gross_annual_income = base_profile.tax_gross_annual_income or 0
+    profile.tax_state_effective_rate = base_profile.tax_state_effective_rate or 0
+    profile.include_payroll_taxes = bool(template.include_payroll_taxes)
+    profile.retirement_enabled = bool(base_profile.retirement_enabled)
+    profile.retirement_has_employer_plan = bool(base_profile.retirement_has_employer_plan)
+    profile.retirement_employer_withheld = bool(base_profile.retirement_employer_withheld)
+    profile.retirement_monthly_contribution = base_profile.retirement_monthly_contribution or 0
+    profile.retirement_has_personal_plan = bool(base_profile.retirement_has_personal_plan)
+    profile.retirement_personal_monthly_contribution = base_profile.retirement_personal_monthly_contribution or 0
+    return profile
+
+
+def _active_income_replacement_template_for_date(templates: list[RecurringForecastTemplate], target_date: date) -> RecurringForecastTemplate | None:
+    active_template = None
+    for template in templates:
+        if template.start_date <= target_date:
+            active_template = template
+        else:
+            break
+    return active_template
+
+
+def _income_profile_for_date(base_profile: OnboardingProfile, templates: list[RecurringForecastTemplate], target_date: date) -> OnboardingProfile:
+    active_template = _active_income_replacement_template_for_date(templates, target_date)
+    if not active_template:
+        return base_profile
+    return _profile_from_income_replacement_template(base_profile, active_template)
+
+
+def _income_profile_segments_between(db: Session, user: User, start: date, end: date) -> list[dict]:
+    base_profile = user.profile
+    if not base_profile:
+        return []
+    templates = _income_replacement_templates(db, user, end)
+    boundaries = [start]
+    boundaries.extend(template.start_date for template in templates if start < template.start_date <= end)
+    boundaries.append(end + timedelta(days=1))
+    segments = []
+    for index, segment_start in enumerate(boundaries[:-1]):
+        segment_end = boundaries[index + 1] - timedelta(days=1)
+        if segment_start > segment_end:
+            continue
+        active_template = _active_income_replacement_template_for_date(templates, segment_start)
+        segments.append(
+            {
+                "start": segment_start,
+                "end": segment_end,
+                "profile": _profile_from_income_replacement_template(base_profile, active_template) if active_template else base_profile,
+                "source_id": active_template.id if active_template else None,
+                "source_name": active_template.name if active_template else None,
+                "template": active_template,
+            }
+        )
+    return segments
+
+
+def planned_income_for_period_with_future_adjustments(db: Session, user: User, period_start: date, period_end: date) -> float:
+    if period_start > period_end:
+        return 0.0
+    month_start, month_end = month_bounds(period_start)
+    month_days = (month_end - month_start).days + 1
+    total = 0.0
+    for segment in _income_profile_segments_between(db, user, period_start, period_end):
+        segment_days = (segment["end"] - segment["start"]).days + 1
+        total += monthly_income_from_profile(segment["profile"]) * (segment_days / month_days)
+    return total
+
+
+def planned_tax_for_period_with_future_adjustments(db: Session, user: User, period_start: date, period_end: date) -> float:
+    if period_start > period_end:
+        return 0.0
+    month_start, month_end = month_bounds(period_start)
+    month_days = (month_end - month_start).days + 1
+    total = 0.0
+    for segment in _income_profile_segments_between(db, user, period_start, period_end):
+        profile = segment["profile"]
+        if (profile.income_basis or "take_home") != "gross":
+            continue
+        segment_days = (segment["end"] - segment["start"]).days + 1
+        total += calculate_tax_estimate(profile).monthly_total * (segment_days / month_days)
+    return total
+
+
+def _paycheck_entries_for_profile_between(
+    profile: OnboardingProfile,
+    start: date,
+    end: date,
+    source_id: int | str | None = None,
+    description: str = "Projected paycheck",
+    *,
+    schedule_start: date | None = None,
+    second_day_of_month: int | None = None,
+    days_of_week: str | None = None,
+    monthly_week_numbers: str | None = None,
+    monthly_weekday: int | None = None,
+) -> list[dict]:
+    cadence = profile.paycheck_cadence or "monthly"
+    if schedule_start and (second_day_of_month or days_of_week or monthly_week_numbers):
+        amount = _projected_paycheck_amount(profile)
+        entries = []
+        month_cursor = start.replace(day=1)
+        while month_cursor <= end.replace(day=1):
+            for occurrence in _occurrences_for_month(
+                schedule_start,
+                cadence,
+                month_cursor,
+                second_day_of_month=second_day_of_month,
+                days_of_week=days_of_week,
+                monthly_week_numbers=monthly_week_numbers,
+                monthly_weekday=monthly_weekday,
+            ):
+                if start <= occurrence <= end:
+                    _append_generated_entry(entries, occurrence, description, amount, "income", "paycheck", "Income", source_id=source_id)
+            month_cursor = add_months(month_cursor, 1)
+        return entries
+
+    next_pay_date = profile.next_pay_date or start
+    while next_pay_date < start:
+        next_pay_date = _advance_pay_date(next_pay_date, cadence)
+    amount = _projected_paycheck_amount(profile)
+    entries = []
+    current = next_pay_date
+    while current <= end:
+        _append_generated_entry(entries, current, description, amount, "income", "paycheck", "Income", source_id=source_id)
+        current = _advance_pay_date(current, cadence)
+    return entries
+
+
+def _paycheck_entries_between(db: Session, user: User, start: date, end: date) -> list[dict]:
+    if not user.profile:
+        return []
+    entries = []
+    for segment in _income_profile_segments_between(db, user, start, end):
+        template = segment.get("template")
+        entries.extend(
+            _paycheck_entries_for_profile_between(
+                segment["profile"],
+                segment["start"],
+                segment["end"],
+                source_id=segment.get("source_id"),
+                description=segment.get("source_name") or "Projected paycheck",
+                schedule_start=(template.income_next_pay_date or template.start_date) if template else segment["profile"].next_pay_date,
+                second_day_of_month=(
+                    template.second_date.day
+                    if template and template.second_date
+                    else template.second_day_of_month
+                    if template
+                    else segment["profile"].paycheck_second_day_of_month
+                ),
+                days_of_week=template.days_of_week if template else segment["profile"].paycheck_days_of_week,
+                monthly_week_numbers=template.monthly_week_numbers if template else segment["profile"].paycheck_monthly_week_numbers,
+                monthly_weekday=template.monthly_weekday if template else segment["profile"].paycheck_monthly_weekday,
+            )
+        )
+    return entries
+
+
+# --- Recurring template and one-time generators ------------------------------
+
+
+def _generate_recurring_template_entries(db: Session, user: User, month_start: date) -> list[dict]:
+    entries = []
+    templates = db.scalars(
+        select(RecurringForecastTemplate)
+        .where(RecurringForecastTemplate.user_id == user.id)
+        .order_by(RecurringForecastTemplate.start_date.asc())
+    ).all()
+    for template in templates:
+        if template.item_type == "income" and template.income_replacement:
+            continue
+        if template.item_type == "income" and template.income_type:
+            profile = _profile_from_income_replacement_template(user.profile, template) if user.profile else None
+            if profile:
+                month_start_date, month_end_date = _month_range(month_start)
+                entries.extend(
+                    _paycheck_entries_for_profile_between(
+                        profile,
+                        month_start_date,
+                        month_end_date,
+                        source_id=template.id,
+                        description=template.name,
+                        schedule_start=template.income_next_pay_date or template.start_date,
+                        second_day_of_month=template.second_date.day if template.second_date else template.second_day_of_month,
+                        days_of_week=template.days_of_week,
+                        monthly_week_numbers=template.monthly_week_numbers,
+                        monthly_weekday=template.monthly_weekday,
+                    )
+                )
+                continue
+        for occurrence in _occurrences_for_month(
+            template.start_date,
+            template.frequency or "monthly",
+            month_start,
+            second_day_of_month=template.second_date.day if template.second_date else template.second_day_of_month,
+            days_of_week=template.days_of_week,
+            monthly_week_numbers=template.monthly_week_numbers,
+            monthly_weekday=template.monthly_weekday,
+        ):
+            _append_generated_entry(entries, occurrence, template.name, template.amount, template.item_type, "recurring", template.category_label, template.notes, template.id)
+    return entries
+
+
+def _generate_one_time_entries(db: Session, user: User, month_start: date) -> list[dict]:
+    month_start, month_end = _month_range(month_start)
+    entries = []
+    items = db.scalars(
+        select(ForecastItem)
+        .where(ForecastItem.user_id == user.id, ForecastItem.item_date >= month_start, ForecastItem.item_date <= month_end)
+        .order_by(ForecastItem.item_date.asc(), ForecastItem.id.asc())
+    ).all()
+    for item in items:
+        _append_generated_entry(entries, item.item_date, item.description, item.amount, item.item_type, "one_time", item.category_label, item.notes, item.id)
+    return entries
+
+
+# --- Plan-vs-actual detail rows ---------------------------------------------
+
+
+def _planned_entries_by_label(entries: list[dict], *, item_type: str | None = None, source: str | None = None, unique_entries: bool = False) -> dict[str, dict]:
+    planned_by_label: dict[str, dict] = {}
+    for entry in entries:
+        if item_type and entry["item_type"] != item_type:
+            continue
+        if source and entry["source"] != source:
+            continue
+        label = entry["description"]
+        if unique_entries:
+            label = f"{entry['description']}|{entry['source']}|{entry.get('source_id') or entry['date'].isoformat()}|{len(planned_by_label)}"
+        detail = planned_by_label.setdefault(
+            label,
+            {
+                "amount": 0.0,
+                "source": entry["source"],
+                "match_label": entry["description"],
+                "display_label": entry["description"],
+                "date": entry["date"],
+                "source_ids": set(),
+            },
+        )
+        detail["amount"] += entry["amount"]
+        if entry.get("source_id"):
+            detail["source_ids"].add(entry["source_id"])
+    return planned_by_label
+
+
+def _append_forecast_detail_rows(
+    rows: list[dict],
+    transactions: list[Transaction],
+    matched_transaction_ids: set[int],
+    planned_by_label: dict[str, dict],
+) -> None:
+    for label, planned_detail in planned_by_label.items():
+        planned = planned_detail["amount"] if isinstance(planned_detail, dict) else planned_detail
+        match_label = planned_detail.get("match_label", label) if isinstance(planned_detail, dict) else label
+        matches = [
+            txn
+            for txn in transactions
+            if txn.id not in matched_transaction_ids and _transaction_matches_planned_item(txn, match_label)
+        ]
+        matched_transaction_ids.update(txn.id for txn in matches)
+        actual = sum(abs(txn.amount) for txn in matches)
+        if planned or actual:
+            display_label = planned_detail.get("display_label", label) if isinstance(planned_detail, dict) else label
+            row = {
+                "label": display_label,
+                "planned": planned,
+                "actual": actual,
+                "diff": actual - planned,
+                "transaction_ids": [txn.id for txn in matches],
+            }
+            if isinstance(planned_detail, dict) and len(planned_detail.get("source_ids", set())) == 1:
+                source = planned_detail.get("source")
+                row["source_id"] = next(iter(planned_detail["source_ids"]))
+                if source == "one_time":
+                    row["source"] = "forecast_item"
+                elif source == "recurring":
+                    row["source"] = "recurring_template"
+            rows.append(row)
+
+
+def income_plan_detail_rows(db: Session, user: User, planned_base_income: float, target_date: date | None = None, start_date: date | None = None, end_date: date | None = None) -> list[dict]:
+    if not start_date or not end_date:
+        start_date, end_date = month_bounds(target_date)
+
+    transactions = _income_transactions_between(db, user, start_date, end_date)
+    recurring_income = _planned_entries_by_label(
+        _generated_entries_between(db, user, _generate_recurring_template_entries, start_date, end_date),
+        item_type="income",
+        source="recurring",
+    )
+    one_time_income = _planned_entries_by_label(
+        _generated_entries_between(db, user, _generate_one_time_entries, start_date, end_date),
+        item_type="income",
+        source="one_time",
+    )
+
+    rows = []
+    matched_transaction_ids: set[int] = set()
+    _append_forecast_detail_rows(rows, transactions, matched_transaction_ids, recurring_income)
+    _append_forecast_detail_rows(rows, transactions, matched_transaction_ids, one_time_income)
+
+    baseline_actual = sum(txn.amount for txn in transactions if txn.id not in matched_transaction_ids)
+    if planned_base_income or baseline_actual:
+        rows.append(
+            {
+                "label": "Baseline Income",
+                "planned": planned_base_income,
+                "actual": baseline_actual,
+                "diff": baseline_actual - planned_base_income,
+            }
+        )
+
+    return _sort_plan_detail_rows(rows)
+
+
+def fixed_plan_detail_rows(db: Session, user: User, target_date: date | None = None, start_date: date | None = None, end_date: date | None = None) -> list[dict]:
+    from app.services.subscription_service import SUBSCRIPTION_CATEGORY, active_subscription_rows
+
+    use_cash_timing = bool(start_date and end_date)
+    if start_date and end_date:
+        transactions = _expense_transactions_between(db, user, start_date, end_date)
+    else:
+        start_date, end_date = month_bounds(target_date)
+        transactions = _month_expense_transactions(db, user, target_date)
+    generated_entries = _generated_entries_between(db, user, _generate_fixed_entries, start_date, end_date)
+    planned_by_label = defaultdict(float)
+    for entry in generated_entries:
+        planned_by_label[entry["description"]] += entry["amount"]
+    recurring_planned_by_label = _planned_entries_by_label(
+        _generated_entries_between(db, user, _generate_recurring_template_entries, start_date, end_date),
+        item_type="expense",
+        source="recurring",
+    )
+    rows = []
+    matched_transaction_ids = set()
+
+    for item in sorted(
+        db.scalars(select(FixedExpenseItem).where(FixedExpenseItem.user_id == user.id)).all(),
+        key=lambda expense: (expense.name or "").lower(),
+    ):
+        matches = [
+            txn
+            for txn in transactions
+            if _transaction_matches_planned_item(txn, item.name)
+            or (txn.category and txn.category.name in FIXED_EXPENSE_CATEGORY_NAMES and normalize_text(item.name) in normalize_text(txn.category.name))
+        ]
+        matched_transaction_ids.update(txn.id for txn in matches)
+        actual = sum(abs(txn.amount) for txn in matches)
+        planned = planned_by_label[item.name] if planned_by_label is not None else monthly_amount_for_fixed_item(item)
+        if planned or actual:
+            rows.append(
+                {
+                    "label": item.name,
+                    "planned": planned,
+                    "actual": actual,
+                    "diff": actual - planned,
+                    "source": "fixed_expense",
+                    "source_id": item.id,
+                    "category_label": item.category_label,
+                    "loan_kind": loan_category_for_item(item),
+                    "transaction_ids": [txn.id for txn in matches],
+                }
+            )
+
+    _append_forecast_detail_rows(rows, transactions, matched_transaction_ids, recurring_planned_by_label)
+
+    subscription_planned = 0.0
+    subscription_actual = 0.0
+    subscription_count = 0
+    subscription_transaction_ids = []
+    for subscription_row in active_subscription_rows(db, user, purpose="monthly_plan"):
+        subscription = subscription_row["subscription"]
+        matches = [
+            txn
+            for txn in transactions
+            if txn.id not in matched_transaction_ids and _transaction_matches_subscription(txn, subscription)
+        ]
+        matched_transaction_ids.update(txn.id for txn in matches)
+        subscription_transaction_ids.extend(txn.id for txn in matches)
+        subscription_actual += sum(abs(txn.amount) for txn in matches)
+        subscription_planned += _subscription_planned_amount_for_period(subscription, start_date, end_date, use_cash_timing=use_cash_timing)
+        subscription_count += 1
+
+    if subscription_planned or subscription_actual:
+        rows.append(
+            {
+                "label": "Monthly Subscriptions",
+                "planned": subscription_planned,
+                "actual": subscription_actual,
+                "diff": subscription_actual - subscription_planned,
+                "source": "subscriptions",
+                "source_id": None,
+                "category_label": SUBSCRIPTION_CATEGORY,
+                "count": subscription_count,
+                "transaction_ids": subscription_transaction_ids,
+            }
+        )
+
+    unplanned_fixed_transactions = [
+        txn
+        for txn in transactions
+        if txn.id not in matched_transaction_ids and txn.category and txn.category.name in FIXED_EXPENSE_CATEGORY_NAMES
+    ]
+    unplanned_actual = sum(abs(txn.amount) for txn in unplanned_fixed_transactions)
+    if unplanned_actual:
+        rows.append(
+            {
+                "label": "Other Fixed Expenses",
+                "planned": 0,
+                "actual": unplanned_actual,
+                "diff": unplanned_actual,
+                "source": "other_fixed_expenses",
+                "category_label": "Other",
+                "transaction_ids": [txn.id for txn in unplanned_fixed_transactions],
+            }
+        )
+
+    return _sort_plan_detail_rows(rows)
+
+
+def variable_plan_detail_rows(db: Session, user: User, target_date: date | None = None, start_date: date | None = None, end_date: date | None = None) -> list[dict]:
+    from app.services.subscription_service import active_subscription_rows
+
+    if start_date and end_date:
+        month_transactions = _expense_transactions_between(db, user, start_date, end_date)
+        generated_entries = _generated_entries_between(db, user, _generate_variable_entries, start_date, end_date)
+        planned_by_label = defaultdict(float)
+        for entry in generated_entries:
+            planned_by_label[entry["description"]] += entry["amount"]
+        one_time_planned_by_label = _planned_entries_by_label(
+            _generated_entries_between(db, user, _generate_one_time_entries, start_date, end_date),
+            item_type="expense",
+            source="one_time",
+            unique_entries=True,
+        )
+    else:
+        start_date, end_date = month_bounds(target_date)
+        month_transactions = _month_expense_transactions(db, user, target_date)
+        planned_by_label = None
+        one_time_planned_by_label = _planned_entries_by_label(
+            _generated_entries_between(db, user, _generate_one_time_entries, start_date, end_date),
+            item_type="expense",
+            source="one_time",
+            unique_entries=True,
+        )
+    subscription_rows = active_subscription_rows(db, user, purpose="monthly_plan")
+    transactions = [
+        txn
+        for txn in month_transactions
+        if (txn.category.name if txn.category else "") not in FIXED_EXPENSE_CATEGORY_NAMES
+        and not any(_transaction_matches_subscription(txn, row["subscription"]) for row in subscription_rows)
+    ]
+    rows = []
+    matched_transaction_ids = set()
+
+    for item in sorted(
+        db.scalars(select(VariableExpenseItem).where(VariableExpenseItem.user_id == user.id)).all(),
+        key=lambda expense: (expense.name or "").lower(),
+    ):
+        matches = [txn for txn in transactions if _transaction_matches_planned_item(txn, item.name)]
+        matched_transaction_ids.update(txn.id for txn in matches)
+        actual = sum(abs(txn.amount) for txn in matches)
+        planned = planned_by_label[item.name] if planned_by_label is not None else monthly_amount_for_variable_item(item)
+        if planned or actual:
+            rows.append(
+                {
+                    "label": item.name,
+                    "planned": planned,
+                    "actual": actual,
+                    "diff": actual - planned,
+                    "source": "variable_expense",
+                    "source_id": item.id,
+                    "category_label": item.category_label or item.name,
+                    "transaction_ids": [txn.id for txn in matches],
+                }
+            )
+
+    _append_forecast_detail_rows(rows, transactions, matched_transaction_ids, one_time_planned_by_label)
+
+    unplanned_variable_transactions = [txn for txn in transactions if txn.id not in matched_transaction_ids]
+    unplanned_actual = sum(abs(txn.amount) for txn in unplanned_variable_transactions)
+    if unplanned_actual:
+        rows.append(
+            {
+                "label": "Other Variable Expenses",
+                "planned": 0,
+                "actual": unplanned_actual,
+                "diff": unplanned_actual,
+                "source": "other_variable_expenses",
+                "category_label": "Other",
+                "transaction_ids": [txn.id for txn in unplanned_variable_transactions],
+            }
+        )
+
+    return _sort_plan_detail_rows(rows)
+
+
+# --- Monthly plan and budget snapshots ---------------------------------------
+
+
+def get_or_create_monthly_plan(db: Session, user: User, target_date: date | None = None) -> MonthlyPlan:
+    target_date = (target_date or app_today()).replace(day=1)
+    plan = db.scalar(select(MonthlyPlan).where(MonthlyPlan.user_id == user.id, MonthlyPlan.month == target_date))
+    if plan:
+        return plan
+
+    profile = user.profile or OnboardingProfile()
+    monthly_income = monthly_income_from_profile(profile)
+    monthly_tax = calculate_tax_estimate(profile).monthly_total
+    fixed_total = fixed_expense_total(db, user, target_date)
+    planned_savings = planned_savings_contribution_for_user(db, user, profile)
+    retirement_total = retirement_cash_flow_contribution(profile)
+    loan_extra_total = selected_loan_extra_payment_total(db, user)
+    safe_target = (
+        monthly_income
+        - monthly_tax
+        - fixed_total
+        - planned_savings
+        - (profile.planned_debt_payment or 0)
+        - retirement_total
+        - loan_extra_total
+    )
+    plan = MonthlyPlan(
+        user_id=user.id,
+        month=target_date,
+        income=monthly_income,
+        fixed_expenses=fixed_total,
+        planned_savings=planned_savings,
+        planned_debt_payment=profile.planned_debt_payment or 0,
+        safe_to_spend_target=safe_target,
+    )
+    db.add(plan)
+    db.commit()
+    return plan
+
+
+def sync_monthly_plan(db: Session, user: User, target_date: date | None = None, *, purpose: str = "monthly_plan") -> MonthlyPlan:
+    assert_plaid_data_purpose(purpose)
+    plan = get_or_create_monthly_plan(db, user, target_date)
+    profile = user.profile or OnboardingProfile()
+    plan.income = monthly_income_from_profile(profile)
+    monthly_tax = calculate_tax_estimate(profile).monthly_total
+    retirement_total = retirement_cash_flow_contribution(profile)
+    loan_extra_total = selected_loan_extra_payment_total(db, user)
+    planned_savings = planned_savings_contribution_for_user(db, user, profile)
+    plan.fixed_expenses = fixed_expense_total(db, user, target_date)
+    plan.planned_savings = planned_savings
+    plan.planned_debt_payment = profile.planned_debt_payment or 0
+    plan.safe_to_spend_target = (
+        plan.income - monthly_tax - plan.fixed_expenses - plan.planned_savings - plan.planned_debt_payment - retirement_total - loan_extra_total
+    )
+    db.commit()
+    sync_monthly_budget_snapshot(db, user, target_date, purpose=purpose)
+    return plan
+
+
+def transaction_category_allocations_for_period(db: Session, user: User, start_date: date, end_date: date, *, purpose: str = "monthly_plan") -> list[dict]:
+    assert_plaid_data_purpose(purpose)
+    transactions = db.scalars(
+        select(Transaction)
+        .options(
+            joinedload(Transaction.category),
+            joinedload(Transaction.account),
+            selectinload(Transaction.splits).joinedload(TransactionSplit.category),
+        )
+        .where(
+            Transaction.user_id == user.id,
+            Transaction.posted_date >= start_date,
+            Transaction.posted_date <= end_date,
+            Transaction.amount < 0,
+        )
+        .order_by(Transaction.posted_date.desc(), Transaction.id.desc())
+    ).all()
+    allocations = []
+    for transaction in transactions:
+        split_rows = [split for split in transaction.splits if (split.amount or 0) > 0]
+        if split_rows:
+            for split in split_rows:
+                category = split.category
+                if not category_counts_as_spending(category):
+                    continue
+                label = (category.name if category else "Other") or "Other"
+                allocations.append(
+                    {
+                        "transaction": transaction,
+                        "transaction_id": transaction.id,
+                        "category": category,
+                        "category_id": split.category_id,
+                        "category_name": label,
+                        "amount": abs(split.amount or 0),
+                        "is_split": True,
+                    }
+                )
+            continue
+
+        category = transaction.category
+        if not category_counts_as_spending(category):
+            continue
+        label = (category.name if category else "Other") or "Other"
+        allocations.append(
+            {
+                "transaction": transaction,
+                "transaction_id": transaction.id,
+                "category": category,
+                "category_id": transaction.category_id,
+                "category_name": label,
+                "amount": abs(transaction.amount or 0),
+                "is_split": False,
+            }
+        )
+    return allocations
+
+
+def _month_income_total(db: Session, user: User, month_start: date) -> float:
+    start, end = month_bounds(month_start)
+    return float(sum(transaction.amount or 0 for transaction in _income_transactions_between(db, user, start, end)))
+
+
+def _month_expense_total(db: Session, user: User, month_start: date) -> float:
+    start, end = month_bounds(month_start)
+    return float(sum(allocation["amount"] for allocation in transaction_category_allocations_for_period(db, user, start, end, purpose="monthly_plan")))
+
+
+def _budget_group_key_for_snapshot(category: Category | None, label: str) -> str:
+    saved_key = (getattr(category, "budget_group_key", None) or "").strip()
+    group_keys = {group["key"] for group in STARTER_CATEGORY_GROUPS}
+    if saved_key in group_keys:
+        return saved_key
+
+    normalized = (label or "").strip().lower()
+    for group in STARTER_CATEGORY_GROUPS:
+        if normalized in group["aliases"]:
+            return group["key"]
+    for group in STARTER_CATEGORY_GROUPS:
+        if any(keyword in normalized for keyword in group["keywords"]):
+            return group["key"]
+    return "miscellaneous"
+
+
+def _budget_category_snapshot_rows(db: Session, user: User, month_start: date, *, purpose: str = "monthly_plan") -> list[dict]:
+    start, end = month_bounds(month_start)
+    transactions_by_category = defaultdict(list)
+    categories_by_key: dict[str, Category] = {}
+
+    user_categories = db.scalars(select(Category).where(Category.user_id == user.id)).all()
+    for category in user_categories:
+        categories_by_key[category.name.strip().lower()] = category
+
+    for allocation in transaction_category_allocations_for_period(db, user, start, end, purpose=purpose):
+        label = (allocation["category_name"] or "Other").strip() or "Other"
+        key = label.lower()
+        transactions_by_category[key].append(allocation)
+        category = allocation.get("category")
+        if category and key not in categories_by_key:
+            categories_by_key[key] = category
+
+    rows = []
+    for normalized_label in sorted(set(categories_by_key) | set(transactions_by_category)):
+        category = categories_by_key.get(normalized_label)
+        allocations = transactions_by_category.get(normalized_label, [])
+        label = category.name if category else ((allocations[0]["category_name"] if allocations else "Other") or "Other")
+        if category and category.kind != "expense":
+            continue
+        if category and category.user_id == user.id and category.is_default and not allocations:
+            continue
+
+        planned = max(category.monthly_target if category else 0, 0)
+        actual = sum(allocation["amount"] for allocation in allocations)
+        transaction_ids = sorted({int(allocation["transaction_id"]) for allocation in allocations if allocation.get("transaction_id")})
+        if planned <= 0 and actual <= 0 and not transaction_ids:
+            continue
+
+        rows.append(
+            {
+                "category_id": category.id if category else None,
+                "category_name": label,
+                "category_kind": category.kind if category else "expense",
+                "planned": float(planned or 0),
+                "actual": float(actual or 0),
+                "group_key": _budget_group_key_for_snapshot(category, label),
+                "sort_order": category.budget_sort_order if category else None,
+                "transaction_count": len(transaction_ids),
+                "transaction_ids_json": json.dumps(transaction_ids),
+            }
+        )
+    return rows
+
+
+def sync_monthly_budget_category_snapshots(db: Session, user: User, target_date: date | None = None, *, purpose: str = "monthly_plan", force: bool = False) -> list[MonthlyBudgetCategorySnapshot]:
+    assert_plaid_data_purpose(purpose)
+    month_start = (target_date or app_today()).replace(day=1)
+    current_month_start = app_today().replace(day=1)
+    existing_rows = db.scalars(
+        select(MonthlyBudgetCategorySnapshot).where(
+            MonthlyBudgetCategorySnapshot.user_id == user.id, MonthlyBudgetCategorySnapshot.month == month_start
+        )
+    ).all()
+    if existing_rows and month_start < current_month_start and not force:
+        return existing_rows
+
+    if existing_rows:
+        for row in existing_rows:
+            db.delete(row)
+        db.flush()
+
+    snapshots = []
+    for row in _budget_category_snapshot_rows(db, user, month_start, purpose=purpose):
+        snapshot_row = MonthlyBudgetCategorySnapshot(user_id=user.id, month=month_start, **row)
+        db.add(snapshot_row)
+        snapshots.append(snapshot_row)
+    return snapshots
+
+
+def monthly_budget_category_snapshots_for_user(db: Session, user: User, target_date: date | None = None, *, purpose: str = "monthly_plan") -> list[MonthlyBudgetCategorySnapshot]:
+    assert_plaid_data_purpose(purpose)
+    month_start = (target_date or app_today()).replace(day=1)
+    rows = db.scalars(
+        select(MonthlyBudgetCategorySnapshot)
+        .where(MonthlyBudgetCategorySnapshot.user_id == user.id, MonthlyBudgetCategorySnapshot.month == month_start)
+        .order_by(
+            MonthlyBudgetCategorySnapshot.sort_order.is_(None),
+            MonthlyBudgetCategorySnapshot.sort_order.asc(),
+            MonthlyBudgetCategorySnapshot.category_name.asc(),
+        )
+    ).all()
+    if rows:
+        return rows
+
+    rows = sync_monthly_budget_category_snapshots(db, user, month_start, purpose=purpose)
+    db.commit()
+    return rows
+
+
+def sync_monthly_budget_snapshot(db: Session, user: User, target_date: date | None = None, *, purpose: str = "monthly_plan") -> MonthlyBudgetSnapshot:
+    assert_plaid_data_purpose(purpose)
+    month_start = (target_date or app_today()).replace(day=1)
+    snapshot = db.scalar(
+        select(MonthlyBudgetSnapshot).where(MonthlyBudgetSnapshot.user_id == user.id, MonthlyBudgetSnapshot.month == month_start)
+    )
+    if not snapshot:
+        snapshot = MonthlyBudgetSnapshot(user_id=user.id, month=month_start)
+        db.add(snapshot)
+
+    plan = get_or_create_monthly_plan(db, user, month_start)
+    profile = user.profile or OnboardingProfile()
+    tax_total = calculate_tax_estimate(profile).monthly_total
+    retirement_total = retirement_cash_flow_contribution(profile)
+    loan_extra_total = selected_loan_extra_payment_total(db, user)
+    variable_plan_total = variable_expense_plan_total(db, user)
+    fixed_details = fixed_plan_detail_rows(db, user, target_date=month_start)
+    variable_details = variable_plan_detail_rows(db, user, target_date=month_start)
+    actual_income = _month_income_total(db, user, month_start)
+    actual_fixed = sum(row["actual"] for row in fixed_details)
+    actual_variable = sum(row["actual"] for row in variable_details)
+    actual_total_expenses = _month_expense_total(db, user, month_start)
+    expected_cash_flow = (
+        plan.income
+        - tax_total
+        - plan.fixed_expenses
+        - variable_plan_total
+        - plan.planned_savings
+        - plan.planned_debt_payment
+        - retirement_total
+        - loan_extra_total
+    )
+    budget_remaining = (plan.fixed_expenses + variable_plan_total + tax_total) - (actual_fixed + actual_variable)
+
+    snapshot.planned_income = plan.income
+    snapshot.planned_fixed_expenses = plan.fixed_expenses
+    snapshot.planned_variable_expenses = variable_plan_total
+    snapshot.planned_savings = plan.planned_savings
+    snapshot.planned_debt_payment = plan.planned_debt_payment + loan_extra_total
+    snapshot.planned_taxes = tax_total
+    snapshot.planned_retirement = retirement_total
+    snapshot.planned_safe_to_spend = plan.safe_to_spend_target
+    snapshot.expected_cash_flow = expected_cash_flow
+    snapshot.budget_remaining = budget_remaining
+    snapshot.actual_income = actual_income
+    snapshot.actual_fixed_expenses = actual_fixed
+    snapshot.actual_variable_expenses = actual_variable
+    snapshot.actual_total_expenses = actual_total_expenses
+    snapshot.net_cash_flow = actual_income - actual_total_expenses
+    sync_monthly_budget_category_snapshots(db, user, month_start, purpose=purpose)
+    db.commit()
+    return snapshot
+
+
+def analytics_months(end_month: date | None = None, range_key: str = "month") -> list[date]:
+    if range_key not in ANALYTICS_RANGE_OPTIONS:
+        range_key = "month"
+    month_count = {"month": 1, "quarter": 3, "six_months": 6, "year": 12}[range_key]
+    end_month = (end_month or app_today()).replace(day=1)
+    start_month = add_months(end_month, -(month_count - 1))
+    months = []
+    cursor = start_month
+    while cursor <= end_month:
+        months.append(cursor)
+        cursor = add_months(cursor, 1)
+    return months
+
+
+def parse_month_input(raw_value: str | None) -> date:
+    if not raw_value:
+        return app_today().replace(day=1)
+    return datetime.strptime(f"{raw_value}-01", "%Y-%m-%d").date()
+
+
+def sync_monthly_budget_snapshots_for_range(db: Session, user: User, months: list[date], *, purpose: str = "monthly_plan") -> list[MonthlyBudgetSnapshot]:
+    assert_plaid_data_purpose(purpose)
+    return [sync_monthly_budget_snapshot(db, user, month, purpose=purpose) for month in months]
+
+
+def spending_by_category_between(db: Session, user: User, start_date: date, end_date: date, limit: int = 8, *, purpose: str = "monthly_plan") -> list[dict]:
+    assert_plaid_data_purpose(purpose)
+    totals: dict[str, dict] = defaultdict(lambda: {"amount": 0.0, "category_id": None})
+    for allocation in transaction_category_allocations_for_period(db, user, start_date, end_date, purpose=purpose):
+        row = totals[allocation["category_name"]]
+        row["amount"] += allocation["amount"]
+        row["category_id"] = row["category_id"] or allocation.get("category_id")
+    rows = sorted(totals.items(), key=lambda row: row[1]["amount"], reverse=True)[:limit]
+    return [
+        {"category": category, "category_id": row["category_id"], "amount": float(row["amount"] or 0)}
+        for category, row in rows
+    ]
+
+
+def _plaid_post_sync_hook(db: Session, user: User) -> None:
+    sync_monthly_plan(db, user, purpose="monthly_plan")
+
+
+# Flask calls sync_monthly_plan after subscription rescans on Plaid syncs.
+# planning_service imports subscription_service (inside the detail-row
+# builders), and the subscriptions router imports subscription_service at app
+# startup, so its hook registers before this one — matching Flask's
+# scan-then-sync ordering.
+if _plaid_post_sync_hook not in plaid_service.POST_SYNC_HOOKS:
+    plaid_service.POST_SYNC_HOOKS.append(_plaid_post_sync_hook)
