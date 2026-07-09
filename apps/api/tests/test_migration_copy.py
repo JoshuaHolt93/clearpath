@@ -17,11 +17,14 @@ from scripts.copy_from_flask_sqlite import CUSTOMER_DATA_PREFIX, CopyScriptError
 
 API_ROOT = Path(__file__).resolve().parents[1]
 PHASE1_TABLES = [
+    "plaid_webhook_event",
     "transaction_split",
     "transaction",
     "category_rule",
     "category",
     "account",
+    "plaid_account_ignore",
+    "plaid_item",
     "household_invite",
     "onboarding_profile",
     "household_member",
@@ -152,8 +155,35 @@ def create_sample_flask_sqlite(path: Path, *, customer_key: str, plaid_key: str)
             );
             CREATE TABLE plaid_item (
                 id INTEGER PRIMARY KEY,
+                user_id INTEGER NOT NULL,
+                plaid_item_id TEXT NOT NULL,
                 access_token_encrypted TEXT,
-                sync_cursor TEXT
+                institution_name TEXT,
+                sync_cursor TEXT,
+                status TEXT,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            );
+            CREATE TABLE plaid_account_ignore (
+                id INTEGER PRIMARY KEY,
+                user_id INTEGER NOT NULL,
+                plaid_item_id INTEGER,
+                plaid_account_id TEXT NOT NULL,
+                account_name TEXT,
+                institution_name TEXT,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            );
+            CREATE TABLE plaid_webhook_event (
+                id INTEGER PRIMARY KEY,
+                idempotency_key TEXT NOT NULL,
+                plaid_item_id INTEGER,
+                webhook_type TEXT NOT NULL,
+                webhook_code TEXT NOT NULL,
+                status TEXT NOT NULL,
+                processed_at TEXT,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
             );
             """
         )
@@ -223,8 +253,35 @@ def create_sample_flask_sqlite(path: Path, *, customer_key: str, plaid_key: str)
             (900, 1, 800, 600, 42.25, encrypted_customer_value(customer_key, "split note"), now, now),
         )
         conn.execute(
-            "INSERT INTO plaid_item (id, access_token_encrypted, sync_cursor) VALUES (?, ?, ?)",
-            (400, plaid_token_value(plaid_key, "access-sandbox-token"), encrypted_customer_value(customer_key, "cursor-value")),
+            "INSERT INTO plaid_item (id, user_id, plaid_item_id, access_token_encrypted, institution_name, sync_cursor, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (
+                400,
+                1,
+                "item-flask-1",
+                plaid_token_value(plaid_key, "access-sandbox-token"),
+                encrypted_customer_value(customer_key, "Flask Test Bank"),
+                encrypted_customer_value(customer_key, "cursor-value"),
+                "connected",
+                now,
+                now,
+            ),
+        )
+        conn.execute(
+            "INSERT INTO plaid_account_ignore (id, user_id, plaid_item_id, plaid_account_id, account_name, institution_name, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            (
+                410,
+                1,
+                400,
+                "acct-ignored-1",
+                encrypted_customer_value(customer_key, "Old Savings"),
+                encrypted_customer_value(customer_key, "Flask Test Bank"),
+                now,
+                now,
+            ),
+        )
+        conn.execute(
+            "INSERT INTO plaid_webhook_event (id, idempotency_key, plaid_item_id, webhook_type, webhook_code, status, processed_at, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (420, "idem-key-1", 400, "TRANSACTIONS", "SYNC_UPDATES_AVAILABLE", "processed", now, now, now),
         )
         conn.commit()
     finally:
@@ -300,11 +357,14 @@ def test_copy_phase1_supplies_defaults_and_truncates_with_sqlite():
             "onboarding_profile": 1,
             "household_invite": 1,
             "login_attempt": 1,
+            "plaid_item": 1,
+            "plaid_account_ignore": 1,
             "account": 1,
             "category": 1,
             "category_rule": 1,
             "transaction": 1,
             "transaction_split": 1,
+            "plaid_webhook_event": 1,
         }
         second_counts = copy_phase1(source_conn, target_engine, truncate=True)
         assert second_counts == counts
@@ -381,6 +441,9 @@ def test_alembic_upgrade_and_sqlite_copy_against_real_postgres(tmp_path):
     assert "category_rule: 1" in first.stdout
     assert "transaction: 1" in first.stdout
     assert "transaction_split: 1" in first.stdout
+    assert "plaid_item: 1" in first.stdout
+    assert "plaid_account_ignore: 1" in first.stdout
+    assert "plaid_webhook_event: 1" in first.stdout
 
     subprocess.run(command_line, cwd=API_ROOT, env=env, text=True, capture_output=True, check=True)
 
@@ -395,6 +458,10 @@ def test_alembic_upgrade_and_sqlite_copy_against_real_postgres(tmp_path):
         assert conn.scalar(text("SELECT count(*) FROM category_rule")) == 1
         assert conn.scalar(text('SELECT count(*) FROM "transaction"')) == 1
         assert conn.scalar(text("SELECT count(*) FROM transaction_split")) == 1
+        assert conn.scalar(text("SELECT count(*) FROM plaid_item")) == 1
+        assert conn.scalar(text("SELECT count(*) FROM plaid_account_ignore")) == 1
+        assert conn.scalar(text("SELECT count(*) FROM plaid_webhook_event")) == 1
+        plaid_row = conn.execute(text("SELECT access_token_encrypted, sync_cursor, status FROM plaid_item WHERE id = 400")).one()
         user_row = conn.execute(text('SELECT display_name, is_admin, mfa_enabled FROM "user" WHERE id = 1')).one()
         profile_row = conn.execute(text("SELECT include_payroll_taxes, paycheck_cadence FROM onboarding_profile WHERE id = 100")).one()
         account_row = conn.execute(text("SELECT name, is_manual FROM account WHERE id = 500")).one()
@@ -412,3 +479,10 @@ def test_alembic_upgrade_and_sqlite_copy_against_real_postgres(tmp_path):
     assert profile_row.paycheck_cadence == "semimonthly"
     assert account_row.is_manual is True
     assert transaction_row.pending is False
+    # Plaid ciphertext must copy verbatim: the access token decrypts with the
+    # Plaid key and the sync cursor with the customer-data key.
+    decrypted_access_token = Fernet(plaid_key.encode("ascii")).decrypt(plaid_row.access_token_encrypted.encode("ascii")).decode("utf-8")
+    decrypted_cursor = Fernet(customer_key.encode("ascii")).decrypt(plaid_row.sync_cursor[len(CUSTOMER_DATA_PREFIX) :].encode("ascii")).decode("utf-8")
+    assert decrypted_access_token == "access-sandbox-token"
+    assert decrypted_cursor == "cursor-value"
+    assert plaid_row.status == "connected"

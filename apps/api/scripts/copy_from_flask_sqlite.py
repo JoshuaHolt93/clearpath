@@ -27,18 +27,24 @@ PHASE1_TABLES = [
     "onboarding_profile",
     "household_invite",
     "login_attempt",
+    "plaid_item",
+    "plaid_account_ignore",
     "account",
     "category",
     "category_rule",
     "transaction",
     "transaction_split",
+    "plaid_webhook_event",
 ]
 PHASE1_TRUNCATE_TABLES = [
+    "plaid_webhook_event",
     "transaction_split",
     "transaction",
     "category_rule",
     "category",
     "account",
+    "plaid_account_ignore",
+    "plaid_item",
     "login_attempt",
     "household_invite",
     "onboarding_profile",
@@ -69,6 +75,8 @@ PHASE1_ENCRYPTED_COLUMNS = {
     "category_rule": ["match_text", "conditions_json"],
     "transaction": ["description", "merchant", "source_name", "notes", "plaid_metadata"],
     "transaction_split": ["notes"],
+    "plaid_item": ["institution_name", "sync_cursor", "error_message"],
+    "plaid_account_ignore": ["account_name", "institution_name"],
 }
 
 
@@ -112,6 +120,23 @@ def _base_defaults() -> dict[str, dict[str, Any]]:
         "login_attempt": {
             "attempted_at": now,
             "success": False,
+            "created_at": now,
+            "updated_at": now,
+        },
+        "plaid_item": {
+            "status": "connected",
+            "access_token_encrypted": "",
+            "created_at": now,
+            "updated_at": now,
+        },
+        "plaid_account_ignore": {
+            "created_at": now,
+            "updated_at": now,
+        },
+        "plaid_webhook_event": {
+            "webhook_type": "UNKNOWN",
+            "webhook_code": "UNKNOWN",
+            "status": "processing",
             "created_at": now,
             "updated_at": now,
         },

@@ -93,6 +93,26 @@ LEGACY_CATEGORY_REMAP = {
 CREDIT_CARD_PAYMENT_CATEGORY_NAME = "Credit Card Payments"
 ALWAYS_ENSURE_STARTER_CATEGORY_NAMES = {CREDIT_CARD_PAYMENT_CATEGORY_NAME}
 
+DEFAULT_CATEGORY_TARGETS = {name: monthly_target for name, _kind, monthly_target, _group in STARTER_CATEGORY_TUPLES}
+
+CREDIT_CARD_PAYMENT_TERMS = ("payment", "pymt", "autopay", "auto pay", "thank you", "epayment", "e-payment")
+CREDIT_CARD_CONTEXT_TERMS = (
+    "credit card",
+    "creditcard",
+    "citi",
+    "citicard",
+    "citi card",
+    "capital one",
+    "discover",
+    "american express",
+    "amex",
+    "chase card",
+    "barclay",
+    "synchrony",
+    "wells fargo card",
+    "bank of america card",
+)
+
 RULE_FIELD_OPTIONS = {"description", "account", "amount", "category"}
 RULE_OPERATOR_OPTIONS = {"contains", "equals", "starts_with", "ends_with", "not_contains", "gt", "gte", "lt", "lte", "between"}
 
@@ -804,12 +824,108 @@ def clear_staged_import(staged_import_id: str) -> None:
     path.unlink(missing_ok=True)
 
 
+def looks_like_credit_card_payment(
+    description: str | None,
+    merchant: str | None = None,
+    source_name: str | None = None,
+    account_name: str | None = None,
+    account_type: str | None = None,
+) -> bool:
+    text = normalize_text(" ".join([description or "", merchant or "", source_name or "", account_name or "", account_type or ""]))
+    if not text:
+        return False
+    has_payment_language = any(term in text for term in CREDIT_CARD_PAYMENT_TERMS)
+    has_card_context = any(term in text for term in CREDIT_CARD_CONTEXT_TERMS)
+    return has_payment_language and has_card_context
+
+
 def transaction_amount_cents(transaction: Transaction) -> int:
     return int(round((transaction.amount or 0) * 100))
 
 
 def transaction_duplicate_key(transaction: Transaction) -> tuple[date, int]:
     return transaction.posted_date, transaction_amount_cents(transaction)
+
+
+def merge_duplicate_transactions_for_user(db: Session, user: User) -> int:
+    duplicate_hashes = [
+        import_hash
+        for (import_hash,) in db.execute(
+            select(Transaction.import_hash)
+            .where(Transaction.user_id == user.id)
+            .group_by(Transaction.import_hash)
+            .having(func.count(Transaction.id) > 1)
+        ).all()
+    ]
+    merged = 0
+    other_category = db.scalar(select(Category).where(Category.user_id == user.id, Category.name == "Other"))
+
+    for import_hash in duplicate_hashes:
+        transactions = db.scalars(
+            select(Transaction).where(Transaction.user_id == user.id, Transaction.import_hash == import_hash).order_by(Transaction.id.asc())
+        ).all()
+        plaid_transactions = [transaction for transaction in transactions if transaction.plaid_transaction_id]
+        manual_transactions = [transaction for transaction in transactions if not transaction.plaid_transaction_id]
+        if not manual_transactions:
+            continue
+
+        if plaid_transactions:
+            canonical = sorted(
+                plaid_transactions,
+                key=lambda transaction: (transaction.updated_at or transaction.created_at or datetime.min, transaction.id),
+                reverse=True,
+            )[0]
+            duplicates = manual_transactions
+        else:
+            canonical = manual_transactions[0]
+            duplicates = manual_transactions[1:]
+
+        for duplicate in duplicates:
+            merged += _merge_transaction_duplicate(db, user, canonical, duplicate, other_category)
+
+    merged += _merge_reconnected_plaid_duplicates(db, user, other_category)
+
+    if merged:
+        db.commit()
+    return merged
+
+
+def _merge_reconnected_plaid_duplicates(db: Session, user: User, other_category: Category | None) -> int:
+    transactions = db.scalars(
+        select(Transaction).where(Transaction.user_id == user.id).order_by(Transaction.posted_date.asc(), Transaction.id.asc())
+    ).all()
+    manual_by_day_amount: dict[tuple[date, int], list[Transaction]] = {}
+    plaid_transactions = []
+    for transaction in transactions:
+        key = transaction_duplicate_key(transaction)
+        if transaction.plaid_transaction_id:
+            plaid_transactions.append(transaction)
+        else:
+            manual_by_day_amount.setdefault(key, []).append(transaction)
+
+    merged = 0
+    merged_manual_ids: set[int] = set()
+    for plaid_transaction in plaid_transactions:
+        key = transaction_duplicate_key(plaid_transaction)
+        candidates = [
+            transaction
+            for transaction in manual_by_day_amount.get(key, [])
+            if transaction.id not in merged_manual_ids
+        ]
+        scored_candidates = [
+            (score, transaction)
+            for transaction in candidates
+            if (score := _transaction_description_match_score(plaid_transaction, transaction)) >= 0.75
+        ]
+        if not scored_candidates:
+            continue
+        scored_candidates.sort(key=lambda row: (-row[0], row[1].id))
+        if len(scored_candidates) > 1 and scored_candidates[0][0] == scored_candidates[1][0] and scored_candidates[0][0] < 1:
+            continue
+        duplicate = scored_candidates[0][1]
+        merged_manual_ids.add(duplicate.id)
+        merged += _merge_transaction_duplicate(db, user, plaid_transaction, duplicate, other_category)
+    return merged
 
 
 def merge_transaction_pair_for_user(db: Session, user: User, first: Transaction, second: Transaction) -> Transaction:

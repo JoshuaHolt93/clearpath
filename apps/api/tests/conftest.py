@@ -17,6 +17,9 @@ os.environ.setdefault("EXPOSE_DEV_TOKENS", "true")
 # Use a cheap KDF in tests. The strong scrypt default (~1s/hash) otherwise
 # dominates the suite because MFA setup hashes 10 recovery codes per account.
 os.environ.setdefault("PASSWORD_HASH_METHOD", "pbkdf2:sha256:1000")
+# Plaid credentials for the mocked-client tests; no real Plaid calls are made.
+os.environ.setdefault("PLAID_CLIENT_ID", "test-plaid-client")
+os.environ.setdefault("PLAID_SECRET", "test-plaid-secret")
 os.environ.setdefault("CUSTOMER_DATA_ENCRYPTION_KEY", Fernet.generate_key().decode("ascii"))
 os.environ.setdefault("PLAID_TOKEN_ENCRYPTION_KEY", Fernet.generate_key().decode("ascii"))
 

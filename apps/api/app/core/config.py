@@ -23,9 +23,23 @@ class Settings(BaseSettings):
     customer_data_encryption_key: str | None = Field(default=None, alias="CUSTOMER_DATA_ENCRYPTION_KEY")
     plaid_webhook_secret: str | None = Field(default=None, alias="PLAID_WEBHOOK_SECRET")
 
+    plaid_client_id: str | None = Field(default=None, alias="PLAID_CLIENT_ID")
+    plaid_secret: str | None = Field(default=None, alias="PLAID_SECRET")
+    plaid_env: str = Field(default="sandbox", alias="PLAID_ENV")
+    plaid_products: list[str] = Field(default=["transactions"], alias="PLAID_PRODUCTS")
+    plaid_country_codes: list[str] = Field(default=["US"], alias="PLAID_COUNTRY_CODES")
+    plaid_redirect_uri: str | None = Field(default=None, alias="PLAID_REDIRECT_URI")
+    plaid_webhook_url: str | None = Field(default=None, alias="PLAID_WEBHOOK_URL")
+    auto_refresh_plaid_on_page_load: bool = Field(default=True, alias="AUTO_REFRESH_PLAID_ON_PAGE_LOAD")
+    plaid_auto_refresh_min_interval_minutes: int = Field(default=15, alias="PLAID_AUTO_REFRESH_MIN_INTERVAL_MINUTES")
+
     @property
     def is_production(self) -> bool:
         return self.app_env.lower() == "production"
+
+    @property
+    def is_testing(self) -> bool:
+        return self.app_env.lower() == "testing"
 
 
 @lru_cache

@@ -26,7 +26,7 @@ class Account(TimestampMixin, Base):
     cash_projection_role: Mapped[str] = mapped_column(String(20), default="auto", nullable=False)
     is_manual: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     plaid_account_id: Mapped[str | None] = mapped_column(String(140), index=True)
-    plaid_item_id: Mapped[int | None] = mapped_column(Integer)
+    plaid_item_id: Mapped[int | None] = mapped_column(ForeignKey("plaid_item.id"))
     mask: Mapped[str | None] = mapped_column(String(20))
 
     user: Mapped["User"] = relationship("User", back_populates="accounts")
