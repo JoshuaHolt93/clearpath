@@ -2,6 +2,7 @@ from app.models.auth import HouseholdInvite, HouseholdMember, LoginAttempt, Onbo
 from app.models.base import Base, utc_now
 from app.models.finance import Account, Category, CategoryRule, Transaction, TransactionSplit
 from app.models.plaid import PlaidAccountIgnore, PlaidItem, PlaidWebhookEvent
+from app.models.subscriptions import Subscription, SubscriptionTransactionIgnore
 
 __all__ = [
     "Account",
@@ -15,6 +16,8 @@ __all__ = [
     "PlaidAccountIgnore",
     "PlaidItem",
     "PlaidWebhookEvent",
+    "Subscription",
+    "SubscriptionTransactionIgnore",
     "Transaction",
     "TransactionSplit",
     "User",

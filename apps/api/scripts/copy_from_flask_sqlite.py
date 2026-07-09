@@ -34,10 +34,14 @@ PHASE1_TABLES = [
     "category_rule",
     "transaction",
     "transaction_split",
+    "subscription",
+    "subscription_transaction_ignore",
     "plaid_webhook_event",
 ]
 PHASE1_TRUNCATE_TABLES = [
     "plaid_webhook_event",
+    "subscription_transaction_ignore",
+    "subscription",
     "transaction_split",
     "transaction",
     "category_rule",
@@ -77,6 +81,8 @@ PHASE1_ENCRYPTED_COLUMNS = {
     "transaction_split": ["notes"],
     "plaid_item": ["institution_name", "sync_cursor", "error_message"],
     "plaid_account_ignore": ["account_name", "institution_name"],
+    "subscription": ["name", "cancel_url", "evidence", "notes"],
+    "subscription_transaction_ignore": ["description"],
 }
 
 
@@ -137,6 +143,26 @@ def _base_defaults() -> dict[str, dict[str, Any]]:
             "webhook_type": "UNKNOWN",
             "webhook_code": "UNKNOWN",
             "status": "processing",
+            "created_at": now,
+            "updated_at": now,
+        },
+        "subscription": {
+            "category": "Consumer Subscriptions",
+            "service_category": "Recurring",
+            "amount": 0.0,
+            "monthly_amount": 0.0,
+            "annual_amount": 0.0,
+            "cycle": "Monthly",
+            "cycle_days": 30,
+            "confidence": 0.0,
+            "status": "active",
+            "replaceable": True,
+            "is_manual": False,
+            "cycle_is_manual": False,
+            "created_at": now,
+            "updated_at": now,
+        },
+        "subscription_transaction_ignore": {
             "created_at": now,
             "updated_at": now,
         },

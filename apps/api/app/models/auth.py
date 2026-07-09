@@ -51,6 +51,7 @@ class User(TimestampMixin, Base):
     transactions: Mapped[list["Transaction"]] = relationship("Transaction", back_populates="user", cascade="all, delete-orphan")
     transaction_splits: Mapped[list["TransactionSplit"]] = relationship("TransactionSplit", back_populates="user", cascade="all, delete-orphan")
     plaid_items: Mapped[list["PlaidItem"]] = relationship("PlaidItem", back_populates="user", cascade="all, delete-orphan")
+    subscriptions: Mapped[list["Subscription"]] = relationship("Subscription", back_populates="user", cascade="all, delete-orphan")
     profile: Mapped[OnboardingProfile | None] = relationship(back_populates="user", cascade="all, delete-orphan")
     household_members: Mapped[list[HouseholdMember]] = relationship(
         back_populates="owner_user",

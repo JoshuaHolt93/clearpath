@@ -10,6 +10,7 @@ from app.models import Base  # noqa: F401
 from app.models import auth  # noqa: F401
 from app.models import finance  # noqa: F401
 from app.models import plaid  # noqa: F401
+from app.models import subscriptions  # noqa: F401
 
 config = context.config
 if config.config_file_name is not None:

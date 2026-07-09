@@ -18,6 +18,8 @@ from scripts.copy_from_flask_sqlite import CUSTOMER_DATA_PREFIX, CopyScriptError
 API_ROOT = Path(__file__).resolve().parents[1]
 PHASE1_TABLES = [
     "plaid_webhook_event",
+    "subscription_transaction_ignore",
+    "subscription",
     "transaction_split",
     "transaction",
     "category_rule",
@@ -185,6 +187,30 @@ def create_sample_flask_sqlite(path: Path, *, customer_key: str, plaid_key: str)
                 created_at TEXT NOT NULL,
                 updated_at TEXT NOT NULL
             );
+            CREATE TABLE subscription (
+                id INTEGER PRIMARY KEY,
+                user_id INTEGER NOT NULL,
+                merchant_key TEXT NOT NULL,
+                name TEXT NOT NULL,
+                cycle TEXT,
+                monthly_amount REAL,
+                status TEXT,
+                cancel_url TEXT,
+                is_manual INTEGER,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            );
+            CREATE TABLE subscription_transaction_ignore (
+                id INTEGER PRIMARY KEY,
+                user_id INTEGER NOT NULL,
+                transaction_id INTEGER NOT NULL,
+                subscription_id INTEGER,
+                merchant_key TEXT,
+                amount REAL,
+                description TEXT,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            );
             """
         )
         now = "2026-07-02T10:11:12"
@@ -283,6 +309,26 @@ def create_sample_flask_sqlite(path: Path, *, customer_key: str, plaid_key: str)
             "INSERT INTO plaid_webhook_event (id, idempotency_key, plaid_item_id, webhook_type, webhook_code, status, processed_at, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
             (420, "idem-key-1", 400, "TRANSACTIONS", "SYNC_UPDATES_AVAILABLE", "processed", now, now, now),
         )
+        conn.execute(
+            "INSERT INTO subscription (id, user_id, merchant_key, name, cycle, monthly_amount, status, cancel_url, is_manual, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (
+                1000,
+                1,
+                "netflix",
+                encrypted_customer_value(customer_key, "Netflix"),
+                "Monthly",
+                18.99,
+                "active",
+                encrypted_customer_value(customer_key, "https://www.netflix.com/cancelplan"),
+                0,
+                now,
+                now,
+            ),
+        )
+        conn.execute(
+            "INSERT INTO subscription_transaction_ignore (id, user_id, transaction_id, subscription_id, merchant_key, amount, description, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (1100, 1, 800, 1000, "netflix", -18.99, encrypted_customer_value(customer_key, "NETFLIX.COM"), now, now),
+        )
         conn.commit()
     finally:
         conn.close()
@@ -364,6 +410,8 @@ def test_copy_phase1_supplies_defaults_and_truncates_with_sqlite():
             "category_rule": 1,
             "transaction": 1,
             "transaction_split": 1,
+            "subscription": 1,
+            "subscription_transaction_ignore": 1,
             "plaid_webhook_event": 1,
         }
         second_counts = copy_phase1(source_conn, target_engine, truncate=True)
@@ -444,6 +492,8 @@ def test_alembic_upgrade_and_sqlite_copy_against_real_postgres(tmp_path):
     assert "plaid_item: 1" in first.stdout
     assert "plaid_account_ignore: 1" in first.stdout
     assert "plaid_webhook_event: 1" in first.stdout
+    assert "subscription: 1" in first.stdout
+    assert "subscription_transaction_ignore: 1" in first.stdout
 
     subprocess.run(command_line, cwd=API_ROOT, env=env, text=True, capture_output=True, check=True)
 
@@ -461,6 +511,9 @@ def test_alembic_upgrade_and_sqlite_copy_against_real_postgres(tmp_path):
         assert conn.scalar(text("SELECT count(*) FROM plaid_item")) == 1
         assert conn.scalar(text("SELECT count(*) FROM plaid_account_ignore")) == 1
         assert conn.scalar(text("SELECT count(*) FROM plaid_webhook_event")) == 1
+        assert conn.scalar(text("SELECT count(*) FROM subscription")) == 1
+        assert conn.scalar(text("SELECT count(*) FROM subscription_transaction_ignore")) == 1
+        subscription_row = conn.execute(text("SELECT name, replaceable, monthly_amount FROM subscription WHERE id = 1000")).one()
         plaid_row = conn.execute(text("SELECT access_token_encrypted, sync_cursor, status FROM plaid_item WHERE id = 400")).one()
         user_row = conn.execute(text('SELECT display_name, is_admin, mfa_enabled FROM "user" WHERE id = 1')).one()
         profile_row = conn.execute(text("SELECT include_payroll_taxes, paycheck_cadence FROM onboarding_profile WHERE id = 100")).one()
@@ -486,3 +539,8 @@ def test_alembic_upgrade_and_sqlite_copy_against_real_postgres(tmp_path):
     assert decrypted_access_token == "access-sandbox-token"
     assert decrypted_cursor == "cursor-value"
     assert plaid_row.status == "connected"
+    decrypted_subscription_name = Fernet(customer_key.encode("ascii")).decrypt(subscription_row.name[len(CUSTOMER_DATA_PREFIX) :].encode("ascii")).decode("utf-8")
+    assert decrypted_subscription_name == "Netflix"
+    # replaceable is absent from the source, so the copy default (True) applies.
+    assert subscription_row.replaceable is True
+    assert subscription_row.monthly_amount == 18.99
