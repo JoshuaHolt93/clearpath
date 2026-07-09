@@ -85,6 +85,22 @@ def _actual_foreign_keys(inspector, table_name: str) -> set[tuple[tuple[str, ...
     }
 
 
+def test_revision_ids_fit_alembic_version_column():
+    # Alembic's alembic_version.version_num is VARCHAR(32). SQLite ignores the
+    # length but Postgres enforces it, so an over-long revision id passes every
+    # local SQLite test and then fails the version stamp in CI. Guard it here.
+    from alembic.script import ScriptDirectory
+
+    alembic_cfg = Config(str(API_ROOT / "alembic.ini"))
+    alembic_cfg.set_main_option("script_location", str(API_ROOT / "migrations"))
+    script = ScriptDirectory.from_config(alembic_cfg)
+    for revision in script.walk_revisions():
+        assert len(revision.revision) <= 32, (
+            f"Revision id '{revision.revision}' is {len(revision.revision)} chars; "
+            "alembic_version.version_num is VARCHAR(32) on Postgres."
+        )
+
+
 def test_sqlite_alembic_schema_matches_phase1_metadata():
     temp = tempfile.NamedTemporaryFile(delete=False, suffix=".db")
     temp.close()

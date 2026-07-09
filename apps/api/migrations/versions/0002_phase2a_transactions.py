@@ -1,6 +1,6 @@
 """phase 2a transactions categories and imports
 
-Revision ID: 0002_phase2a_transactions_categories
+Revision ID: 0002_phase2a_transactions
 Revises: 0001_phase1_auth_households
 Create Date: 2026-07-02
 """
@@ -9,7 +9,7 @@ from __future__ import annotations
 from alembic import op
 import sqlalchemy as sa
 
-revision = "0002_phase2a_transactions_categories"
+revision = "0002_phase2a_transactions"
 down_revision = "0001_phase1_auth_households"
 branch_labels = None
 depends_on = None
