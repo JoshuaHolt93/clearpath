@@ -52,6 +52,15 @@ class User(TimestampMixin, Base):
     transaction_splits: Mapped[list["TransactionSplit"]] = relationship("TransactionSplit", back_populates="user", cascade="all, delete-orphan")
     plaid_items: Mapped[list["PlaidItem"]] = relationship("PlaidItem", back_populates="user", cascade="all, delete-orphan")
     subscriptions: Mapped[list["Subscription"]] = relationship("Subscription", back_populates="user", cascade="all, delete-orphan")
+    goals: Mapped[list["Goal"]] = relationship("Goal", back_populates="user", cascade="all, delete-orphan")
+    monthly_plans: Mapped[list["MonthlyPlan"]] = relationship("MonthlyPlan", back_populates="user", cascade="all, delete-orphan")
+    monthly_budget_snapshots: Mapped[list["MonthlyBudgetSnapshot"]] = relationship("MonthlyBudgetSnapshot", back_populates="user", cascade="all, delete-orphan")
+    monthly_budget_category_snapshots: Mapped[list["MonthlyBudgetCategorySnapshot"]] = relationship(
+        "MonthlyBudgetCategorySnapshot", back_populates="user", cascade="all, delete-orphan"
+    )
+    insights: Mapped[list["Insight"]] = relationship("Insight", back_populates="user", cascade="all, delete-orphan")
+    forecast_items: Mapped[list["ForecastItem"]] = relationship("ForecastItem", back_populates="user", cascade="all, delete-orphan")
+    ai_usage_logs: Mapped[list["AIUsageLog"]] = relationship("AIUsageLog", back_populates="user", cascade="all, delete-orphan")
     profile: Mapped[OnboardingProfile | None] = relationship(back_populates="user", cascade="all, delete-orphan")
     household_members: Mapped[list[HouseholdMember]] = relationship(
         back_populates="owner_user",

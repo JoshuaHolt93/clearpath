@@ -20,6 +20,18 @@ PHASE1_TABLES = [
     "plaid_webhook_event",
     "subscription_transaction_ignore",
     "subscription",
+    "ai_usage_log",
+    "loan_plan",
+    "cash_projection_recurring_ignore",
+    "insight",
+    "monthly_budget_category_snapshot",
+    "monthly_budget_snapshot",
+    "monthly_plan",
+    "goal",
+    "forecast_item",
+    "recurring_forecast_template",
+    "variable_expense_item",
+    "fixed_expense_item",
     "transaction_split",
     "transaction",
     "category_rule",
@@ -211,6 +223,70 @@ def create_sample_flask_sqlite(path: Path, *, customer_key: str, plaid_key: str)
                 created_at TEXT NOT NULL,
                 updated_at TEXT NOT NULL
             );
+            CREATE TABLE fixed_expense_item (
+                id INTEGER PRIMARY KEY,
+                user_id INTEGER NOT NULL,
+                name TEXT NOT NULL,
+                amount REAL,
+                start_date TEXT,
+                frequency TEXT,
+                category_label TEXT,
+                is_loan INTEGER,
+                notes TEXT,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            );
+            CREATE TABLE goal (
+                id INTEGER PRIMARY KEY,
+                user_id INTEGER NOT NULL,
+                name TEXT NOT NULL,
+                goal_type TEXT NOT NULL,
+                target_amount REAL NOT NULL,
+                current_amount REAL,
+                monthly_contribution REAL,
+                target_date TEXT,
+                fixed_expense_item_id INTEGER,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            );
+            CREATE TABLE monthly_plan (
+                id INTEGER PRIMARY KEY,
+                user_id INTEGER NOT NULL,
+                month TEXT NOT NULL,
+                income REAL,
+                fixed_expenses REAL,
+                planned_savings REAL,
+                planned_debt_payment REAL,
+                safe_to_spend_target REAL,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            );
+            CREATE TABLE insight (
+                id INTEGER PRIMARY KEY,
+                user_id INTEGER NOT NULL,
+                month TEXT NOT NULL,
+                title TEXT NOT NULL,
+                body TEXT NOT NULL,
+                level TEXT,
+                insight_type TEXT NOT NULL,
+                is_active INTEGER,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            );
+            CREATE TABLE loan_plan (
+                id INTEGER PRIMARY KEY,
+                user_id INTEGER NOT NULL,
+                fixed_expense_item_id INTEGER NOT NULL,
+                loan_type TEXT,
+                principal_balance REAL,
+                annual_interest_rate REAL,
+                term_months INTEGER,
+                regular_payment REAL,
+                selected_scenario TEXT,
+                notes TEXT,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            );
             """
         )
         now = "2026-07-02T10:11:12"
@@ -329,6 +405,49 @@ def create_sample_flask_sqlite(path: Path, *, customer_key: str, plaid_key: str)
             "INSERT INTO subscription_transaction_ignore (id, user_id, transaction_id, subscription_id, merchant_key, amount, description, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
             (1100, 1, 800, 1000, "netflix", -18.99, encrypted_customer_value(customer_key, "NETFLIX.COM"), now, now),
         )
+        conn.execute(
+            "INSERT INTO fixed_expense_item (id, user_id, name, amount, start_date, frequency, category_label, is_loan, notes, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (
+                1200,
+                1,
+                encrypted_customer_value(customer_key, "Mortgage Payment"),
+                1800.0,
+                "2026-01-01",
+                "monthly",
+                "Mortgage/Rent",
+                1,
+                encrypted_customer_value(customer_key, "primary residence"),
+                now,
+                now,
+            ),
+        )
+        conn.execute(
+            "INSERT INTO goal (id, user_id, name, goal_type, target_amount, current_amount, monthly_contribution, fixed_expense_item_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (1300, 1, encrypted_customer_value(customer_key, "Emergency Fund"), "savings", 10000.0, 2500.0, 250.0, None, now, now),
+        )
+        conn.execute(
+            "INSERT INTO monthly_plan (id, user_id, month, income, fixed_expenses, planned_savings, planned_debt_payment, safe_to_spend_target, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (1400, 1, "2026-07-01", 5000.0, 1800.0, 500.0, 300.0, 1200.0, now, now),
+        )
+        conn.execute(
+            "INSERT INTO insight (id, user_id, month, title, body, level, insight_type, is_active, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (
+                1500,
+                1,
+                "2026-07-01",
+                encrypted_customer_value(customer_key, "Spending is on track"),
+                encrypted_customer_value(customer_key, "You are under budget this month."),
+                "info",
+                "on_track",
+                1,
+                now,
+                now,
+            ),
+        )
+        conn.execute(
+            "INSERT INTO loan_plan (id, user_id, fixed_expense_item_id, loan_type, principal_balance, annual_interest_rate, term_months, regular_payment, selected_scenario, notes, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (1600, 1, 1200, "mortgage", 285000.0, 5.875, 360, 1800.0, "base", encrypted_customer_value(customer_key, "30yr fixed"), now, now),
+        )
         conn.commit()
     finally:
         conn.close()
@@ -410,6 +529,18 @@ def test_copy_phase1_supplies_defaults_and_truncates_with_sqlite():
             "category_rule": 1,
             "transaction": 1,
             "transaction_split": 1,
+            "fixed_expense_item": 1,
+            "variable_expense_item": 0,
+            "recurring_forecast_template": 0,
+            "forecast_item": 0,
+            "goal": 1,
+            "monthly_plan": 1,
+            "monthly_budget_snapshot": 0,
+            "monthly_budget_category_snapshot": 0,
+            "insight": 1,
+            "cash_projection_recurring_ignore": 0,
+            "loan_plan": 1,
+            "ai_usage_log": 0,
             "subscription": 1,
             "subscription_transaction_ignore": 1,
             "plaid_webhook_event": 1,
@@ -494,6 +625,11 @@ def test_alembic_upgrade_and_sqlite_copy_against_real_postgres(tmp_path):
     assert "plaid_webhook_event: 1" in first.stdout
     assert "subscription: 1" in first.stdout
     assert "subscription_transaction_ignore: 1" in first.stdout
+    assert "fixed_expense_item: 1" in first.stdout
+    assert "goal: 1" in first.stdout
+    assert "monthly_plan: 1" in first.stdout
+    assert "insight: 1" in first.stdout
+    assert "loan_plan: 1" in first.stdout
 
     subprocess.run(command_line, cwd=API_ROOT, env=env, text=True, capture_output=True, check=True)
 
@@ -513,6 +649,15 @@ def test_alembic_upgrade_and_sqlite_copy_against_real_postgres(tmp_path):
         assert conn.scalar(text("SELECT count(*) FROM plaid_webhook_event")) == 1
         assert conn.scalar(text("SELECT count(*) FROM subscription")) == 1
         assert conn.scalar(text("SELECT count(*) FROM subscription_transaction_ignore")) == 1
+        assert conn.scalar(text("SELECT count(*) FROM fixed_expense_item")) == 1
+        assert conn.scalar(text("SELECT count(*) FROM goal")) == 1
+        assert conn.scalar(text("SELECT count(*) FROM monthly_plan")) == 1
+        assert conn.scalar(text("SELECT count(*) FROM insight")) == 1
+        assert conn.scalar(text("SELECT count(*) FROM loan_plan")) == 1
+        goal_row = conn.execute(text("SELECT name, target_amount FROM goal WHERE id = 1300")).one()
+        loan_row = conn.execute(
+            text("SELECT fixed_expense_item_id, annual_interest_rate, term_unit_preference FROM loan_plan WHERE id = 1600")
+        ).one()
         subscription_row = conn.execute(text("SELECT name, replaceable, monthly_amount FROM subscription WHERE id = 1000")).one()
         plaid_row = conn.execute(text("SELECT access_token_encrypted, sync_cursor, status FROM plaid_item WHERE id = 400")).one()
         user_row = conn.execute(text('SELECT display_name, is_admin, mfa_enabled FROM "user" WHERE id = 1')).one()
@@ -544,3 +689,10 @@ def test_alembic_upgrade_and_sqlite_copy_against_real_postgres(tmp_path):
     # replaceable is absent from the source, so the copy default (True) applies.
     assert subscription_row.replaceable is True
     assert subscription_row.monthly_amount == 18.99
+    decrypted_goal_name = Fernet(customer_key.encode("ascii")).decrypt(goal_row.name[len(CUSTOMER_DATA_PREFIX) :].encode("ascii")).decode("utf-8")
+    assert decrypted_goal_name == "Emergency Fund"
+    assert goal_row.target_amount == 10000.0
+    assert loan_row.fixed_expense_item_id == 1200
+    assert loan_row.annual_interest_rate == 5.875
+    # term_unit_preference is absent from the source, so the copy default applies.
+    assert loan_row.term_unit_preference == "months"
