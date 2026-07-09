@@ -2,11 +2,11 @@
 
 from fastapi import APIRouter
 
-from app.core.config import get_settings
-
 router = APIRouter(tags=["health"])
 
 
 @router.get("/health")
 def health() -> dict[str, str]:
-    return {"status": "ok", "env": get_settings().app_env}
+    # Deliberately discloses nothing beyond liveness (Flask commit 8c9f0bf
+    # stopped /healthz from reporting the environment name).
+    return {"status": "ok"}

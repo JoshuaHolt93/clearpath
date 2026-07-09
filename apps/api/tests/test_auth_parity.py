@@ -112,3 +112,28 @@ def test_login_attempt_ledger_throttles_after_five_failures(client):
 
     locked = client.post("/v1/auth/login", json={"email": "throttle@example.com", "password": VALID_PASSWORD})
     assert locked.status_code == 429
+
+
+def test_registration_throttles_per_source_after_five_signups(client):
+    # Flask commit 8c9f0bf: each created account counts toward a 5-per-15-min
+    # window keyed on the request source, so the sixth sign-up is blocked.
+    for index in range(5):
+        created = client.post("/v1/auth/register", json=register_payload(f"signup-{index}@example.com"))
+        assert created.status_code == 201
+
+    blocked = client.post("/v1/auth/register", json=register_payload("signup-blocked@example.com"))
+    assert blocked.status_code == 429
+
+
+def test_password_reset_requests_throttle_and_stop_issuing_tokens(client):
+    client.post("/v1/auth/register", json=register_payload("reset-throttle@example.com"))
+    for _ in range(5):
+        response = client.post("/v1/auth/password-reset/request", json={"email": "reset-throttle@example.com"})
+        assert response.status_code == 200
+        # EXPOSE_DEV_TOKENS is on in tests, so a token proves the lookup ran.
+        assert response.json()["reset_token"]
+
+    throttled = client.post("/v1/auth/password-reset/request", json={"email": "reset-throttle@example.com"})
+    assert throttled.status_code == 200
+    assert throttled.json()["reset_token"] is None
+    assert "If an account exists" in throttled.json()["message"]

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -46,11 +46,13 @@ from app.services.auth_service import (
     invite_is_usable,
     issue_auth_response,
     password_reset_token_for,
+    record_failed_login,
     register_user,
     resolve_mfa_setup_token,
     setup_response_for_pending,
     should_mark_mfa_verified,
     skip_mfa_setup,
+    too_many_login_attempts,
     user_from_password_reset_token,
     verify_mfa,
     verify_recovery_code,
@@ -59,8 +61,12 @@ from app.services.auth_service import (
 router = APIRouter(tags=["auth"])
 
 
+def _source_addr(request: Request) -> str | None:
+    return request.client.host if request.client else None
+
+
 @router.post("/auth/register", response_model=AuthSessionResponse, status_code=status.HTTP_201_CREATED)
-def register(payload: RegisterRequest, response: Response, db: Annotated[Session, Depends(get_db)]) -> AuthSessionResponse:
+def register(payload: RegisterRequest, request: Request, response: Response, db: Annotated[Session, Depends(get_db)]) -> AuthSessionResponse:
     policy_acknowledged = payload.policy_acknowledgement or (payload.ethics_acknowledgement and payload.legal_acknowledgement)
     user = register_user(
         db,
@@ -69,14 +75,15 @@ def register(payload: RegisterRequest, response: Response, db: Annotated[Session
         display_name=payload.display_name,
         household_name=payload.household_name,
         policy_acknowledged=policy_acknowledged,
+        source_addr=_source_addr(request),
     )
     mfa_verified = should_mark_mfa_verified(user)
     return issue_auth_response(user=user, mfa_verified=mfa_verified, response=response)
 
 
 @router.post("/auth/login", response_model=AuthLoginResponse)
-def login(payload: LoginRequest, response: Response, db: Annotated[Session, Depends(get_db)]) -> AuthSessionResponse:
-    user, household_member = authenticate_principal(db, email=payload.email, password=payload.password)
+def login(payload: LoginRequest, request: Request, response: Response, db: Annotated[Session, Depends(get_db)]) -> AuthSessionResponse:
+    user, household_member = authenticate_principal(db, email=payload.email, password=payload.password, source_addr=_source_addr(request))
     subject = household_member or user
     mfa_verified = should_mark_mfa_verified(subject)
     return issue_auth_response(user=user, household_member=household_member, mfa_verified=mfa_verified, response=response)
@@ -204,8 +211,15 @@ def mfa_recovery(
 
 
 @router.post("/auth/password-reset/request", response_model=PasswordResetRequestResponse)
-def password_reset_request(payload: PasswordResetRequest, db: Annotated[Session, Depends(get_db)]) -> PasswordResetRequestResponse:
-    user = db.scalar(select(User).where(User.email == payload.email))
+def password_reset_request(payload: PasswordResetRequest, request: Request, db: Annotated[Session, Depends(get_db)]) -> PasswordResetRequestResponse:
+    # Flask throttles reset requests per source+email (5 per 15 minutes) and
+    # skips the account lookup entirely while throttled, keeping the response
+    # indistinguishable so accounts cannot be enumerated.
+    source_addr = _source_addr(request)
+    throttled = too_many_login_attempts(db, payload.email, "reset", source_addr)
+    if not throttled:
+        record_failed_login(db, payload.email, "reset", source_addr)
+    user = db.scalar(select(User).where(User.email == payload.email)) if payload.email and not throttled else None
     token = password_reset_token_for(user) if user else None
     return PasswordResetRequestResponse(
         message="If an account exists for that email, a password reset link has been sent.",

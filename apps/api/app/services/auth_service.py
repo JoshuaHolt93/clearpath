@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import logging
 import secrets
 from datetime import timedelta
 
@@ -28,35 +29,49 @@ HOUSEHOLD_ROLE_VIEWER = "viewer"
 LOGIN_WINDOW = timedelta(minutes=15)
 MAX_LOGIN_ATTEMPTS = 5
 
+logger = logging.getLogger(__name__)
 
 
-def _login_key(email: str, purpose: str = "login") -> str:
-    return f"{purpose}:{(email or '').strip().lower()}"
+def _login_key(email: str, purpose: str = "login", source_addr: str | None = None) -> str:
+    # Flask keys throttles by purpose, request source address, and email
+    # (auth.py::_login_key) so one source cannot burn another's window.
+    return f"{purpose}:{source_addr or 'unknown'}:{(email or '').strip().lower()}"
 
 
 def _prune_old_login_attempts(db: Session, cutoff) -> None:
     db.query(LoginAttempt).filter(LoginAttempt.attempted_at < cutoff).delete(synchronize_session=False)
 
 
-def too_many_login_attempts(db: Session, email: str, purpose: str = "login") -> bool:
+def too_many_login_attempts(db: Session, email: str, purpose: str = "login", source_addr: str | None = None) -> bool:
     cutoff = utc_now() - LOGIN_WINDOW
     _prune_old_login_attempts(db, cutoff)
     failed_count = (
         db.query(LoginAttempt)
-        .filter(LoginAttempt.key == _login_key(email, purpose), LoginAttempt.success.is_(False), LoginAttempt.attempted_at >= cutoff)
+        .filter(
+            LoginAttempt.key == _login_key(email, purpose, source_addr),
+            LoginAttempt.success.is_(False),
+            LoginAttempt.attempted_at >= cutoff,
+        )
         .count()
     )
-    return failed_count >= MAX_LOGIN_ATTEMPTS
+    is_locked = failed_count >= MAX_LOGIN_ATTEMPTS
+    if is_locked:
+        # PHASE 6: Flask records a SecurityIncident (authentication_throttled,
+        # severity high) at this threshold. The incident ledger ports with the
+        # compliance phase; keep an operational log line until then.
+        logger.warning("Authentication throttled. purpose=%s source=%s", purpose, source_addr or "unknown")
+    return is_locked
 
 
-def record_failed_login(db: Session, email: str, purpose: str = "login") -> None:
-    db.add(LoginAttempt(key=_login_key(email, purpose), attempted_at=utc_now(), success=False))
+def record_failed_login(db: Session, email: str, purpose: str = "login", source_addr: str | None = None) -> None:
+    db.add(LoginAttempt(key=_login_key(email, purpose, source_addr), attempted_at=utc_now(), success=False))
     db.commit()
 
 
-def clear_failed_logins(db: Session, email: str, purpose: str = "login") -> None:
-    db.query(LoginAttempt).filter(LoginAttempt.key == _login_key(email, purpose), LoginAttempt.success.is_(False)).delete(synchronize_session=False)
-    db.add(LoginAttempt(key=_login_key(email, purpose), attempted_at=utc_now(), success=True))
+def clear_failed_logins(db: Session, email: str, purpose: str = "login", source_addr: str | None = None) -> None:
+    key = _login_key(email, purpose, source_addr)
+    db.query(LoginAttempt).filter(LoginAttempt.key == key, LoginAttempt.success.is_(False)).delete(synchronize_session=False)
+    db.add(LoginAttempt(key=key, attempted_at=utc_now(), success=True))
     db.commit()
 
 
@@ -157,7 +172,23 @@ def create_default_profile(user: User) -> OnboardingProfile:
     )
 
 
-def register_user(db: Session, *, email: str, password: str, display_name: str, household_name: str | None, policy_acknowledged: bool) -> User:
+def register_user(
+    db: Session,
+    *,
+    email: str,
+    password: str,
+    display_name: str,
+    household_name: str | None,
+    policy_acknowledged: bool,
+    source_addr: str | None = None,
+) -> User:
+    # Flask throttles sign-ups per source (5 per 15 minutes) via the durable
+    # LoginAttempt store, counting each created account toward the window.
+    if too_many_login_attempts(db, "", "register", source_addr):
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Too many sign-up attempts from this connection. Please wait a few minutes and try again.",
+        )
     password_errors = password_policy_errors(password, email)
     if not display_name.strip():
         raise HTTPException(status_code=422, detail="Your name is required.")
@@ -189,26 +220,29 @@ def register_user(db: Session, *, email: str, password: str, display_name: str, 
     db.add(create_default_profile(user))
     db.commit()
     db.refresh(user)
+    # Counts each account created from this source toward the sign-up
+    # throttle window, matching Flask's post-registration record.
+    record_failed_login(db, "", "register", source_addr)
     return user
 
 
-def authenticate_principal(db: Session, *, email: str, password: str) -> tuple[User, HouseholdMember | None]:
-    if too_many_login_attempts(db, email):
+def authenticate_principal(db: Session, *, email: str, password: str, source_addr: str | None = None) -> tuple[User, HouseholdMember | None]:
+    if too_many_login_attempts(db, email, "login", source_addr):
         raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail="Too many failed sign-in attempts. Please wait a few minutes and try again.")
 
     user = db.scalar(select(User).where(User.email == email))
     if user and user.check_password(password):
-        clear_failed_logins(db, email)
+        clear_failed_logins(db, email, "login", source_addr)
         return user, None
 
     household_member = None if user else db.scalar(select(HouseholdMember).where(HouseholdMember.email == email, HouseholdMember.status == "active"))
     if household_member and household_member.check_password(password) and household_member.owner_user:
-        clear_failed_logins(db, email)
+        clear_failed_logins(db, email, "login", source_addr)
         household_member.last_login_at = utc_now()
         db.commit()
         return household_member.owner_user, household_member
 
-    record_failed_login(db, email)
+    record_failed_login(db, email, "login", source_addr)
     raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid email or password.")
 
 
