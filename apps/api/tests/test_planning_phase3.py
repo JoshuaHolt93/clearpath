@@ -6,6 +6,8 @@ import pytest
 
 from app.models import OnboardingProfile
 from app.services.planning_service import (
+    _monthly_weekday_occurrence,
+    _occurrences_for_month,
     add_months,
     annual_salary_from_profile,
     calculate_tax_estimate,
@@ -92,6 +94,84 @@ def test_retirement_cash_flow_and_taxable_adjustment():
     )
     # Take-home basis drops the already-withheld employer share.
     assert retirement_cash_flow_contribution(take_home) == pytest.approx(200)
+
+
+def test_monthly_weekday_occurrence_weeks_and_last_week():
+    # July 2026: the 1st is a Wednesday; Fridays fall on 3, 10, 17, 24, 31.
+    july = date(2026, 7, 1)
+    assert _monthly_weekday_occurrence(july, 4, 1) == date(2026, 7, 3)
+    assert _monthly_weekday_occurrence(july, 4, 3) == date(2026, 7, 17)
+    # Week 5 means "last occurrence of that weekday in the month".
+    assert _monthly_weekday_occurrence(july, 4, 5) == date(2026, 7, 31)
+    # A fifth Monday does not exist when only four fit inside the month.
+    # July 2026 Mondays: 6, 13, 20, 27 -> week number 5 falls back to the last.
+    assert _monthly_weekday_occurrence(july, 0, 5) == date(2026, 7, 27)
+    # Week 4 Friday exists (24th); an out-of-range week returns None.
+    assert _monthly_weekday_occurrence(july, 4, 4) == date(2026, 7, 24)
+    assert _monthly_weekday_occurrence(july, 9, 2) is None
+
+
+def test_occurrences_monthly_day_clamping_and_start_gate():
+    # Day 31 clamps to the end of shorter months.
+    assert _occurrences_for_month(date(2026, 1, 31), "monthly", date(2026, 2, 1)) == [date(2026, 2, 28)]
+    # Months before the start date produce nothing.
+    assert _occurrences_for_month(date(2026, 3, 15), "monthly", date(2026, 2, 1)) == []
+    # preferred_day wins over the start date's day.
+    assert _occurrences_for_month(date(2026, 1, 5), "monthly", date(2026, 4, 1), preferred_day=20) == [date(2026, 4, 20)]
+
+
+def test_occurrences_biweekly_anchoring():
+    # Anchored on Friday 2026-06-05, biweekly hits June 5/19 and July 3/17/31.
+    assert _occurrences_for_month(date(2026, 6, 5), "biweekly", date(2026, 6, 1)) == [date(2026, 6, 5), date(2026, 6, 19)]
+    assert _occurrences_for_month(date(2026, 6, 5), "biweekly", date(2026, 7, 1)) == [
+        date(2026, 7, 3),
+        date(2026, 7, 17),
+        date(2026, 7, 31),
+    ]
+    # Weekday-pinned biweekly: anchor week of 2026-06-01 (Monday), Fridays of
+    # even weeks since anchor -> June 5 (week 0) and June 19 (week 2).
+    assert _occurrences_for_month(date(2026, 6, 1), "biweekly", date(2026, 6, 1), days_of_week="4") == [
+        date(2026, 6, 5),
+        date(2026, 6, 19),
+    ]
+
+
+def test_occurrences_semimonthly_quarterly_annual():
+    # Semimonthly without an explicit second day pairs day 1 with day 15.
+    assert _occurrences_for_month(date(2026, 5, 1), "semimonthly", date(2026, 5, 1)) == [date(2026, 5, 1), date(2026, 5, 15)]
+    assert _occurrences_for_month(date(2026, 5, 1), "semimonthly", date(2026, 5, 1), second_day_of_month=20) == [
+        date(2026, 5, 1),
+        date(2026, 5, 20),
+    ]
+    # Quarterly fires only on 3-month offsets from the start month.
+    assert _occurrences_for_month(date(2026, 1, 10), "quarterly", date(2026, 4, 1)) == [date(2026, 4, 10)]
+    assert _occurrences_for_month(date(2026, 1, 10), "quarterly", date(2026, 5, 1)) == []
+    # Annual fires only in the anniversary month.
+    assert _occurrences_for_month(date(2025, 9, 12), "annual", date(2026, 9, 1)) == [date(2026, 9, 12)]
+    assert _occurrences_for_month(date(2025, 9, 12), "annual", date(2026, 8, 1)) == []
+
+
+def test_occurrences_weekly_paths():
+    # Plain weekly walks in 7-day steps from the start date.
+    assert _occurrences_for_month(date(2026, 6, 24), "weekly", date(2026, 7, 1)) == [
+        date(2026, 7, 1),
+        date(2026, 7, 8),
+        date(2026, 7, 15),
+        date(2026, 7, 22),
+        date(2026, 7, 29),
+    ]
+    # Weekday-pinned weekly emits every selected weekday in the month.
+    assert _occurrences_for_month(date(2026, 7, 1), "weekly", date(2026, 7, 1), days_of_week="0,4") == [
+        date(2026, 7, 3),
+        date(2026, 7, 6),
+        date(2026, 7, 10),
+        date(2026, 7, 13),
+        date(2026, 7, 17),
+        date(2026, 7, 20),
+        date(2026, 7, 24),
+        date(2026, 7, 27),
+        date(2026, 7, 31),
+    ]
 
 
 def test_take_home_basis_produces_zero_withholding():

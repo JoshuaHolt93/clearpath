@@ -3,7 +3,7 @@ from __future__ import annotations
 import calendar
 import os
 from dataclasses import dataclass
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from sqlalchemy import select
@@ -258,6 +258,290 @@ def variable_expense_plan_total(db: Session, user: User) -> float:
     if items:
         return sum(monthly_amount_for_variable_item(item) for item in items)
     return user.profile.variable_expenses if user.profile else 0.0
+
+
+def _month_range(month_start: date) -> tuple[date, date]:
+    return month_start, month_start.replace(day=calendar.monthrange(month_start.year, month_start.month)[1])
+
+
+def _append_generated_entry(entries: list[dict], when: date, description: str, amount: float, item_type: str, source: str, category_label: str | None = None, notes: str | None = None, source_id: int | str | None = None):
+    entries.append(
+        {
+            "date": when,
+            "description": description,
+            "amount": amount,
+            "item_type": item_type,
+            "source": source,
+            "category_label": category_label,
+            "notes": notes,
+            "source_id": source_id,
+        }
+    )
+
+
+def _occurrence_day(start_date: date | None, fallback_day: int | None) -> int:
+    if fallback_day and 1 <= fallback_day <= 31:
+        return fallback_day
+    if start_date:
+        return start_date.day
+    return 1
+
+
+def _coerce_month_day(month_start: date, day_value: int) -> date:
+    month_end_day = calendar.monthrange(month_start.year, month_start.month)[1]
+    return month_start.replace(day=min(max(day_value, 1), month_end_day))
+
+
+def _monthly_weekday_occurrence(month_start: date, weekday: int, week_number: int) -> date | None:
+    month_start, month_end = _month_range(month_start)
+    if weekday not in WEEKDAY_OPTIONS or week_number not in MONTHLY_WEEK_OPTIONS:
+        return None
+    if week_number == 5:
+        current = month_end
+        while current.weekday() != weekday:
+            current -= timedelta(days=1)
+        return current
+    first = month_start
+    while first.weekday() != weekday:
+        first += timedelta(days=1)
+    occurrence = first + timedelta(days=7 * (week_number - 1))
+    return occurrence if occurrence <= month_end else None
+
+
+def _occurrences_for_month(
+    start_date: date,
+    frequency: str,
+    month_start: date,
+    *,
+    second_day_of_month: int | None = None,
+    preferred_day: int | None = None,
+    days_of_week: str | None = None,
+    monthly_week_numbers: str | None = None,
+    monthly_weekday: int | None = None,
+) -> list[date]:
+    month_start, month_end = _month_range(month_start)
+    if month_end < start_date:
+        return []
+
+    primary_day = _occurrence_day(start_date, preferred_day)
+    selected_weekdays = weekday_values(days_of_week)
+    selected_monthly_weeks = monthly_week_values(monthly_week_numbers)
+    occurrences: list[date] = []
+
+    if frequency in {"monthly", "semimonthly"} and selected_monthly_weeks and monthly_weekday in WEEKDAY_OPTIONS:
+        selected_weeks = selected_monthly_weeks[:1] if frequency == "monthly" else selected_monthly_weeks
+        for week_number in selected_weeks:
+            current = _monthly_weekday_occurrence(month_start, int(monthly_weekday), week_number)
+            if current and current >= start_date:
+                occurrences.append(current)
+        return sorted(set(occurrences))
+
+    if frequency == "weekly" and selected_weekdays:
+        current = month_start
+        while current <= month_end:
+            if current >= start_date and current.weekday() in selected_weekdays:
+                occurrences.append(current)
+            current += timedelta(days=1)
+        return occurrences
+
+    if frequency == "weekly":
+        current = start_date
+        while current < month_start:
+            current += timedelta(days=7)
+        while current <= month_end:
+            occurrences.append(current)
+            current += timedelta(days=7)
+        return occurrences
+
+    if frequency == "biweekly" and selected_weekdays:
+        anchor_week_start = start_date - timedelta(days=start_date.weekday())
+        current = month_start
+        while current <= month_end:
+            current_week_start = current - timedelta(days=current.weekday())
+            weeks_since_anchor = (current_week_start - anchor_week_start).days // 7
+            if (
+                current >= start_date
+                and weeks_since_anchor >= 0
+                and weeks_since_anchor % 2 == 0
+                and current.weekday() in selected_weekdays
+            ):
+                occurrences.append(current)
+            current += timedelta(days=1)
+        return occurrences
+
+    if frequency == "biweekly":
+        current = start_date
+        while current < month_start:
+            current += timedelta(days=14)
+        while current <= month_end:
+            occurrences.append(current)
+            current += timedelta(days=14)
+        return occurrences
+
+    if frequency == "monthly":
+        current = _coerce_month_day(month_start, primary_day)
+        return [current] if current >= start_date else []
+
+    if frequency == "semimonthly":
+        candidate_days = {primary_day}
+        if second_day_of_month and 1 <= second_day_of_month <= 31:
+            candidate_days.add(second_day_of_month)
+        else:
+            candidate_days.add(min(primary_day + 14, 28))
+        for day_value in sorted(candidate_days):
+            current = _coerce_month_day(month_start, day_value)
+            if current >= start_date:
+                occurrences.append(current)
+        return occurrences
+
+    if frequency == "quarterly":
+        month_diff = (month_start.year - start_date.year) * 12 + (month_start.month - start_date.month)
+        if month_diff >= 0 and month_diff % 3 == 0:
+            current = _coerce_month_day(month_start, primary_day)
+            return [current] if current >= start_date else []
+        return []
+
+    if frequency == "annual":
+        if month_start.month == start_date.month and month_start.year >= start_date.year:
+            current = _coerce_month_day(month_start, primary_day)
+            return [current] if current >= start_date else []
+        return []
+
+    current = _coerce_month_day(month_start, primary_day)
+    return [current] if current >= start_date else []
+
+
+def _generate_fixed_entries(db: Session, user: User, month_start: date) -> list[dict]:
+    entries = []
+    for item in sorted(
+        db.scalars(select(FixedExpenseItem).where(FixedExpenseItem.user_id == user.id)).all(),
+        key=lambda expense: (expense.name or "").lower(),
+    ):
+        start = item.start_date or month_start
+        for occurrence in _occurrences_for_month(
+            start,
+            item.frequency or "monthly",
+            month_start,
+            second_day_of_month=item.second_date.day if item.second_date else item.second_day_of_month,
+            preferred_day=item.due_day,
+            days_of_week=item.days_of_week,
+            monthly_week_numbers=item.monthly_week_numbers,
+            monthly_weekday=item.monthly_weekday,
+        ):
+            _append_generated_entry(
+                entries,
+                occurrence,
+                item.name,
+                item.amount,
+                "expense",
+                "fixed",
+                "Fixed expense",
+                item.notes,
+                item.id,
+            )
+    return entries
+
+
+def _generate_loan_cash_entries(db: Session, user: User, month_start: date) -> list[dict]:
+    entries = []
+    for item in sorted(
+        db.scalars(select(FixedExpenseItem).where(FixedExpenseItem.user_id == user.id, FixedExpenseItem.is_loan.is_(True))).all(),
+        key=lambda expense: (expense.name or "").lower(),
+    ):
+        start = item.start_date or month_start
+        for occurrence in _occurrences_for_month(
+            start,
+            item.frequency or "monthly",
+            month_start,
+            second_day_of_month=item.second_date.day if item.second_date else item.second_day_of_month,
+            preferred_day=item.due_day,
+            days_of_week=item.days_of_week,
+            monthly_week_numbers=item.monthly_week_numbers,
+            monthly_weekday=item.monthly_weekday,
+        ):
+            _append_generated_entry(
+                entries,
+                occurrence,
+                item.name,
+                item.amount,
+                "expense",
+                "fixed",
+                item.category_label or "Loan payment",
+                item.notes,
+                item.id,
+            )
+    return entries
+
+
+def _generate_variable_entries(db: Session, user: User, month_start: date) -> list[dict]:
+    month_start, month_end = _month_range(month_start)
+    entries = []
+    planning_day = min(20, month_end.day)
+    for item in sorted(
+        db.scalars(select(VariableExpenseItem).where(VariableExpenseItem.user_id == user.id)).all(),
+        key=lambda expense: (expense.name or "").lower(),
+    ):
+        if item.use_specific_date:
+            start = item.specific_date or month_start.replace(day=planning_day)
+            if item.frequency != "monthly" and not item.specific_date:
+                start = month_start
+            occurrences = _occurrences_for_month(
+                start,
+                item.frequency or "monthly",
+                month_start,
+                days_of_week=item.days_of_week,
+            )
+            weekday_multiplier = len(weekday_values(item.days_of_week)) if item.frequency not in {"monthly", "weekly", "biweekly"} else 0
+            amount = item.amount * (weekday_multiplier or 1)
+            for occurrence in occurrences:
+                _append_generated_entry(
+                    entries,
+                    occurrence,
+                    item.name,
+                    amount,
+                    "expense",
+                    "variable",
+                    "Variable plan",
+                    item.notes,
+                    item.id,
+                )
+            continue
+
+        _append_generated_entry(
+            entries,
+            month_start.replace(day=planning_day),
+            item.name,
+            monthly_amount_for_variable_item(item),
+            "expense",
+            "variable",
+            "Variable plan",
+            item.notes,
+            item.id,
+        )
+    return entries
+
+
+def _generated_entries_between(db: Session, user: User, generator, start: date, end: date) -> list[dict]:
+    month_cursor = start.replace(day=1)
+    last_month = end.replace(day=1)
+    entries = []
+    while month_cursor <= last_month:
+        entries.extend(item for item in generator(db, user, month_cursor) if start <= item["date"] <= end)
+        month_cursor = add_months(month_cursor, 1)
+    return entries
+
+
+def fixed_expense_total(db: Session, user: User, target_date: date | None = None) -> float:
+    from app.services.subscription_service import active_subscription_rows
+
+    items = db.scalars(select(FixedExpenseItem).where(FixedExpenseItem.user_id == user.id)).all()
+    if items:
+        start, end = month_bounds(target_date)
+        worksheet_total = sum(entry["amount"] for entry in _generated_entries_between(db, user, _generate_fixed_entries, start, end))
+    else:
+        worksheet_total = user.profile.fixed_expenses if user.profile else 0.0
+    subscription_total = sum(row["amount"] for row in active_subscription_rows(db, user, purpose="monthly_plan"))
+    return worksheet_total + subscription_total
 
 
 @dataclass
