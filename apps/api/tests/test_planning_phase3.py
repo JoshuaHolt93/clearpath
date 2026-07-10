@@ -317,6 +317,13 @@ def test_sync_monthly_plan_and_snapshot_end_to_end(client):
         actual_by_name = {row.category_name: row.actual for row in category_rows}
         # Both transactions defaulted to the user's Other category.
         assert actual_by_name.get("Other") == pytest.approx(1900)
+        # Flask 40cf107/83ca1b6: the canonical Income category produces a
+        # budget row; with no recorded income it falls back to the planned
+        # profile income.
+        income_rows = [row for row in category_rows if row.category_kind == "income"]
+        assert [row.category_name for row in income_rows] == ["Income"]
+        assert income_rows[0].planned == pytest.approx(100000 / 12)
+        assert income_rows[0].actual == pytest.approx(100000 / 12)
 
 
 def test_both_post_sync_hooks_registered_in_order():
@@ -329,3 +336,45 @@ def test_both_post_sync_hooks_registered_in_order():
     assert planning_service._plaid_post_sync_hook in hooks
     # Flask order: subscriptions rescan first, monthly plan second.
     assert hooks.index(subscription_service._plaid_post_sync_hook) < hooks.index(planning_service._plaid_post_sync_hook)
+
+
+def test_additional_local_tax_joins_the_estimate():
+    # Flask 40cf107: a user-labeled additional local tax adds monthly*12 to
+    # the annual total on the gross basis and stays zero on take-home.
+    estimate = calculate_tax_estimate(gross_profile(tax_state="TX", tax_additional_label="City Earnings Tax", tax_additional_monthly_amount=50))
+    assert estimate.additional_tax_label == "City Earnings Tax"
+    assert estimate.additional_tax_annual == pytest.approx(600)
+    assert estimate.annual_total == pytest.approx(13170 + 6200 + 1450 + 600)
+    assert estimate.monthly_total == pytest.approx((13170 + 6200 + 1450 + 600) / 12)
+
+    take_home = calculate_tax_estimate(
+        gross_profile(income_basis="take_home", tax_additional_label="City Earnings Tax", tax_additional_monthly_amount=50)
+    )
+    assert take_home.additional_tax_annual == 0
+    assert take_home.annual_total == 0
+
+
+def test_credit_card_payments_and_liability_inflows_are_not_income():
+    # Flask 1a91183: credit-card payments and liability-account inflows are
+    # debt paydown, not income.
+    from app.models import Account, Category, Transaction
+    from app.services.planning_service import account_is_liability, transaction_counts_as_income, transaction_is_credit_card_payment
+
+    cc_category = Category(name="Credit Card Payments", kind="transfer")
+    payment = Transaction(description="CITI AUTOPAY PAYMENT", amount=250, category=cc_category, splits=[])
+    assert transaction_is_credit_card_payment(payment)
+    assert transaction_counts_as_income(payment) is False
+
+    heuristic_payment = Transaction(description="AMEX EPAYMENT THANK YOU", amount=125, category=None, splits=[])
+    assert transaction_is_credit_card_payment(heuristic_payment)
+    assert transaction_counts_as_income(heuristic_payment) is False
+
+    liability_account = Account(name="Citi Double Cash", account_type="credit card", is_manual=True)
+    assert account_is_liability(liability_account)
+    refund = Transaction(description="Statement credit", amount=25, category=None, account=liability_account, splits=[])
+    assert transaction_counts_as_income(refund) is False
+
+    checking = Account(name="Main Checking", account_type="checking", is_manual=True)
+    income_category = Category(name="Income", kind="income")
+    paycheck = Transaction(description="Payroll Deposit", amount=3100, category=income_category, account=checking, splits=[])
+    assert transaction_counts_as_income(paycheck) is True

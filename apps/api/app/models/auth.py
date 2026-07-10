@@ -246,6 +246,8 @@ class OnboardingProfile(TimestampMixin, Base):
     tax_filing_status: Mapped[str] = mapped_column(String(30), default="married_joint", nullable=False)
     tax_gross_annual_income: Mapped[float] = mapped_column(Float, default=0, nullable=False)
     tax_state_effective_rate: Mapped[float] = mapped_column(Float, default=0, nullable=False)
+    tax_additional_label: Mapped[str] = mapped_column(String(80), default="Additional Local Tax", nullable=False)
+    tax_additional_monthly_amount: Mapped[float] = mapped_column(Float, default=0, nullable=False)
     include_payroll_taxes: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     retirement_enabled: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     retirement_has_employer_plan: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)

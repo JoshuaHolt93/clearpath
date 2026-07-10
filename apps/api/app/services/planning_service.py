@@ -46,8 +46,10 @@ from app.models import (
     User,
     VariableExpenseItem,
 )
+from app.core.planning_constants import LIABILITY_ACCOUNT_LABEL_KEYWORDS, LIABILITY_ACCOUNT_TYPES
+from app.models import Account
 from app.services import plaid_service
-from app.services.transaction_service import normalize_text
+from app.services.transaction_service import CREDIT_CARD_PAYMENT_CATEGORY_NAME, looks_like_credit_card_payment, normalize_text
 
 # Faithful port of the planning foundations from Flask services.py at 9b5dff0:
 # timezone/date helpers, income normalization, retirement and loan-extra
@@ -576,6 +578,9 @@ class TaxEstimate:
     social_security_tax: float
     medicare_tax: float
     additional_medicare_tax: float
+    additional_tax_label: str
+    additional_tax_annual: float
+    additional_tax_monthly: float
     annual_total: float
     monthly_total: float
     filing_status: str
@@ -692,6 +697,8 @@ def calculate_tax_estimate(profile: OnboardingProfile | None) -> TaxEstimate:
         filing_status = "married_joint"
     annual_gross_income = max(monthly_income_from_profile(profile) * 12 - retirement_taxable_income_adjustment(profile), 0)
     income_basis = (getattr(profile, "income_basis", None) if profile else None) or "take_home"
+    additional_tax_label = ((getattr(profile, "tax_additional_label", None) if profile else None) or "Additional Local Tax").strip()
+    additional_tax_monthly = max(float((getattr(profile, "tax_additional_monthly_amount", 0) if profile else 0) or 0), 0)
     standard_deduction = STANDARD_DEDUCTIONS_2026[filing_status]
     taxable_income = max(annual_gross_income - standard_deduction, 0)
     federal_brackets = FEDERAL_TAX_BRACKETS_2026[filing_status]
@@ -704,6 +711,9 @@ def calculate_tax_estimate(profile: OnboardingProfile | None) -> TaxEstimate:
             social_security_tax=0,
             medicare_tax=0,
             additional_medicare_tax=0,
+            additional_tax_label=additional_tax_label,
+            additional_tax_annual=0,
+            additional_tax_monthly=0,
             annual_total=0,
             monthly_total=0,
             filing_status=filing_status,
@@ -732,7 +742,8 @@ def calculate_tax_estimate(profile: OnboardingProfile | None) -> TaxEstimate:
     medicare_tax = annual_gross_income * MEDICARE_RATE_2026 if include_payroll_taxes else 0
     additional_threshold = ADDITIONAL_MEDICARE_THRESHOLDS[filing_status]
     additional_medicare_tax = max(annual_gross_income - additional_threshold, 0) * ADDITIONAL_MEDICARE_RATE if include_payroll_taxes else 0
-    annual_total = federal_income_tax + state_income_tax + social_security_tax + medicare_tax + additional_medicare_tax
+    additional_tax_annual = additional_tax_monthly * 12
+    annual_total = federal_income_tax + state_income_tax + social_security_tax + medicare_tax + additional_medicare_tax + additional_tax_annual
     return TaxEstimate(
         annual_gross_income=annual_gross_income,
         taxable_income=taxable_income,
@@ -741,6 +752,9 @@ def calculate_tax_estimate(profile: OnboardingProfile | None) -> TaxEstimate:
         social_security_tax=social_security_tax,
         medicare_tax=medicare_tax,
         additional_medicare_tax=additional_medicare_tax,
+        additional_tax_label=additional_tax_label,
+        additional_tax_annual=additional_tax_annual,
+        additional_tax_monthly=additional_tax_monthly,
         annual_total=annual_total,
         monthly_total=annual_total / 12,
         filing_status=filing_status,
@@ -843,6 +857,30 @@ def loan_category_for_item(item: FixedExpenseItem) -> str | None:
 # --- Transaction matching and queries --------------------------------------
 
 
+def account_is_liability(account: Account) -> bool:
+    account_type = normalize_text(account.account_type or "")
+    normalized_type = account_type.replace("_", " ")
+    if account_type in LIABILITY_ACCOUNT_TYPES or normalized_type in LIABILITY_ACCOUNT_TYPES:
+        return True
+    if any(keyword in normalized_type for keyword in LIABILITY_ACCOUNT_LABEL_KEYWORDS):
+        return True
+    account_label = normalize_text(f"{account.name or ''} {account.institution or ''}")
+    return any(keyword in account_label for keyword in LIABILITY_ACCOUNT_LABEL_KEYWORDS)
+
+
+def transaction_is_credit_card_payment(transaction: Transaction) -> bool:
+    category = transaction.category
+    if category and (category.name or "").strip().lower() == CREDIT_CARD_PAYMENT_CATEGORY_NAME.lower():
+        return True
+    return looks_like_credit_card_payment(
+        transaction.description,
+        transaction.merchant,
+        transaction.source_name,
+        transaction.account.name if transaction.account else None,
+        transaction.account.account_type if transaction.account else None,
+    )
+
+
 def category_counts_as_spending(category: Category | None) -> bool:
     return not category or category.kind == "expense"
 
@@ -854,7 +892,29 @@ def transaction_counts_as_spending(transaction: Transaction) -> bool:
 
 
 def transaction_counts_as_income(transaction: Transaction) -> bool:
+    # Flask 1a91183: credit-card payments and liability-account inflows are
+    # debt paydown, not income.
+    if transaction_is_credit_card_payment(transaction):
+        return False
+    if transaction.account and account_is_liability(transaction.account):
+        return False
     return not transaction.category or transaction.category.kind == "income"
+
+
+def credit_card_debt_paydown_between(db: Session, user: User, start: date, end: date) -> float:
+    transactions = [
+        transaction
+        for transaction in db.scalars(_transactions_between(db, user, start, end)).all()
+        if transaction_is_credit_card_payment(transaction)
+    ]
+    liability_side_payments = [
+        transaction
+        for transaction in transactions
+        if (transaction.amount or 0) > 0 and transaction.account and account_is_liability(transaction.account)
+    ]
+    if liability_side_payments:
+        return float(sum(transaction.amount or 0 for transaction in liability_side_payments))
+    return float(sum(abs(transaction.amount or 0) for transaction in transactions if (transaction.amount or 0) < 0))
 
 
 def _transaction_matches_planned_item(transaction: Transaction, item_name: str) -> bool:
@@ -988,6 +1048,8 @@ def _profile_from_income_replacement_template(base_profile: OnboardingProfile, t
     profile.tax_filing_status = template.tax_filing_status or base_profile.tax_filing_status or "married_joint"
     profile.tax_gross_annual_income = base_profile.tax_gross_annual_income or 0
     profile.tax_state_effective_rate = base_profile.tax_state_effective_rate or 0
+    profile.tax_additional_label = base_profile.tax_additional_label or "Additional Local Tax"
+    profile.tax_additional_monthly_amount = base_profile.tax_additional_monthly_amount or 0
     profile.include_payroll_taxes = bool(template.include_payroll_taxes)
     profile.retirement_enabled = bool(base_profile.retirement_enabled)
     profile.retirement_has_employer_plan = bool(base_profile.retirement_has_employer_plan)
@@ -1677,6 +1739,8 @@ def _budget_category_snapshot_rows(db: Session, user: User, month_start: date, *
     start, end = month_bounds(month_start)
     transactions_by_category = defaultdict(list)
     categories_by_key: dict[str, Category] = {}
+    income_transactions = _income_transactions_between(db, user, start, end)
+    actual_income_total = float(sum(transaction.amount or 0 for transaction in income_transactions))
 
     user_categories = db.scalars(select(Category).where(Category.user_id == user.id)).all()
     for category in user_categories:
@@ -1695,14 +1759,23 @@ def _budget_category_snapshot_rows(db: Session, user: User, month_start: date, *
         category = categories_by_key.get(normalized_label)
         allocations = transactions_by_category.get(normalized_label, [])
         label = category.name if category else ((allocations[0]["category_name"] if allocations else "Other") or "Other")
-        if category and category.kind != "expense":
+        category_kind = category.kind if category else "expense"
+        if category and category_kind not in {"expense", "income"}:
             continue
-        if category and category.user_id == user.id and category.is_default and not allocations:
+        # Flask 83ca1b6: only the canonical Income category produces an income
+        # budget row.
+        if category_kind == "income" and normalize_text(label) != "income":
+            continue
+        if category and category.user_id == user.id and category.is_default and not allocations and category_kind != "income":
             continue
 
         planned = max(category.monthly_target if category else 0, 0)
         actual = sum(allocation["amount"] for allocation in allocations)
         transaction_ids = sorted({int(allocation["transaction_id"]) for allocation in allocations if allocation.get("transaction_id")})
+        if category_kind == "income":
+            planned = max(planned, monthly_income_from_profile(user.profile))
+            actual = actual_income_total if actual_income_total > 0 else planned
+            transaction_ids = sorted(transaction.id for transaction in income_transactions)
         if planned <= 0 and actual <= 0 and not transaction_ids:
             continue
 
@@ -1710,7 +1783,7 @@ def _budget_category_snapshot_rows(db: Session, user: User, month_start: date, *
             {
                 "category_id": category.id if category else None,
                 "category_name": label,
-                "category_kind": category.kind if category else "expense",
+                "category_kind": category_kind,
                 "planned": float(planned or 0),
                 "actual": float(actual or 0),
                 "group_key": _budget_group_key_for_snapshot(category, label),
