@@ -1301,6 +1301,53 @@ def income_plan_detail_rows(db: Session, user: User, planned_base_income: float,
     return _sort_plan_detail_rows(rows)
 
 
+def _fixed_item_matches_transaction(transaction: Transaction, item: FixedExpenseItem) -> bool:
+    return (
+        _transaction_matches_planned_item(transaction, item.name)
+        or (
+            transaction.category
+            and transaction.category.name in FIXED_EXPENSE_CATEGORY_NAMES
+            and normalize_text(item.name) in normalize_text(transaction.category.name)
+        )
+    )
+
+
+def _fixed_item_transaction_matches_by_id(db: Session, user: User, transactions: list[Transaction]) -> tuple[dict[int, list[Transaction]], set[int]]:
+    matches_by_id: dict[int, list[Transaction]] = {}
+    matched_transaction_ids: set[int] = set()
+    for item in sorted(
+        db.scalars(select(FixedExpenseItem).where(FixedExpenseItem.user_id == user.id)).all(),
+        key=lambda expense: (expense.name or "").lower(),
+    ):
+        matches = [txn for txn in transactions if _fixed_item_matches_transaction(txn, item)]
+        matches_by_id[item.id] = matches
+        matched_transaction_ids.update(txn.id for txn in matches)
+    return matches_by_id, matched_transaction_ids
+
+
+def _fixed_plan_claimed_transaction_ids(
+    db: Session,
+    user: User,
+    transactions: list[Transaction],
+    *,
+    include_subscriptions: bool = True,
+    subscription_rows: list[dict] | None = None,
+) -> set[int]:
+    from app.services.subscription_service import active_subscription_rows
+
+    _matches_by_id, matched_transaction_ids = _fixed_item_transaction_matches_by_id(db, user, transactions)
+    if include_subscriptions:
+        resolved_subscription_rows = subscription_rows if subscription_rows is not None else active_subscription_rows(db, user, purpose="monthly_plan")
+        for subscription_row in resolved_subscription_rows:
+            subscription = subscription_row["subscription"]
+            matched_transaction_ids.update(
+                txn.id
+                for txn in transactions
+                if txn.id not in matched_transaction_ids and _transaction_matches_subscription(txn, subscription)
+            )
+    return matched_transaction_ids
+
+
 def fixed_plan_detail_rows(db: Session, user: User, target_date: date | None = None, start_date: date | None = None, end_date: date | None = None) -> list[dict]:
     from app.services.subscription_service import SUBSCRIPTION_CATEGORY, active_subscription_rows
 
@@ -1320,19 +1367,13 @@ def fixed_plan_detail_rows(db: Session, user: User, target_date: date | None = N
         source="recurring",
     )
     rows = []
-    matched_transaction_ids = set()
+    fixed_item_matches_by_id, matched_transaction_ids = _fixed_item_transaction_matches_by_id(db, user, transactions)
 
     for item in sorted(
         db.scalars(select(FixedExpenseItem).where(FixedExpenseItem.user_id == user.id)).all(),
         key=lambda expense: (expense.name or "").lower(),
     ):
-        matches = [
-            txn
-            for txn in transactions
-            if _transaction_matches_planned_item(txn, item.name)
-            or (txn.category and txn.category.name in FIXED_EXPENSE_CATEGORY_NAMES and normalize_text(item.name) in normalize_text(txn.category.name))
-        ]
-        matched_transaction_ids.update(txn.id for txn in matches)
+        matches = fixed_item_matches_by_id.get(item.id, [])
         actual = sum(abs(txn.amount) for txn in matches)
         planned = planned_by_label[item.name] if planned_by_label is not None else monthly_amount_for_fixed_item(item)
         if planned or actual:
@@ -1432,10 +1473,17 @@ def variable_plan_detail_rows(db: Session, user: User, target_date: date | None 
             unique_entries=True,
         )
     subscription_rows = active_subscription_rows(db, user, purpose="monthly_plan")
+    fixed_claimed_transaction_ids = _fixed_plan_claimed_transaction_ids(
+        db,
+        user,
+        month_transactions,
+        subscription_rows=subscription_rows,
+    )
     transactions = [
         txn
         for txn in month_transactions
-        if (txn.category.name if txn.category else "") not in FIXED_EXPENSE_CATEGORY_NAMES
+        if txn.id not in fixed_claimed_transaction_ids
+        and (txn.category.name if txn.category else "") not in FIXED_EXPENSE_CATEGORY_NAMES
         and not any(_transaction_matches_subscription(txn, row["subscription"]) for row in subscription_rows)
     ]
     rows = []

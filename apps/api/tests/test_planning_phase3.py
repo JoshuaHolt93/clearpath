@@ -306,12 +306,11 @@ def test_sync_monthly_plan_and_snapshot_end_to_end(client):
         assert snapshot.planned_variable_expenses == pytest.approx(200)
         assert snapshot.expected_cash_flow == pytest.approx(100000 / 12 - 1735 - 1800 - 200 - 400 - 300)
         assert snapshot.actual_fixed_expenses == pytest.approx(1800)
-        # Flask's variable pool excludes transactions by CATEGORY NAME (the
-        # legacy FIXED_EXPENSE_CATEGORY_NAMES set), not by fixed-item match, so
-        # the Other-categorized mortgage lands in both pools: 1800 + 100.
-        assert snapshot.actual_variable_expenses == pytest.approx(1900)
+        # Flask commit 6371a50: transactions claimed by fixed items are
+        # excluded from the variable pool, so only the grocery run remains.
+        assert snapshot.actual_variable_expenses == pytest.approx(100)
         assert snapshot.actual_total_expenses == pytest.approx(1900)
-        assert snapshot.budget_remaining == pytest.approx((1800 + 200 + 1735) - (1800 + 1900))
+        assert snapshot.budget_remaining == pytest.approx((1800 + 200 + 1735) - (1800 + 100))
         assert snapshot.net_cash_flow == pytest.approx(0 - 1900)
 
         category_rows = db.query(MonthlyBudgetCategorySnapshot).filter_by(user_id=user_id, month=date(2026, 7, 1)).all()
