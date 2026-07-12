@@ -536,3 +536,30 @@ ANALYTICS_RANGE_OPTIONS = {
 }
 
 
+
+# Added by Flask cf17a56 ("Refine transaction budget link and credit tracking").
+ACCOUNT_CLASSIFICATION_OPTIONS = (
+    ("checking", "Checking / Cash"),
+    ("savings", "Savings"),
+    ("depository", "Depository / Bank Account"),
+    ("money market", "Money Market"),
+    ("credit", "Credit Account"),
+    ("credit card", "Credit Card"),
+    ("line of credit", "Line of Credit"),
+    ("loan", "Loan"),
+    ("mortgage", "Mortgage"),
+    ("investment", "Investment"),
+    ("other", "Other Asset"),
+)
+
+REVOLVING_DEBT_ACCOUNT_TYPES = {
+    "credit",
+    "credit card",
+    "credit_card",
+    "heloc",
+    "home equity",
+    "home_equity",
+    "line of credit",
+    "line_of_credit",
+    "overdraft",
+}

@@ -43,6 +43,7 @@ from app.services.subscription_service import (
     subscription_summary,
     upcoming_subscriptions,
 )
+from app.services.planning_service import sync_monthly_plan
 from app.services.transaction_service import (
     build_import_hash,
     decode_csv_payload,
@@ -144,7 +145,7 @@ def scan_subscriptions(
 ) -> SubscriptionScanResponse:
     _require_subscription_feature(principal)
     synced = scan_and_sync_subscriptions(db, principal.user, purpose="subscriptions")
-    # PHASE 3: Flask also calls sync_monthly_plan here.
+    sync_monthly_plan(db, principal.user, purpose="monthly_plan")
     return SubscriptionScanResponse(
         synced_count=len(synced),
         subscriptions=[_subscription_response(subscription) for subscription in synced],
@@ -201,7 +202,7 @@ def add_manual_subscription(
     db.add(subscription)
     db.commit()
     db.refresh(subscription)
-    # PHASE 3: Flask also calls sync_monthly_plan here.
+    sync_monthly_plan(db, principal.user, purpose="monthly_plan")
     return _subscription_response(subscription)
 
 
@@ -245,7 +246,7 @@ def update_subscription(
 
     db.commit()
     db.refresh(subscription)
-    # PHASE 3: Flask also calls sync_monthly_plan after status/cycle changes.
+    sync_monthly_plan(db, principal.user, purpose="monthly_plan")
     return _subscription_response(subscription)
 
 
@@ -289,7 +290,7 @@ def ignore_subscription_evidence(
     refresh_subscription_amounts_from_evidence(subscription, evidence_items)
     db.commit()
     db.refresh(subscription)
-    # PHASE 3: Flask also calls sync_monthly_plan here.
+    sync_monthly_plan(db, principal.user, purpose="monthly_plan")
     return _subscription_response(subscription)
 
 
@@ -376,7 +377,7 @@ def import_subscription_csv(
 
     db.commit()
     synced = scan_and_sync_subscriptions(db, principal.user, purpose="subscriptions")
-    # PHASE 3: Flask also calls sync_monthly_plan here.
+    sync_monthly_plan(db, principal.user, purpose="monthly_plan")
     return SubscriptionImportResponse(imported=imported, synced_count=len(synced))
 
 

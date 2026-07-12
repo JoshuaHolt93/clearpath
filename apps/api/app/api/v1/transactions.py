@@ -470,6 +470,10 @@ def create_category_rule(
     applied_count = apply_rule_to_existing_transactions(db, rule)
     db.commit()
     db.refresh(rule)
+    # Flask add_rule/auto_rules refresh the monthly plan after applying.
+    from app.services.planning_service import sync_monthly_plan
+
+    sync_monthly_plan(db, principal.user, purpose="monthly_plan")
     return rule_response(get_owned_rule(db, principal.user, rule.id), applied_count=applied_count)
 
 

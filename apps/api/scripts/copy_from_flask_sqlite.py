@@ -328,6 +328,8 @@ def _base_defaults() -> dict[str, dict[str, Any]]:
             "tax_gross_annual_income": 0.0,
             "tax_state_effective_rate": 0.0,
             "tax_additional_label": "Additional Local Tax",
+            "tax_additional_type": "amount",
+            "tax_additional_rate": 0.0,
             "tax_additional_monthly_amount": 0.0,
             "include_payroll_taxes": True,
             "retirement_enabled": False,

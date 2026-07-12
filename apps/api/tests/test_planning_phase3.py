@@ -314,9 +314,13 @@ def test_sync_monthly_plan_and_snapshot_end_to_end(client):
         assert snapshot.net_cash_flow == pytest.approx(0 - 1900)
 
         category_rows = db.query(MonthlyBudgetCategorySnapshot).filter_by(user_id=user_id, month=date(2026, 7, 1)).all()
-        actual_by_name = {row.category_name: row.actual for row in category_rows}
-        # Both transactions defaulted to the user's Other category.
-        assert actual_by_name.get("Other") == pytest.approx(1900)
+        # Flask 64b5ed5: only active budgets produce rows; Other-categorized
+        # spending rolls into the "Other Spending To Categorize" cleanup row.
+        assert "Other" not in {row.category_name for row in category_rows}
+        cleanup_rows = [row for row in category_rows if row.category_kind == "cleanup"]
+        assert [row.category_name for row in cleanup_rows] == ["Other Spending To Categorize"]
+        assert cleanup_rows[0].actual == pytest.approx(1900)
+        assert cleanup_rows[0].transaction_count == 2
         # Flask 40cf107/83ca1b6: the canonical Income category produces a
         # budget row; with no recorded income it falls back to the planned
         # profile income.
@@ -352,6 +356,22 @@ def test_additional_local_tax_joins_the_estimate():
     )
     assert take_home.additional_tax_annual == 0
     assert take_home.annual_total == 0
+
+
+def test_additional_tax_percent_mode():
+    # Flask 64b5ed5: percent mode taxes gross income at the given rate and
+    # ignores the flat monthly amount.
+    estimate = calculate_tax_estimate(
+        gross_profile(tax_state="TX", tax_additional_type="percent", tax_additional_rate=1.5, tax_additional_monthly_amount=999)
+    )
+    assert estimate.additional_tax_type == "percent"
+    assert estimate.additional_tax_annual == pytest.approx(100000 * 0.015)
+    assert estimate.additional_tax_monthly == pytest.approx(100000 * 0.015 / 12)
+    assert estimate.annual_total == pytest.approx(13170 + 6200 + 1450 + 1500)
+
+    unknown_type = calculate_tax_estimate(gross_profile(tax_state="TX", tax_additional_type="mystery", tax_additional_monthly_amount=50))
+    assert unknown_type.additional_tax_type == "amount"
+    assert unknown_type.additional_tax_annual == pytest.approx(600)
 
 
 def test_credit_card_payments_and_liability_inflows_are_not_income():

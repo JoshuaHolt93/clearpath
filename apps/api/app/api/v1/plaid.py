@@ -12,12 +12,14 @@ from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
 from app.core.database import get_db
+from app.core.planning_constants import ACCOUNT_CLASSIFICATION_OPTIONS
 from app.core.security import create_purpose_token, decode_purpose_token
 from app.dependencies import Principal, require_household_access
 from app.models import Account, PlaidAccountIgnore, PlaidItem, Transaction, utc_now
 from app.schemas.plaid import (
     AccountCashProjectionRoleUpdateRequest,
     AccountRemoveResponse,
+    AccountTypeUpdateRequest,
     AccountResponse,
     PlaidExchangePublicTokenRequest,
     PlaidIgnoredAccountResponse,
@@ -214,7 +216,10 @@ def plaid_disconnect_item_endpoint(
         result = disconnect_plaid_item(db, plaid_item, purpose="user_settings")
     except (PlaidConfigurationError, PlaidRequestError) as exc:
         raise HTTPException(status_code=400, detail=f"Plaid could not disconnect this institution yet: {exc}") from exc
-    run_post_sync_hooks(db, principal.user)
+    # Flask disconnect refreshes the monthly plan only (no subscription rescan).
+    from app.services.planning_service import sync_monthly_plan
+
+    sync_monthly_plan(db, principal.user, purpose="monthly_plan")
     return PlaidItemDisconnectResponse(**result)
 
 
@@ -259,8 +264,34 @@ def remove_synced_account(
         db.delete(transaction)
     db.delete(account)
     db.commit()
-    run_post_sync_hooks(db, principal.user)
+    # Flask removal refreshes the monthly plan only (no subscription rescan).
+    from app.services.planning_service import sync_monthly_plan
+
+    sync_monthly_plan(db, principal.user, purpose="monthly_plan")
     return AccountRemoveResponse(removed=True, ignored_account_id=ignored.id)
+
+
+@router.patch("/accounts/{account_id}/account-type", response_model=AccountResponse)
+def update_account_type(
+    account_id: int,
+    payload: AccountTypeUpdateRequest,
+    principal: Annotated[Principal, Depends(editor_access)],
+    db: Annotated[Session, Depends(get_db)],
+) -> AccountResponse:
+    from app.services.planning_service import sync_monthly_plan
+
+    account = _get_owned_account(db, principal, account_id)
+    if account.is_manual or not account.plaid_account_id:
+        raise HTTPException(status_code=422, detail="Only synced accounts can be classified from this section.")
+    account_type = (payload.account_type or "").strip().lower()
+    allowed_types = {value for value, _label in ACCOUNT_CLASSIFICATION_OPTIONS}
+    if account_type not in allowed_types:
+        raise HTTPException(status_code=422, detail="Choose a supported account type.")
+    account.account_type = account_type
+    db.commit()
+    sync_monthly_plan(db, principal.user, purpose="monthly_plan")
+    db.refresh(account)
+    return AccountResponse.model_validate(account)
 
 
 @router.patch("/accounts/{account_id}/cash-projection-role", response_model=AccountResponse)

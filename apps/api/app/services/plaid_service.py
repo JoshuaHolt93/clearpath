@@ -684,11 +684,14 @@ def sync_accounts(db: Session, plaid_item: PlaidItem, client, access_token: str,
         account = db.scalar(
             select(Account).where(Account.user_id == plaid_item.user_id, Account.plaid_account_id == plaid_account["account_id"])
         )
+        is_new_account = account is None
         if not account:
             account = Account(user_id=plaid_item.user_id, plaid_account_id=plaid_account["account_id"])
         balances = plaid_account.get("balances") or {}
         account.name = plaid_account.get("name") or plaid_account.get("official_name") or "Plaid Account"
-        account.account_type = str(plaid_account.get("subtype") or plaid_account.get("type") or "checking")
+        # Flask cf17a56: a user's manual account classification survives syncs.
+        if is_new_account or not (account.account_type or "").strip():
+            account.account_type = str(plaid_account.get("subtype") or plaid_account.get("type") or "checking")
         account.institution = plaid_item.institution_name
         account.current_balance = _plaid_balance_for_account(plaid_account, balances)
         account.is_manual = False

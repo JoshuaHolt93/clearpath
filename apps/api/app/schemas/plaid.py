@@ -109,3 +109,7 @@ class AccountRemoveResponse(BaseModel):
 
 class AccountCashProjectionRoleUpdateRequest(BaseModel):
     cash_projection_role: str = Field(pattern="^(auto|include|exclude)$")
+
+
+class AccountTypeUpdateRequest(BaseModel):
+    account_type: str

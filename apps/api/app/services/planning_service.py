@@ -579,6 +579,8 @@ class TaxEstimate:
     medicare_tax: float
     additional_medicare_tax: float
     additional_tax_label: str
+    additional_tax_type: str
+    additional_tax_rate: float
     additional_tax_annual: float
     additional_tax_monthly: float
     annual_total: float
@@ -698,7 +700,11 @@ def calculate_tax_estimate(profile: OnboardingProfile | None) -> TaxEstimate:
     annual_gross_income = max(monthly_income_from_profile(profile) * 12 - retirement_taxable_income_adjustment(profile), 0)
     income_basis = (getattr(profile, "income_basis", None) if profile else None) or "take_home"
     additional_tax_label = ((getattr(profile, "tax_additional_label", None) if profile else None) or "Additional Local Tax").strip()
-    additional_tax_monthly = max(float((getattr(profile, "tax_additional_monthly_amount", 0) if profile else 0) or 0), 0)
+    additional_tax_type = (getattr(profile, "tax_additional_type", None) if profile else None) or "amount"
+    if additional_tax_type not in {"amount", "percent"}:
+        additional_tax_type = "amount"
+    additional_tax_rate = max(float((getattr(profile, "tax_additional_rate", 0) if profile else 0) or 0), 0)
+    additional_tax_monthly_amount = max(float((getattr(profile, "tax_additional_monthly_amount", 0) if profile else 0) or 0), 0)
     standard_deduction = STANDARD_DEDUCTIONS_2026[filing_status]
     taxable_income = max(annual_gross_income - standard_deduction, 0)
     federal_brackets = FEDERAL_TAX_BRACKETS_2026[filing_status]
@@ -712,6 +718,8 @@ def calculate_tax_estimate(profile: OnboardingProfile | None) -> TaxEstimate:
             medicare_tax=0,
             additional_medicare_tax=0,
             additional_tax_label=additional_tax_label,
+            additional_tax_type=additional_tax_type,
+            additional_tax_rate=additional_tax_rate,
             additional_tax_annual=0,
             additional_tax_monthly=0,
             annual_total=0,
@@ -742,7 +750,12 @@ def calculate_tax_estimate(profile: OnboardingProfile | None) -> TaxEstimate:
     medicare_tax = annual_gross_income * MEDICARE_RATE_2026 if include_payroll_taxes else 0
     additional_threshold = ADDITIONAL_MEDICARE_THRESHOLDS[filing_status]
     additional_medicare_tax = max(annual_gross_income - additional_threshold, 0) * ADDITIONAL_MEDICARE_RATE if include_payroll_taxes else 0
-    additional_tax_annual = additional_tax_monthly * 12
+    if additional_tax_type == "percent":
+        additional_tax_annual = annual_gross_income * (additional_tax_rate / 100)
+        additional_tax_monthly = additional_tax_annual / 12
+    else:
+        additional_tax_monthly = additional_tax_monthly_amount
+        additional_tax_annual = additional_tax_monthly * 12
     annual_total = federal_income_tax + state_income_tax + social_security_tax + medicare_tax + additional_medicare_tax + additional_tax_annual
     return TaxEstimate(
         annual_gross_income=annual_gross_income,
@@ -753,6 +766,8 @@ def calculate_tax_estimate(profile: OnboardingProfile | None) -> TaxEstimate:
         medicare_tax=medicare_tax,
         additional_medicare_tax=additional_medicare_tax,
         additional_tax_label=additional_tax_label,
+        additional_tax_type=additional_tax_type,
+        additional_tax_rate=additional_tax_rate,
         additional_tax_annual=additional_tax_annual,
         additional_tax_monthly=additional_tax_monthly,
         annual_total=annual_total,
@@ -883,6 +898,38 @@ def transaction_is_credit_card_payment(transaction: Transaction) -> bool:
 
 def category_counts_as_spending(category: Category | None) -> bool:
     return not category or category.kind == "expense"
+
+
+def category_is_active_budget(db: Session, category: Category | None, user: User | None = None, planning_labels: set[str] | None = None) -> bool:
+    if not category:
+        return False
+    category_kind = category.kind or "expense"
+    label = normalize_text(category.name or "")
+    if category_kind == "income":
+        return label == "income"
+    if category_kind != "expense" or label == "other":
+        return False
+    if category.is_default:
+        return False
+    if (category.monthly_target or 0) > 0:
+        return True
+    if category.budget_sort_order is not None or (category.budget_group_key or "").strip():
+        return True
+    if planning_labels is not None:
+        return label in planning_labels
+    if not user:
+        return False
+    planning_labels = {
+        normalize_text(getattr(item, "category_label", "") or "")
+        for item in [
+            *db.scalars(select(FixedExpenseItem).where(FixedExpenseItem.user_id == user.id)).all(),
+            *db.scalars(select(VariableExpenseItem).where(VariableExpenseItem.user_id == user.id)).all(),
+            *db.scalars(select(ForecastItem).where(ForecastItem.user_id == user.id, ForecastItem.item_type == "expense")).all(),
+            *db.scalars(select(RecurringForecastTemplate).where(RecurringForecastTemplate.user_id == user.id, RecurringForecastTemplate.item_type == "expense")).all(),
+        ]
+        if normalize_text(getattr(item, "category_label", "") or "")
+    }
+    return label in planning_labels
 
 
 def transaction_counts_as_spending(transaction: Transaction) -> bool:
@@ -1049,6 +1096,8 @@ def _profile_from_income_replacement_template(base_profile: OnboardingProfile, t
     profile.tax_gross_annual_income = base_profile.tax_gross_annual_income or 0
     profile.tax_state_effective_rate = base_profile.tax_state_effective_rate or 0
     profile.tax_additional_label = base_profile.tax_additional_label or "Additional Local Tax"
+    profile.tax_additional_type = base_profile.tax_additional_type or "amount"
+    profile.tax_additional_rate = base_profile.tax_additional_rate or 0
     profile.tax_additional_monthly_amount = base_profile.tax_additional_monthly_amount or 0
     profile.include_payroll_taxes = bool(template.include_payroll_taxes)
     profile.retirement_enabled = bool(base_profile.retirement_enabled)
@@ -1755,15 +1804,24 @@ def _budget_category_snapshot_rows(db: Session, user: User, month_start: date, *
             categories_by_key[key] = category
 
     rows = []
-    for normalized_label in sorted(set(categories_by_key) | set(transactions_by_category)):
+    active_budget_keys = {
+        key
+        for key, category in categories_by_key.items()
+        if category_is_active_budget(db, category, user)
+    }
+    cleanup_allocations = [
+        allocation
+        for key, allocations in transactions_by_category.items()
+        if key not in active_budget_keys
+        for allocation in allocations
+    ]
+    for normalized_label in sorted(active_budget_keys):
         category = categories_by_key.get(normalized_label)
         allocations = transactions_by_category.get(normalized_label, [])
         label = category.name if category else ((allocations[0]["category_name"] if allocations else "Other") or "Other")
         category_kind = category.kind if category else "expense"
         if category and category_kind not in {"expense", "income"}:
             continue
-        # Flask 83ca1b6: only the canonical Income category produces an income
-        # budget row.
         if category_kind == "income" and normalize_text(label) != "income":
             continue
         if category and category.user_id == user.id and category.is_default and not allocations and category_kind != "income":
@@ -1788,6 +1846,22 @@ def _budget_category_snapshot_rows(db: Session, user: User, month_start: date, *
                 "actual": float(actual or 0),
                 "group_key": _budget_group_key_for_snapshot(category, label),
                 "sort_order": category.budget_sort_order if category else None,
+                "transaction_count": len(transaction_ids),
+                "transaction_ids_json": json.dumps(transaction_ids),
+            }
+        )
+    if cleanup_allocations:
+        transaction_ids = sorted({int(allocation["transaction_id"]) for allocation in cleanup_allocations if allocation.get("transaction_id")})
+        actual = sum(allocation["amount"] for allocation in cleanup_allocations)
+        rows.append(
+            {
+                "category_id": None,
+                "category_name": "Other Spending To Categorize",
+                "category_kind": "cleanup",
+                "planned": 0.0,
+                "actual": float(actual or 0),
+                "group_key": "miscellaneous",
+                "sort_order": None,
                 "transaction_count": len(transaction_ids),
                 "transaction_ids_json": json.dumps(transaction_ids),
             }
