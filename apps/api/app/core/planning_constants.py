@@ -178,6 +178,77 @@ LEGACY_DEFAULT_CATEGORIES = [
 DEFAULT_CATEGORY_TARGETS = {category["name"]: category["monthly_target"] for category in STARTER_CATEGORIES}
 DEFAULT_CATEGORY_TARGETS.update({name: target for name, _kind, target in LEGACY_DEFAULT_CATEGORIES})
 
+# Ported from Flask main.py at cb7d969 for the monthly-plan endpoints.
+BUDGET_SORT_OPTIONS = {
+    "custom": "Custom Order",
+    "amount_desc": "Monthly Budget: High To Low",
+    "amount_asc": "Monthly Budget: Low To High",
+    "category_az": "Category: A To Z",
+    "category_za": "Category: Z To A",
+}
+
+QUICK_WORKSHEET_SORT_OPTIONS = {
+    "amount_desc": "Planned Cash: High To Low",
+    "amount_asc": "Planned Cash: Low To High",
+    "name_asc": "Name: A To Z",
+    "name_desc": "Name: Z To A",
+    "timing_asc": "Timing: Earliest First",
+    "timing_desc": "Timing: Latest First",
+    "category_az": "Category: A To Z",
+    "category_za": "Category: Z To A",
+}
+
+BUDGET_CATEGORY_TRANSACTION_HINTS = {
+    "mortgage/rent": ("mortgage", "rent", "apartment", "landlord", "lease"),
+    "home/rental insurance": ("home insurance", "rental insurance", "renters insurance"),
+    "electricity": ("electric", "power", "duke energy", "aes", "utility"),
+    "gas": ("natural gas", "gas utility", "citizens gas"),
+    "water/sewage/trash": ("water", "sewage", "sewer", "trash", "waste", "utility"),
+    "phone": ("phone", "mobile", "wireless", "verizon", "at&t", "att", "t-mobile", "tmobile"),
+    "internet": ("internet", "xfinity", "comcast", "spectrum", "fiber"),
+    "maintenance": ("maintenance", "repair", "hardware", "home depot", "lowes"),
+    "vehicle payments": ("auto loan", "car payment", "vehicle payment"),
+    "auto insurance": ("auto insurance", "car insurance", "geico", "progressive", "state farm"),
+    "fuel/gasoline": ("fuel", "gas station", "gasoline", "shell", "bp", "chevron", "exxon", "speedway", "circle k"),
+    "bus/taxi": ("bus", "taxi", "uber", "lyft", "transit"),
+    "repairs": ("auto repair", "mechanic", "oil change", "tire"),
+    "registration/license": ("registration", "license", "bmv", "dmv"),
+    "tithing": ("tithe", "tithing", "church"),
+    "charitable donations": ("charity", "charitable", "donation", "nonprofit"),
+    "gifts given": ("gift", "flowers"),
+    "health insurance": ("health insurance", "medical insurance"),
+    "doctor/dentist": ("doctor", "dentist", "medical", "clinic", "hospital", "dental"),
+    "medicine/prescriptions": ("pharmacy", "prescription", "medicine", "cvs", "walgreens"),
+    "life insurance": ("life insurance",),
+    "gym/fitness": ("gym", "fitness", "ymca", "planet fitness"),
+    "health club dues": ("health club",),
+    "consumer subscriptions": ("subscription", "membership", "recurring"),
+    "groceries": ("grocery", "groceries", "kroger", "aldi", "meijer", "walmart", "wm supercenter", "costco", "sam's club", "sams club"),
+    "personal supplies": ("personal supplies", "target", "household", "toiletries"),
+    "clothing": ("clothing", "apparel", "shoes"),
+    "cleaning": ("cleaning", "cleaners"),
+    "education/lessons": ("lesson", "education", "school", "tuition"),
+    "dining/eating out": ("restaurant", "dining", "coffee", "starbucks", "mcdonald", "chick-fil-a", "doordash", "grubhub"),
+    "salon/barber": ("salon", "barber", "haircut"),
+    "pet food": ("pet", "petsmart", "petco"),
+    "laundry": ("laundry", "dry clean"),
+    "rentals": ("rental",),
+    "music": ("music", "spotify", "apple music"),
+    "books": ("book", "kindle", "audible"),
+    "streaming services": ("netflix", "hulu", "disney", "paramount", "peacock", "max", "streaming"),
+    "movies/theater/concerts/plays": ("movie", "theater", "cinema", "concert", "ticketmaster"),
+    "hobbies": ("hobby", "craft"),
+    "sports/outdoor recreation": ("sports", "outdoor", "recreation"),
+    "vacation/travel": ("hotel", "airline", "flight", "travel", "vacation", "airbnb"),
+    "student loans": ("student loan",),
+    "other loan": ("loan",),
+    "credit cards": ("credit card",),
+    "alimony/child care": ("child care", "daycare", "alimony"),
+    "federal taxes": ("irs", "federal tax"),
+    "state/local taxes": ("state tax", "local tax"),
+    "bank fees": ("fee", "bank fee", "overdraft"),
+}
+
 DEFAULT_APP_TIMEZONE = "America/New_York"
 FIXED_EXPENSE_CATEGORY_NAMES = {"Housing", "Utilities", "Mortgage", "Loan", "Consumer Subscriptions"}
 LOAN_CATEGORY_NAMES = {"Mortgage", "Mortgage/Rent", "Loan", "Vehicle Payments", "Student Loans", "Other Loan", "Credit Cards"}

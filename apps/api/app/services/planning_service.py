@@ -4,6 +4,7 @@ import calendar
 import json
 import math
 import os
+import re
 from collections import defaultdict
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta
@@ -18,6 +19,7 @@ from app.core.planning_constants import (
     ADDITIONAL_MEDICARE_RATE,
     ADDITIONAL_MEDICARE_THRESHOLDS,
     ANALYTICS_RANGE_OPTIONS,
+    BUDGET_CATEGORY_TRANSACTION_HINTS,
     DEFAULT_APP_TIMEZONE,
     DEFAULT_CATEGORY_TARGETS,
     FEDERAL_TAX_BRACKETS_2026,
@@ -2133,6 +2135,230 @@ def transaction_budget_action(db: Session, transaction: Transaction, user: User,
         "target_label": f"${target:,.0f}",
         "hint": f"Starts {category.name} at ${target:,.0f} per month.",
     }
+
+
+def amount_for_monthly_target(monthly_target: float, frequency: str | None, occurrence_multiplier: int = 1) -> float:
+    occurrence_multiplier = max(int(occurrence_multiplier or 1), 1)
+    monthly_target = max(monthly_target or 0, 0) / occurrence_multiplier
+    frequency = frequency or "monthly"
+    if frequency == "annual":
+        return monthly_target * 12
+    if frequency == "quarterly":
+        return monthly_target * 3
+    if frequency == "semimonthly":
+        return monthly_target / 2
+    if frequency == "biweekly":
+        return monthly_target * 12 / 26
+    if frequency == "weekly":
+        return monthly_target * 12 / 52
+    return monthly_target
+
+
+def planning_item_occurrence_multiplier(item) -> int:
+    frequency = getattr(item, "frequency", None)
+    if frequency not in {"weekly", "biweekly"}:
+        return 1
+    days_of_week = getattr(item, "days_of_week", None)
+    if hasattr(item, "use_specific_date") and not item.use_specific_date:
+        return 1
+    return max(len(weekday_values(days_of_week)), 1)
+
+
+def recurring_template_monthly_amount(template: RecurringForecastTemplate) -> float:
+    return monthly_amount_for_frequency(template.amount or 0, template.frequency or "monthly") * planning_item_occurrence_multiplier(template)
+
+
+def recorded_month_income(db: Session, user: User, target_date: date | None = None) -> float:
+    # The monthly-plan page's metrics.month_income: recorded income for the
+    # month, falling back to the planned income when nothing is recorded yet.
+    # PHASE 3 (dashboard): full calculate_dashboard_metrics ports with the
+    # dashboard sub-part.
+    return _month_income_total(db, user, target_date or app_today())
+
+
+def budget_anchor_for_label(label: str | None) -> str:
+    slug = re.sub(r"[^a-z0-9]+", "-", (label or "other").lower()).strip("-")
+    return f"budget-{slug or 'other'}"
+
+
+def budget_category_match_terms(label: str) -> set[str]:
+    normalized = normalize_text(label)
+    terms = {normalized}
+    terms.update(term for term in re.split(r"[^a-z0-9]+", normalized) if len(term) >= 4)
+    terms.update(BUDGET_CATEGORY_TRANSACTION_HINTS.get(normalized, ()))
+    return {normalize_text(term) for term in terms if normalize_text(term)}
+
+
+def budget_suggestion_candidate(transaction: Transaction) -> bool:
+    category_name = normalize_text(transaction.category.name if transaction.category else "")
+    return not category_name or category_name == "other"
+
+
+def transaction_matches_budget_category(transaction: Transaction, label: str) -> bool:
+    haystack = normalize_text(" ".join([transaction.description or "", transaction.merchant or "", transaction.source_name or ""]))
+    if not haystack:
+        return False
+    return any(term in haystack for term in budget_category_match_terms(label))
+
+
+def tax_plan_detail_rows(tax_estimate: TaxEstimate, multiplier: float = 1.0) -> list[dict]:
+    payroll_tax = (tax_estimate.social_security_tax + tax_estimate.medicare_tax + tax_estimate.additional_medicare_tax) / 12 * multiplier
+    rows = [
+        {
+            "label": "Federal Income Tax",
+            "planned": tax_estimate.federal_income_tax / 12 * multiplier,
+            "actual": 0,
+            "source": "tax",
+            "table_target": "tax-table-federal",
+        },
+        {
+            "label": "State Income Tax",
+            "planned": tax_estimate.state_income_tax / 12 * multiplier,
+            "actual": 0,
+            "source": "tax",
+            "table_target": "tax-table-state",
+        },
+        {
+            "label": "Social Security And Medicare Taxes",
+            "planned": payroll_tax,
+            "actual": 0,
+            "source": "tax",
+            "table_target": "tax-table-payroll",
+        },
+    ]
+    if tax_estimate.additional_tax_monthly:
+        rows.append(
+            {
+                "label": tax_estimate.additional_tax_label,
+                "planned": tax_estimate.additional_tax_monthly * multiplier,
+                "actual": 0,
+                "source": "tax",
+                "table_target": "tax-table-additional",
+            }
+        )
+    for row in rows:
+        row["diff"] = row["actual"] - row["planned"]
+    return rows
+
+
+def spending_by_category(db: Session, user: User, target_date: date | None = None, *, purpose: str = "dashboard") -> list[dict]:
+    assert_plaid_data_purpose(purpose)
+    target_date = target_date or app_today()
+    start, end = month_bounds(target_date)
+    totals: dict[str, dict] = defaultdict(lambda: {"amount": 0.0, "category_id": None})
+    for allocation in transaction_category_allocations_for_period(db, user, start, end, purpose=purpose):
+        row = totals[allocation["category_name"]]
+        row["amount"] += allocation["amount"]
+        row["category_id"] = row["category_id"] or allocation.get("category_id")
+    rows = sorted(totals.items(), key=lambda row: row[1]["amount"], reverse=True)[:6]
+    return [
+        {"category": category, "category_id": row["category_id"], "amount": float(row["amount"] or 0)}
+        for category, row in rows
+    ]
+
+
+# Timing helpers ported from Flask main.py at cb7d969. Flask reads these
+# straight from request.form; the API passes the raw values explicitly.
+
+
+def next_date_for_selected_weekdays(selected_weekdays: list[str], anchor_date: date | None = None) -> date | None:
+    weekdays = sorted(
+        int(value)
+        for value in selected_weekdays
+        if value.isdigit() and int(value) in WEEKDAY_OPTIONS
+    )
+    if not weekdays:
+        return None
+    anchor = anchor_date or app_today()
+    return min(anchor + timedelta(days=(weekday - anchor.weekday()) % 7) for weekday in weekdays)
+
+
+def clean_selected_weekdays(raw_values: list[str | int] | None) -> list[str]:
+    return [
+        str(value)
+        for value in (raw_values or [])
+        if str(value).isdigit() and int(value) in WEEKDAY_OPTIONS
+    ]
+
+
+def fixed_expense_timing_from_values(
+    frequency: str,
+    start_date: date | None,
+    second_date: date | None,
+    selected_weekdays: list[str],
+    selected_week_numbers: list[str | int] | None = None,
+    monthly_weekday_raw: str | int | None = None,
+) -> tuple[date | None, date | None, list[str], str | None, int | None]:
+    selected_weeks = [
+        str(value)
+        for value in (selected_week_numbers or [])
+        if str(value) in {str(week) for week in MONTHLY_WEEK_OPTIONS}
+    ]
+    try:
+        monthly_weekday = int(monthly_weekday_raw if monthly_weekday_raw is not None else "")
+    except (TypeError, ValueError):
+        monthly_weekday = None
+    if monthly_weekday not in WEEKDAY_OPTIONS:
+        monthly_weekday = None
+    monthly_week_numbers = ",".join(selected_weeks) if selected_weeks else None
+    uses_weekday_pattern = monthly_weekday is not None
+    if uses_weekday_pattern:
+        if frequency in {"weekly", "biweekly"}:
+            if not selected_weekdays:
+                selected_weekdays = [str(monthly_weekday)]
+            monthly_week_numbers = None
+        elif frequency == "semimonthly":
+            second_date = None
+        elif frequency == "monthly":
+            second_date = None
+        else:
+            monthly_week_numbers = None
+            monthly_weekday = None
+    else:
+        monthly_week_numbers = None
+        monthly_weekday = None
+
+    if not start_date and frequency in {"weekly", "biweekly"} and selected_weekdays:
+        start_date = next_date_for_selected_weekdays(selected_weekdays)
+    if start_date and frequency in {"weekly", "biweekly"} and not selected_weekdays:
+        selected_weekdays = [str(start_date.weekday())]
+    return start_date, second_date, selected_weekdays, monthly_week_numbers, monthly_weekday
+
+
+def paycheck_timing_values(
+    cadence: str,
+    next_pay_date: date | None,
+    second_date: date | None,
+    selected_weekdays: list[str | int] | None = None,
+    selected_week_numbers: list[str | int] | None = None,
+    monthly_weekday_raw: str | int | None = None,
+) -> dict:
+    cleaned_weekdays = clean_selected_weekdays(selected_weekdays)
+    next_pay_date, second_date, cleaned_weekdays, monthly_week_numbers, monthly_weekday = fixed_expense_timing_from_values(
+        cadence,
+        next_pay_date,
+        second_date,
+        cleaned_weekdays,
+        selected_week_numbers,
+        monthly_weekday_raw,
+    )
+    timing_values = {
+        "next_pay_date": next_pay_date,
+        "paycheck_second_date": None,
+        "paycheck_days_of_week": None,
+        "paycheck_second_day_of_month": None,
+        "paycheck_monthly_week_numbers": None,
+        "paycheck_monthly_weekday": None,
+    }
+    if cadence in {"weekly", "biweekly"}:
+        timing_values["paycheck_days_of_week"] = ",".join(cleaned_weekdays) if cleaned_weekdays else None
+    elif cadence in {"monthly", "semimonthly"}:
+        if cadence == "semimonthly":
+            timing_values["paycheck_second_date"] = second_date
+            timing_values["paycheck_second_day_of_month"] = second_date.day if second_date else None
+        timing_values["paycheck_monthly_week_numbers"] = monthly_week_numbers
+        timing_values["paycheck_monthly_weekday"] = monthly_weekday
+    return timing_values
 
 
 def _plaid_post_sync_hook(db: Session, user: User) -> None:

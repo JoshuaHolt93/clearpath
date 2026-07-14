@@ -462,6 +462,35 @@ def ensure_category_option(db: Session, label: str | None, user: User | None = N
     return category
 
 
+def sync_planning_categories(db: Session, user: User) -> None:
+    labels = set()
+    for model in [FixedExpenseItem, VariableExpenseItem, ForecastItem, RecurringForecastTemplate]:
+        for item in db.scalars(select(model).where(model.user_id == user.id)).all():
+            if item.category_label:
+                labels.add(item.category_label)
+    created = False
+    for label in labels:
+        if ensure_category_option(db, label, user):
+            created = True
+    if created:
+        db.commit()
+
+
+def category_label_options_for_user(db: Session, user: User) -> list[str]:
+    sync_planning_categories(db, user)
+    labels = {category.name for category in categories_for_user(db, user)}
+    for model in [FixedExpenseItem, VariableExpenseItem, ForecastItem, RecurringForecastTemplate]:
+        for item in db.scalars(select(model).where(model.user_id == user.id)).all():
+            if item.category_label:
+                labels.add(item.category_label)
+    deduped = {}
+    for label in labels:
+        cleaned = (label or "").strip()
+        if cleaned and cleaned.lower() not in deduped:
+            deduped[cleaned.lower()] = cleaned
+    return sorted(deduped.values(), key=lambda label: label.lower())
+
+
 def rename_planning_category_label(db: Session, old_label: str, new_label: str, user: User) -> None:
     for model in [FixedExpenseItem, VariableExpenseItem, ForecastItem, RecurringForecastTemplate]:
         for item in db.scalars(select(model).where(model.user_id == user.id, model.category_label == old_label)).all():
