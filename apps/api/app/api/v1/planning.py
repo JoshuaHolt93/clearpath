@@ -48,7 +48,11 @@ from app.schemas.planning import (
     BudgetUpdateRequest,
     CategorySpendRowResponse,
     ExpenseSourceRowResponse,
+    FixedExpenseCreateRequest,
+    FixedExpenseDeleteRequest,
+    FixedExpenseDeleteResponse,
     FixedExpenseItemResponse,
+    FixedExpenseUpdateRequest,
     ForecastItemResponse,
     MonthlyPlanBaselineUpdateRequest,
     MonthlyPlanRecordResponse,
@@ -59,14 +63,25 @@ from app.schemas.planning import (
     RecurringForecastTemplateResponse,
     SuggestedBudgetSectionResponse,
     TaxEstimateResponse,
+    VariableExpenseCreateRequest,
+    VariableExpenseDeleteRequest,
+    VariableExpenseDeleteResponse,
     VariableExpenseItemResponse,
+    VariableExpenseUpdateRequest,
 )
 from app.schemas.transactions import CategoryResponse
 from app.services.planning_service import (
     BUDGET_CATEGORY_GROUP_BY_KEY,
     active_budget_categories_by_key,
+    amount_for_monthly_target,
     annual_salary_from_profile,
     app_today,
+    clean_selected_weekdays,
+    fixed_expense_timing_from_values,
+    loan_category_for_item,
+    planning_item_occurrence_multiplier,
+    sync_loan_fixed_expense_budget,
+    sync_planning_item_budget_target,
     budget_anchor_for_label,
     budget_category_group_for_label,
     budget_category_group_for_row,
@@ -255,6 +270,271 @@ def delete_budget(
         deleted_category_id=category_id,
         replacement_category=CategoryResponse.model_validate(replacement) if replacement else None,
     )
+
+
+# --- Fixed and variable expense worksheets -----------------------------------
+# Faithful ports of Flask add/edit/amount/delete handlers (main.py at cb7d969).
+# The amount-only Flask routes collapse into PATCH: a payload carrying only
+# monthly_target follows Flask's edit_*_amount semantics.
+
+
+def _fixed_item_response(item: FixedExpenseItem) -> FixedExpenseItemResponse:
+    response = FixedExpenseItemResponse.model_validate(item)
+    response.monthly_amount = monthly_amount_for_fixed_item(item)
+    return response
+
+
+def _variable_item_response(item: VariableExpenseItem) -> VariableExpenseItemResponse:
+    response = VariableExpenseItemResponse.model_validate(item)
+    response.monthly_amount = monthly_amount_for_variable_item(item)
+    return response
+
+
+def _get_owned_fixed_item(db: Session, user: User, item_id: int) -> FixedExpenseItem:
+    item = db.scalar(select(FixedExpenseItem).where(FixedExpenseItem.user_id == user.id, FixedExpenseItem.id == item_id))
+    if not item:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Fixed expense not found.")
+    return item
+
+
+def _get_owned_variable_item(db: Session, user: User, item_id: int) -> VariableExpenseItem:
+    item = db.scalar(select(VariableExpenseItem).where(VariableExpenseItem.user_id == user.id, VariableExpenseItem.id == item_id))
+    if not item:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Variable expense not found.")
+    return item
+
+
+def _parse_optional_date(raw_value: str | None) -> date | None:
+    raw = (raw_value or "").strip()
+    if not raw:
+        return None
+    try:
+        return parse_flexible_date(raw)
+    except ValueError:
+        return None
+
+
+def _fixed_expense_values(payload: FixedExpenseCreateRequest, *, item_label: str) -> dict:
+    name = (payload.name or "").strip()
+    amount = parse_amount(payload.amount or 0)
+    frequency = payload.frequency or "monthly"
+    raw_second_date = (payload.second_date or "").strip()
+    selected_weekdays = clean_selected_weekdays(payload.days_of_week)
+    start_date = _parse_optional_date(payload.start_date)
+    second_date = _parse_optional_date(payload.second_date)
+    start_date, second_date, selected_weekdays, monthly_week_numbers, monthly_weekday = fixed_expense_timing_from_values(
+        frequency,
+        start_date,
+        second_date,
+        selected_weekdays,
+        payload.recurring_monthly_week_numbers,
+        payload.recurring_monthly_weekday,
+    )
+    if not name or amount <= 0:
+        raise HTTPException(status_code=422, detail=f"{item_label} name and amount are required.")
+    if not start_date:
+        raise HTTPException(status_code=422, detail=f"Enter a valid {item_label.lower()} date.")
+    if frequency == "semimonthly" and monthly_weekday is not None and not monthly_week_numbers:
+        message = "Choose which weeks in the month this loan payment repeats." if item_label == "Loan" else "Choose which weeks in the month this expense repeats."
+        raise HTTPException(status_code=422, detail=message)
+    if frequency in {"semimonthly", "biweekly"} and raw_second_date and not second_date:
+        raise HTTPException(status_code=422, detail="Enter a valid second date for twice-per-month expenses.")
+    return {
+        "name": name,
+        "amount": amount,
+        "frequency": frequency,
+        "start_date": start_date,
+        "second_date": second_date,
+        "selected_weekdays": selected_weekdays,
+        "monthly_week_numbers": monthly_week_numbers,
+        "monthly_weekday": monthly_weekday,
+        "category_label": (payload.category_label or "").strip() or None,
+        "notes": (payload.notes or "").strip() or None,
+    }
+
+
+@router.post("/fixed-expenses", response_model=FixedExpenseItemResponse, status_code=status.HTTP_201_CREATED)
+def create_fixed_expense(
+    payload: FixedExpenseCreateRequest,
+    principal: Annotated[Principal, Depends(require_household_access("editor"))],
+    db: Annotated[Session, Depends(get_db)],
+) -> FixedExpenseItemResponse:
+    user = principal.user
+    is_loan_entry = payload.entry_context == "loan"
+    values = _fixed_expense_values(payload, item_label="Loan" if is_loan_entry else "Fixed expense")
+    ensure_category_option(db, values["category_label"], user)
+    item = FixedExpenseItem(
+        user_id=user.id,
+        name=values["name"],
+        amount=values["amount"],
+        due_day=values["start_date"].day,
+        start_date=values["start_date"],
+        frequency=values["frequency"],
+        days_of_week=",".join(values["selected_weekdays"]) if values["selected_weekdays"] else None,
+        second_date=values["second_date"],
+        second_day_of_month=values["second_date"].day if values["second_date"] else None,
+        monthly_week_numbers=values["monthly_week_numbers"],
+        monthly_weekday=values["monthly_weekday"],
+        category_label=values["category_label"],
+        is_loan=is_loan_entry,
+        notes=values["notes"],
+    )
+    db.add(item)
+    sync_loan_fixed_expense_budget(db, item, user, force=is_loan_entry)
+    db.commit()
+    sync_monthly_plan(db, user)
+    return _fixed_item_response(_get_owned_fixed_item(db, user, item.id))
+
+
+@router.patch("/fixed-expenses/{item_id}", response_model=FixedExpenseItemResponse)
+def update_fixed_expense(
+    item_id: int,
+    payload: FixedExpenseUpdateRequest,
+    principal: Annotated[Principal, Depends(require_household_access("editor"))],
+    db: Annotated[Session, Depends(get_db)],
+) -> FixedExpenseItemResponse:
+    user = principal.user
+    item = _get_owned_fixed_item(db, user, item_id)
+
+    if "monthly_target" in payload.model_fields_set:
+        # Flask edit_fixed_expense_amount.
+        monthly_target = parse_amount(payload.monthly_target or 0)
+        if monthly_target <= 0:
+            raise HTTPException(status_code=422, detail="Enter a positive planned cash amount.")
+        item.amount = round(amount_for_monthly_target(monthly_target, item.frequency, planning_item_occurrence_multiplier(item)), 2)
+        ensure_category_option(db, item.category_label or "Other", user)
+        if item.is_loan or loan_category_for_item(item):
+            sync_loan_fixed_expense_budget(db, item, user, force=item.is_loan)
+        else:
+            sync_planning_item_budget_target(db, item.category_label or "Other", user)
+        db.commit()
+        sync_monthly_plan(db, user, purpose="monthly_plan")
+        return _fixed_item_response(_get_owned_fixed_item(db, user, item.id))
+
+    # Flask edit_fixed_expense.
+    values = _fixed_expense_values(payload, item_label="Fixed expense")
+    ensure_category_option(db, values["category_label"], user)
+    item.name = values["name"]
+    item.amount = values["amount"]
+    item.due_day = values["start_date"].day
+    item.start_date = values["start_date"]
+    item.frequency = values["frequency"]
+    item.days_of_week = ",".join(values["selected_weekdays"]) if values["selected_weekdays"] else None
+    item.second_date = values["second_date"]
+    item.second_day_of_month = values["second_date"].day if values["second_date"] else None
+    item.monthly_week_numbers = values["monthly_week_numbers"]
+    item.monthly_weekday = values["monthly_weekday"]
+    item.category_label = values["category_label"]
+    if payload.entry_context == "loan":
+        item.is_loan = True
+    item.notes = values["notes"]
+    sync_loan_fixed_expense_budget(db, item, user, force=item.is_loan)
+    db.commit()
+    sync_monthly_plan(db, user)
+    return _fixed_item_response(_get_owned_fixed_item(db, user, item.id))
+
+
+@router.delete("/fixed-expenses/{item_id}", response_model=FixedExpenseDeleteResponse)
+def delete_fixed_expense(
+    item_id: int,
+    payload: FixedExpenseDeleteRequest,
+    principal: Annotated[Principal, Depends(require_household_access("editor"))],
+    db: Annotated[Session, Depends(get_db)],
+) -> FixedExpenseDeleteResponse:
+    user = principal.user
+    item = _get_owned_fixed_item(db, user, item_id)
+    db.delete(item)
+    db.commit()
+    sync_monthly_plan(db, user)
+    return FixedExpenseDeleteResponse(deleted_item_id=item_id)
+
+
+def _variable_expense_values(payload: VariableExpenseCreateRequest) -> dict:
+    name = (payload.name or "").strip()
+    amount = parse_amount(payload.amount or 0)
+    frequency = payload.frequency or "monthly"
+    use_specific_date = payload.use_specific_date
+    specific_date = _parse_optional_date(payload.specific_date)
+    selected_weekdays = clean_selected_weekdays(payload.days_of_week)
+    if not name or amount <= 0:
+        raise HTTPException(status_code=422, detail="Variable expense name and amount are required.")
+    if use_specific_date and frequency == "monthly" and not specific_date:
+        raise HTTPException(status_code=422, detail="Enter a valid date for the monthly variable expense.")
+    if use_specific_date and frequency != "monthly" and not selected_weekdays:
+        raise HTTPException(status_code=422, detail="Choose at least one weekday for this variable expense.")
+    return {
+        "name": name,
+        "amount": amount,
+        "frequency": frequency,
+        "use_specific_date": use_specific_date,
+        "specific_date": specific_date if use_specific_date and frequency == "monthly" else None,
+        "days_of_week": ",".join(selected_weekdays) if use_specific_date and frequency != "monthly" else None,
+        "category_label": (payload.category_label or "").strip() or None,
+        "notes": (payload.notes or "").strip() or None,
+    }
+
+
+@router.post("/variable-expenses", response_model=VariableExpenseItemResponse, status_code=status.HTTP_201_CREATED)
+def create_variable_expense(
+    payload: VariableExpenseCreateRequest,
+    principal: Annotated[Principal, Depends(require_household_access("editor"))],
+    db: Annotated[Session, Depends(get_db)],
+) -> VariableExpenseItemResponse:
+    user = principal.user
+    values = _variable_expense_values(payload)
+    ensure_category_option(db, values["category_label"], user)
+    item = VariableExpenseItem(user_id=user.id, **values)
+    db.add(item)
+    db.commit()
+    sync_monthly_plan(db, user)
+    return _variable_item_response(_get_owned_variable_item(db, user, item.id))
+
+
+@router.patch("/variable-expenses/{item_id}", response_model=VariableExpenseItemResponse)
+def update_variable_expense(
+    item_id: int,
+    payload: VariableExpenseUpdateRequest,
+    principal: Annotated[Principal, Depends(require_household_access("editor"))],
+    db: Annotated[Session, Depends(get_db)],
+) -> VariableExpenseItemResponse:
+    user = principal.user
+    item = _get_owned_variable_item(db, user, item_id)
+
+    if "monthly_target" in payload.model_fields_set:
+        # Flask edit_variable_expense_amount.
+        monthly_target = parse_amount(payload.monthly_target or 0)
+        if monthly_target <= 0:
+            raise HTTPException(status_code=422, detail="Enter a positive planned cash amount.")
+        item.amount = round(amount_for_monthly_target(monthly_target, item.frequency, planning_item_occurrence_multiplier(item)), 2)
+        ensure_category_option(db, item.category_label or "Other", user)
+        sync_planning_item_budget_target(db, item.category_label or "Other", user)
+        db.commit()
+        sync_monthly_plan(db, user, purpose="monthly_plan")
+        return _variable_item_response(_get_owned_variable_item(db, user, item.id))
+
+    # Flask edit_variable_expense.
+    values = _variable_expense_values(payload)
+    ensure_category_option(db, values["category_label"], user)
+    for key, value in values.items():
+        setattr(item, key, value)
+    db.commit()
+    sync_monthly_plan(db, user)
+    return _variable_item_response(_get_owned_variable_item(db, user, item.id))
+
+
+@router.delete("/variable-expenses/{item_id}", response_model=VariableExpenseDeleteResponse)
+def delete_variable_expense(
+    item_id: int,
+    payload: VariableExpenseDeleteRequest,
+    principal: Annotated[Principal, Depends(require_household_access("editor"))],
+    db: Annotated[Session, Depends(get_db)],
+) -> VariableExpenseDeleteResponse:
+    user = principal.user
+    item = _get_owned_variable_item(db, user, item_id)
+    db.delete(item)
+    db.commit()
+    sync_monthly_plan(db, user)
+    return VariableExpenseDeleteResponse(deleted_item_id=item_id)
 
 
 # --- GET /v1/monthly-plan assembler ------------------------------------------

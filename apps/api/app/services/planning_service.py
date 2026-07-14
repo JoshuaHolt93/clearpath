@@ -56,6 +56,7 @@ from app.services import plaid_service
 from app.services.transaction_service import (
     CREDIT_CARD_PAYMENT_CATEGORY_NAME,
     categories_for_user,
+    ensure_category_option,
     looks_like_credit_card_payment,
     normalize_text,
 )
@@ -2135,6 +2136,73 @@ def transaction_budget_action(db: Session, transaction: Transaction, user: User,
         "target_label": f"${target:,.0f}",
         "hint": f"Starts {category.name} at ${target:,.0f} per month.",
     }
+
+
+def sync_loan_fixed_expense_budget(db: Session, item: FixedExpenseItem, user: User, *, force: bool = False) -> Category | None:
+    if force:
+        item.is_loan = True
+    if not (force or loan_category_for_item(item)):
+        return None
+    category = ensure_category_option(db, item.category_label or item.name, user)
+    if not category:
+        return None
+    editable_category = editable_budget_category_for_user(db, category, user)
+    category_key = normalize_text(editable_category.name)
+    loan_items = [
+        candidate
+        for candidate in db.scalars(select(FixedExpenseItem).where(FixedExpenseItem.user_id == user.id)).all()
+        if (candidate.is_loan or loan_category_for_item(candidate)) and normalize_text(candidate.category_label or candidate.name) == category_key
+    ]
+    loan_plans = {plan.fixed_expense_item_id: plan for plan in db.scalars(select(LoanPlan).where(LoanPlan.user_id == user.id)).all()}
+    scheduled_loan_total = sum(monthly_amount_for_fixed_item(candidate) for candidate in loan_items)
+    selected_extra_total = sum(selected_extra_payment_for_loan_plan(loan_plans.get(candidate.id)) for candidate in loan_items)
+    possible_extra_totals = {0.0}
+    for candidate in loan_items:
+        plan = loan_plans.get(candidate.id)
+        options = {0.0}
+        if plan:
+            options.add(max(plan.extra_payment_one or 0, 0))
+            options.add(max(plan.extra_payment_two or 0, 0))
+        possible_extra_totals = {
+            round(existing + option, 2)
+            for existing in possible_extra_totals
+            for option in options
+        }
+    possible_auto_targets = {
+        round(scheduled_loan_total + extra_total, 2)
+        for extra_total in possible_extra_totals
+    }
+    monthly_payment = max(monthly_amount_for_fixed_item(item), 0)
+    target = max(monthly_payment, scheduled_loan_total + selected_extra_total, 0)
+    current_target = round(editable_category.monthly_target or 0, 2)
+    if target > editable_category.monthly_target or editable_category.is_default or current_target in possible_auto_targets:
+        editable_category.monthly_target = target
+    editable_category.is_default = False
+    return editable_category
+
+
+def sync_planning_item_budget_target(db: Session, category_label: str | None, user: User) -> Category | None:
+    category_label = (category_label or "").strip() or "Other"
+    category = ensure_category_option(db, category_label, user)
+    if not category or category.kind != "expense":
+        return None
+    category_key = normalize_text(category.name)
+    scheduled_total = 0.0
+    for item in db.scalars(select(FixedExpenseItem).where(FixedExpenseItem.user_id == user.id)).all():
+        if normalize_text(item.category_label or "Other") == category_key:
+            scheduled_total += monthly_amount_for_fixed_item(item)
+    for item in db.scalars(select(VariableExpenseItem).where(VariableExpenseItem.user_id == user.id)).all():
+        if normalize_text(item.category_label or "Other") == category_key:
+            scheduled_total += monthly_amount_for_variable_item(item)
+    for template in db.scalars(select(RecurringForecastTemplate).where(RecurringForecastTemplate.user_id == user.id, RecurringForecastTemplate.item_type == "expense")).all():
+        if normalize_text(template.category_label or "Other") == category_key:
+            scheduled_total += recurring_template_monthly_amount(template)
+    if scheduled_total <= 0:
+        return None
+    editable_category = editable_budget_category_for_user(db, category, user)
+    editable_category.monthly_target = round(scheduled_total, 2)
+    editable_category.is_default = False
+    return editable_category
 
 
 def amount_for_monthly_target(monthly_target: float, frequency: str | None, occurrence_multiplier: int = 1) -> float:

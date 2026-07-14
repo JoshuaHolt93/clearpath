@@ -358,6 +358,60 @@ class MonthlyPlanResponse(BaseModel):
     budget_group_options: list[dict]
 
 
+class FixedExpenseCreateRequest(BaseModel):
+    name: str = ""
+    amount: float | None = None
+    frequency: str = "monthly"
+    start_date: str = ""
+    second_date: str | None = None
+    days_of_week: list[int | str] = Field(default_factory=list)
+    recurring_monthly_week_numbers: list[int | str] = Field(default_factory=list)
+    recurring_monthly_weekday: int | str | None = None
+    category_label: str | None = None
+    # Flask entry_context="loan" marks the item as a loan and syncs the
+    # loan budget category.
+    entry_context: str | None = None
+    notes: str | None = None
+
+
+class FixedExpenseUpdateRequest(FixedExpenseCreateRequest):
+    # When only monthly_target is provided, the PATCH behaves like Flask's
+    # amount-only route: convert the monthly planned cash back to the item's
+    # cadence amount and re-sync budget targets.
+    monthly_target: float | None = None
+
+
+class FixedExpenseDeleteRequest(BaseModel):
+    confirm: bool = True
+
+
+class FixedExpenseDeleteResponse(BaseModel):
+    deleted_item_id: int
+
+
+class VariableExpenseCreateRequest(BaseModel):
+    name: str = ""
+    amount: float | None = None
+    frequency: str = "monthly"
+    use_specific_date: bool = False
+    specific_date: str | None = None
+    days_of_week: list[int | str] = Field(default_factory=list)
+    category_label: str | None = None
+    notes: str | None = None
+
+
+class VariableExpenseUpdateRequest(VariableExpenseCreateRequest):
+    monthly_target: float | None = None
+
+
+class VariableExpenseDeleteRequest(BaseModel):
+    confirm: bool = True
+
+
+class VariableExpenseDeleteResponse(BaseModel):
+    deleted_item_id: int
+
+
 class MonthlyPlanBaselineUpdateRequest(BaseModel):
     # Flask applies only the fields present in the form; the API mirrors that
     # with fields-set semantics (model_fields_set).
