@@ -4,6 +4,11 @@ from datetime import date
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.schemas.cash_projections import (
+    CashProjectionAccountRowResponse,
+    CashProjectionPeriodResponse,
+    ThreeMonthForecastResponse,
+)
 from app.schemas.transactions import CategoryResponse
 
 
@@ -305,9 +310,7 @@ class MonthlyPlanResponse(BaseModel):
     pay_period: PayPeriodResponse
     plan_rows: list[PlanRowResponse]
     category_spend: list[CategorySpendRowResponse]
-    # PHASE 3 (forecasts): populated by the forecast sub-part
-    # (build_three_month_forecast); empty until then.
-    forecast_months: list[dict] = Field(default_factory=list)
+    forecast_months: list[ThreeMonthForecastResponse] = Field(default_factory=list)
     fixed_items: list[FixedExpenseItemResponse]
     variable_items: list[VariableExpenseItemResponse]
     fixed_expense_rows: list[ExpenseSourceRowResponse]
@@ -343,6 +346,12 @@ class MonthlyPlanResponse(BaseModel):
     total_budget_actual: float
     total_budget_remaining: float
     expected_cash_flow: float
+    quick_cash_projection: CashProjectionPeriodResponse | None = None
+    cash_projection_account_rows: list[CashProjectionAccountRowResponse] = Field(default_factory=list)
+    quick_cash_week_change: float = 0
+    quick_cash_week_end_balance: float = 0
+    quick_cash_remaining_income: float = 0
+    quick_cash_remaining_expenses: float = 0
     quick_sort: str
     # Server constants echoed for client rendering parity with Flask.
     budget_sort_options: dict[str, str]

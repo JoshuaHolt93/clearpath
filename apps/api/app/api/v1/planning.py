@@ -3,7 +3,7 @@
 import calendar
 import json
 from collections import defaultdict
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -78,6 +78,7 @@ from app.schemas.planning import (
     VariableExpenseUpdateRequest,
 )
 from app.schemas.transactions import CategoryResponse
+from app.schemas.cash_projections import CashProjectionAccountRowResponse, CashProjectionPeriodResponse
 from app.services.planning_service import (
     BUDGET_CATEGORY_GROUP_BY_KEY,
     active_budget_categories_by_key,
@@ -91,6 +92,9 @@ from app.services.planning_service import (
     sync_loan_fixed_expense_budget,
     sync_planning_item_budget_target,
     budget_anchor_for_label,
+    build_cash_projection_period,
+    build_three_month_forecast,
+    cash_projection_account_rows,
     budget_category_group_for_label,
     budget_category_group_for_row,
     budget_row_is_canonical_income,
@@ -942,8 +946,6 @@ def delete_recurring_template(
 # 64b5ed5/83ca1b6 handler changes). Web-URL plumbing (budget_url/review_url/
 # edit-modal fields) is replaced by ids + anchor ids per route-map decision 17.
 # Deferred seams, populated by their own sub-parts:
-#   PHASE 3 (forecasts): forecast_months via build_three_month_forecast.
-#   PHASE 3 (cash projections): the tools-section quick-cash summary.
 #   PHASE 3 (loans/retirement): loan plans/scenarios, retirement accounts,
 #     and budget_amortization_action rows.
 
@@ -1125,9 +1127,7 @@ def build_monthly_plan_response(
             plan_rows.insert(1, tax_row)
 
     category_spend = spending_by_category(db, user, purpose="monthly_plan")
-    # PHASE 3 (forecasts): build_three_month_forecast ports with the forecast
-    # sub-part; until then section=forecast returns an empty list.
-    forecast_months: list[dict] = []
+    forecast_months = build_three_month_forecast(db, user, purpose="forecast") if plan_section == "forecast" else []
 
     fixed_items = sorted(
         db.scalars(select(FixedExpenseItem).where(FixedExpenseItem.user_id == user.id)).all(),
@@ -1143,6 +1143,61 @@ def build_monthly_plan_response(
 
     budget_start = selected_budget_month if plan_section == "budgets" else current_budget_month
     budget_end = budget_start.replace(day=calendar.monthrange(budget_start.year, budget_start.month)[1])
+
+    quick_cash_projection = None
+    quick_cash_week_change = 0.0
+    quick_cash_week_end_balance = 0.0
+    quick_cash_remaining_income = 0.0
+    quick_cash_remaining_expenses = 0.0
+    if plan_section == "tools":
+        today_for_quick_cash = app_today()
+        quick_cash_projection = build_cash_projection_period(db, user, budget_start, budget_end)
+        quick_cash_week_days = [
+            day
+            for day in quick_cash_projection["days"]
+            if today_for_quick_cash <= day["date"] <= min(today_for_quick_cash + timedelta(days=6), budget_end)
+        ]
+        quick_cash_week_change = sum(day["net_change"] for day in quick_cash_week_days)
+        quick_cash_week_end_balance = (
+            quick_cash_week_days[-1]["ending_balance"]
+            if quick_cash_week_days
+            else quick_cash_projection["balance_anchor"]["balance"]
+        )
+        quick_cash_remaining_events = [
+            event
+            for event in quick_cash_projection["events"]
+            if today_for_quick_cash < event["date"] <= budget_end
+            or (event["date"] == today_for_quick_cash and event.get("source") != "actual")
+        ]
+        quick_cash_remaining_income = sum(
+            abs(event["amount"])
+            for event in quick_cash_remaining_events
+            if event.get("item_type") == "income"
+        )
+        quick_cash_remaining_expenses = sum(
+            abs(event["amount"])
+            for event in quick_cash_remaining_events
+            if event.get("item_type") != "income"
+        )
+
+    cash_projection_rows = []
+    for row in cash_projection_account_rows(db, user):
+        account = row["account"]
+        cash_projection_rows.append(
+            CashProjectionAccountRowResponse(
+                account_id=account.id,
+                name=account.name,
+                institution=account.institution,
+                account_type=account.account_type,
+                balance=account.current_balance or 0,
+                mask=account.mask,
+                role=row["role"],
+                included=row["included"],
+                status_label=row["status_label"],
+                status_class=row["status_class"],
+                status_detail=row["status_detail"],
+            )
+        )
 
     budget_rows: list[dict] = []
     suggested_budget_rows: list[dict] = []
@@ -1691,6 +1746,16 @@ def build_monthly_plan_response(
         total_budget_actual=total_budget_actual,
         total_budget_remaining=total_budget_remaining,
         expected_cash_flow=expected_cash_flow,
+        quick_cash_projection=(
+            CashProjectionPeriodResponse.model_validate(quick_cash_projection)
+            if quick_cash_projection is not None
+            else None
+        ),
+        cash_projection_account_rows=cash_projection_rows,
+        quick_cash_week_change=quick_cash_week_change,
+        quick_cash_week_end_balance=quick_cash_week_end_balance,
+        quick_cash_remaining_income=quick_cash_remaining_income,
+        quick_cash_remaining_expenses=quick_cash_remaining_expenses,
         quick_sort=quick_sort,
         budget_sort_options=BUDGET_SORT_OPTIONS,
         quick_sort_options=QUICK_WORKSHEET_SORT_OPTIONS,
@@ -1839,4 +1904,3 @@ def update_monthly_plan_baseline(
     db.commit()
     sync_monthly_plan(db, user, purpose="monthly_plan")
     return build_monthly_plan_response(db, user, plan_view=payload.view, plan_section=payload.section)
-

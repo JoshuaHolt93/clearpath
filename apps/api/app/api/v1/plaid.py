@@ -311,21 +311,9 @@ def update_account_cash_projection_role(
 
 
 def _cash_projection_account_is_manageable(db: Session, principal: Principal, account: Account) -> bool:
-    # 2b-scoped port of cash_projection_account_is_manageable: Plaid-attached
-    # accounts qualify while their connection is active; manual accounts
-    # qualify under the same eligibility rules as Flask's
-    # _manual_account_is_available_for_cash_projection. The full visible-item
-    # candidate dedupe arrives with cash projections in Phase 3.
-    if account.user_id != principal.user.id:
-        return False
-    if account.plaid_item_id:
-        plaid_item = db.get(PlaidItem, account.plaid_item_id)
-        return bool(plaid_item and plaid_item.status == "connected")
-    if not account.is_manual:
-        return False
-    if account.plaid_account_id or account.mask:
-        return False
-    return not bool((account.institution or "").strip())
+    from app.services.planning_service import cash_projection_account_is_manageable
+
+    return cash_projection_account_is_manageable(db, principal.user, account)
 
 
 @router.post("/plaid-ignored-accounts/{ignore_id}/restore", response_model=PlaidIgnoredAccountResponse)

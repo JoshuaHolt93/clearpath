@@ -1,16 +1,18 @@
 from __future__ import annotations
 
 import calendar
+import hashlib
 import json
 import math
 import os
 import re
-from collections import defaultdict
+import secrets
+from collections import Counter, defaultdict
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session, joinedload, selectinload
 
 from app.core.config import get_settings
@@ -20,6 +22,7 @@ from app.core.planning_constants import (
     ADDITIONAL_MEDICARE_THRESHOLDS,
     ANALYTICS_RANGE_OPTIONS,
     BUDGET_CATEGORY_TRANSACTION_HINTS,
+    CASH_ACCOUNT_TYPES,
     DEFAULT_APP_TIMEZONE,
     DEFAULT_CATEGORY_TARGETS,
     FEDERAL_TAX_BRACKETS_2026,
@@ -37,6 +40,7 @@ from app.core.planning_constants import (
 )
 from app.models import (
     Category,
+    CashProjectionRecurringIgnore,
     FixedExpenseItem,
     ForecastItem,
     Goal,
@@ -45,6 +49,7 @@ from app.models import (
     MonthlyBudgetSnapshot,
     MonthlyPlan,
     OnboardingProfile,
+    PlaidItem,
     RecurringForecastTemplate,
     Transaction,
     TransactionSplit,
@@ -56,10 +61,12 @@ from app.models import Account
 from app.services import plaid_service
 from app.services.transaction_service import (
     CREDIT_CARD_PAYMENT_CATEGORY_NAME,
+    _transaction_description_match_score,
     categories_for_user,
     ensure_category_option,
     looks_like_credit_card_payment,
     normalize_text,
+    transaction_duplicate_key,
 )
 
 # Faithful port of the planning foundations from Flask services.py at 9b5dff0:
@@ -1321,6 +1328,1082 @@ def _generate_one_time_entries(db: Session, user: User, month_start: date) -> li
     for item in items:
         _append_generated_entry(entries, item.item_date, item.description, item.amount, item.item_type, "one_time", item.category_label, item.notes, item.id)
     return entries
+
+
+def _account_is_cash_like(account: Account) -> bool:
+    account_type = normalize_text(account.account_type or "")
+    normalized_type = account_type.replace("_", " ")
+    account_label = normalize_text(f"{account.name or ''} {account.institution or ''}")
+    if account_is_liability(account):
+        return False
+    return (
+        account_type in CASH_ACCOUNT_TYPES
+        or normalized_type in CASH_ACCOUNT_TYPES
+        or any(token in account_label for token in ["checking", "savings", "money market", "cash management"])
+    )
+
+
+def _account_is_savings_like(account: Account) -> bool:
+    account_type = normalize_text(account.account_type or "")
+    normalized_type = account_type.replace("_", " ")
+    account_label = normalize_text(f"{account.name or ''} {account.institution or ''}")
+    return (
+        account_type in {"savings", "money market", "money_market"}
+        or normalized_type in {"savings", "money market"}
+        or any(token in account_label for token in ["savings", "money market"])
+    )
+
+
+def _account_is_operating_cash_account(account: Account) -> bool:
+    account_type = normalize_text(account.account_type or "")
+    normalized_type = account_type.replace("_", " ")
+    account_label = normalize_text(f"{account.name or ''} {account.institution or ''}")
+    if not _account_is_cash_like(account) or _account_is_savings_like(account):
+        return False
+    return (
+        account_type in {"checking", "cash", "cash management", "cash_management"}
+        or normalized_type in {"checking", "cash", "cash management"}
+        or any(token in account_label for token in ["checking", "cash management"])
+    )
+
+
+def _account_is_depository_fallback(account: Account) -> bool:
+    account_type = normalize_text(account.account_type or "")
+    normalized_type = account_type.replace("_", " ")
+    return _account_is_cash_like(account) and not _account_is_savings_like(account) and (
+        account_type == "depository" or normalized_type == "depository"
+    )
+
+
+def _visible_plaid_items_for_cash_projection(db: Session, user: User) -> dict[int, PlaidItem]:
+    return {
+        item.id: item
+        for item in db.scalars(
+            select(PlaidItem).where(
+                PlaidItem.user_id == user.id,
+                PlaidItem.status != "disconnected",
+                PlaidItem.disconnected_at.is_(None),
+            )
+        ).all()
+    }
+
+
+def _manual_account_is_available_for_cash_projection(account: Account) -> bool:
+    if not account.is_manual:
+        return False
+    if (account.cash_projection_role or "auto") == "exclude":
+        return False
+    if account.plaid_item_id or account.plaid_account_id or account.mask:
+        return False
+    return not bool((account.institution or "").strip())
+
+
+def _cash_projection_account_duplicate_key(account: Account) -> tuple:
+    if account.is_manual:
+        return "manual", account.id
+    institution = normalize_text(account.institution or getattr(account, "_cash_projection_institution_name", "") or "")
+    account_type = normalize_text(account.account_type or "").replace("_", " ")
+    account_group = account_type
+    if _account_is_savings_like(account):
+        account_group = "savings"
+    elif _account_is_operating_cash_account(account) or _account_is_depository_fallback(account):
+        account_group = "operating_cash"
+    elif _account_is_cash_like(account):
+        account_group = "cash"
+    mask = normalize_text(account.mask or "")
+    if mask:
+        return "plaid-mask", institution, account_group, mask
+    return "plaid-name", institution, account_group, normalize_text(account.name or "")
+
+
+def _cash_projection_account_preferred_sort(account: Account) -> tuple:
+    updated_at = account.updated_at or account.created_at or datetime.min
+    created_at = account.created_at or datetime.min
+    return updated_at, created_at, account.id or 0
+
+
+def _cash_projection_account_effective_role_for_group(accounts: list[Account]) -> str:
+    roles = {account.cash_projection_role or "auto" for account in accounts}
+    if "include" in roles:
+        return "include"
+    if "exclude" in roles:
+        return "exclude"
+    return "auto"
+
+
+def _cash_projection_account_role(account: Account) -> str:
+    return getattr(account, "_cash_projection_effective_role", None) or account.cash_projection_role or "auto"
+
+
+def _dedupe_cash_projection_candidate_accounts(accounts: list[Account]) -> list[Account]:
+    grouped: dict[tuple, list[Account]] = defaultdict(list)
+    for account in accounts:
+        grouped[_cash_projection_account_duplicate_key(account)].append(account)
+    deduped = []
+    for group in grouped.values():
+        selected = max(group, key=_cash_projection_account_preferred_sort)
+        selected._cash_projection_effective_role = _cash_projection_account_effective_role_for_group(group)
+        deduped.append(selected)
+    return sorted(deduped, key=lambda account: account.id or 0)
+
+
+def cash_projection_candidate_accounts(db: Session, user: User) -> list[Account]:
+    visible_items = _visible_plaid_items_for_cash_projection(db, user)
+    accounts = db.scalars(select(Account).where(Account.user_id == user.id).order_by(Account.id.asc())).all()
+    synced_candidates = []
+    manual_candidates = []
+    for account in accounts:
+        if account.plaid_item_id and account.plaid_item_id in visible_items:
+            account._cash_projection_institution_name = visible_items[account.plaid_item_id].institution_name
+            synced_candidates.append(account)
+            continue
+        if _manual_account_is_available_for_cash_projection(account):
+            manual_candidates.append(account)
+    return _dedupe_cash_projection_candidate_accounts(synced_candidates or manual_candidates)
+
+
+def cash_projection_account_is_manageable(db: Session, user: User, account: Account) -> bool:
+    if account.user_id != user.id:
+        return False
+    return any(candidate.id == account.id for candidate in cash_projection_candidate_accounts(db, user))
+
+
+def cash_projection_accounts(db: Session, user: User) -> list[Account]:
+    accounts = cash_projection_candidate_accounts(db, user)
+    included_accounts = [account for account in accounts if _cash_projection_account_role(account) == "include"]
+    if included_accounts:
+        return included_accounts
+    cash_accounts = [
+        account
+        for account in accounts
+        if _cash_projection_account_role(account) != "exclude" and _account_is_cash_like(account)
+    ]
+    operating_accounts = [account for account in cash_accounts if _account_is_operating_cash_account(account)]
+    if operating_accounts:
+        return operating_accounts
+    depository_accounts = [account for account in cash_accounts if _account_is_depository_fallback(account)]
+    return depository_accounts or cash_accounts
+
+
+def cash_projection_balance_anchor(db: Session, user: User) -> dict:
+    accounts = cash_projection_accounts(db, user)
+    checking_accounts = [
+        account
+        for account in accounts
+        if "checking" in normalize_text(f"{account.account_type or ''} {account.name or ''}")
+    ]
+    return {
+        "date": app_today(),
+        "balance": sum(account.current_balance or 0 for account in accounts),
+        "checking_balance": sum(account.current_balance or 0 for account in checking_accounts),
+        "account_count": len(accounts),
+        "checking_account_count": len(checking_accounts),
+        "included_accounts": [
+            {
+                "id": account.id,
+                "name": account.name,
+                "institution": account.institution,
+                "account_type": account.account_type,
+                "balance": account.current_balance or 0,
+                "mask": account.mask,
+                "cash_projection_role": _cash_projection_account_role(account),
+            }
+            for account in accounts
+        ],
+        "uses_cash_accounts": any(_account_is_cash_like(account) for account in accounts),
+    }
+
+
+def cash_projection_account_rows(db: Session, user: User) -> list[dict]:
+    included_ids = {account.id for account in cash_projection_accounts(db, user)}
+    accounts = sorted(
+        cash_projection_candidate_accounts(db, user),
+        key=lambda account: (normalize_text(account.institution or ""), normalize_text(account.name or ""), account.id or 0),
+    )
+    rows = []
+    for account in accounts:
+        role = _cash_projection_account_role(account)
+        included = account.id in included_ids
+        if role == "include":
+            status_label, status_class, status_detail = "Included", "badge-green", "Manual"
+        elif role == "exclude":
+            status_label, status_class, status_detail = "Excluded", "badge-gray", "Manual"
+        elif included:
+            status_label, status_class, status_detail = "Included", "badge-blue", "Auto"
+        else:
+            status_label, status_class, status_detail = "Not Included", "badge-gray", "Auto"
+        rows.append(
+            {
+                "account": account,
+                "role": role,
+                "included": included,
+                "status_label": status_label,
+                "status_class": status_class,
+                "status_detail": status_detail,
+            }
+        )
+    return rows
+
+
+def cash_account_balance(db: Session, user: User, *, purpose: str = "forecast") -> float:
+    assert_plaid_data_purpose(purpose)
+    return sum(account.current_balance or 0 for account in cash_projection_accounts(db, user))
+
+
+def _generated_entries_between(db: Session, user: User, generator, start: date, end: date) -> list[dict]:
+    month_cursor = start.replace(day=1)
+    last_month = end.replace(day=1)
+    entries = []
+    while month_cursor <= last_month:
+        entries.extend(item for item in generator(db, user, month_cursor) if start <= item["date"] <= end)
+        month_cursor = add_months(month_cursor, 1)
+    return entries
+
+
+def _actual_cash_transactions_between(db: Session, user: User, start: date, end: date) -> list[dict]:
+    cash_account_ids = {account.id for account in cash_projection_accounts(db, user)}
+    transactions = [
+        transaction
+        for transaction in db.scalars(_transactions_between(db, user, start, end)).unique().all()
+        if transaction.account_id is None or transaction.account_id in cash_account_ids
+    ]
+    entries = []
+    for transaction in _dedupe_cash_projection_transactions(transactions):
+        _append_generated_entry(
+            entries,
+            transaction.posted_date,
+            transaction.merchant or transaction.description,
+            abs(transaction.amount),
+            "income" if transaction.amount > 0 else "expense",
+            "actual",
+            transaction.category.name if transaction.category else None,
+            transaction.notes,
+            transaction.id,
+        )
+        entries[-1]["account_name"] = transaction.account.name if transaction.account else None
+        entries[-1]["pending"] = bool(transaction.pending)
+    return entries
+
+
+def _dedupe_cash_projection_transactions(transactions: list[Transaction]) -> list[Transaction]:
+    unique: list[Transaction] = []
+    for transaction in sorted(transactions, key=lambda row: (row.posted_date, row.id or 0)):
+        if any(_cash_projection_transactions_match(existing, transaction) for existing in unique):
+            continue
+        unique.append(transaction)
+    return unique
+
+
+def _cash_projection_transactions_match(first: Transaction, second: Transaction) -> bool:
+    if first.id and second.id and first.id == second.id:
+        return False
+    if first.plaid_transaction_id and first.plaid_transaction_id == second.plaid_transaction_id:
+        return True
+    if first.import_hash and first.import_hash == second.import_hash:
+        return True
+    if transaction_duplicate_key(first) != transaction_duplicate_key(second):
+        return False
+    score = _transaction_description_match_score(first, second)
+    if score >= 0.82:
+        return True
+    first_account = _transaction_cash_projection_account_label(first)
+    second_account = _transaction_cash_projection_account_label(second)
+    return bool(first_account and second_account and first_account == second_account and score >= 0.75)
+
+
+def _transaction_cash_projection_account_label(transaction: Transaction) -> str:
+    if transaction.account:
+        return normalize_text(
+            f"{transaction.account.institution or ''} {transaction.account.name or ''} {transaction.account.mask or ''}"
+        )
+    return normalize_text(transaction.source_name or "")
+
+
+def _recurring_transaction_group_key(transaction: Transaction) -> tuple[str, str, float]:
+    label = normalize_text(transaction.merchant or transaction.description or "")
+    category_label = normalize_text(transaction.category.name if transaction.category else "")
+    amount = round(abs(transaction.amount or 0), 2)
+    return label, category_label, amount
+
+
+def auto_recurring_detection_key(label: str | None, category_label: str | None, amount: float | int | None) -> str:
+    normalized = "|".join(
+        [normalize_text(label or ""), normalize_text(category_label or ""), f"{float(amount or 0):.2f}"]
+    )
+    return hashlib.sha256(normalized.encode("utf-8")).hexdigest()
+
+
+def _best_detected_recurring_frequency(dates: list[date]) -> str | None:
+    if len(dates) < 2:
+        return None
+    intervals = [(dates[index] - dates[index - 1]).days for index in range(1, len(dates))]
+    month_counts = Counter((posted.year, posted.month) for posted in dates)
+    if max(month_counts.values(), default=0) >= 2 and all(10 <= interval <= 21 for interval in intervals):
+        return "semimonthly"
+    median = sorted(intervals)[len(intervals) // 2]
+    for frequency, days, tolerance in [
+        ("weekly", 7, 2),
+        ("biweekly", 14, 3),
+        ("monthly", 30, 7),
+        ("quarterly", 91, 14),
+        ("annual", 365, 30),
+    ]:
+        if abs(median - days) <= tolerance:
+            return frequency
+    return None
+
+
+def _next_detected_recurring_date(last_seen: date, frequency: str) -> date:
+    if frequency == "weekly":
+        return last_seen + timedelta(days=7)
+    if frequency in {"biweekly", "semimonthly"}:
+        return last_seen + timedelta(days=14)
+    if frequency == "quarterly":
+        return add_months(last_seen, 3)
+    if frequency == "annual":
+        return date(last_seen.year + 1, last_seen.month, min(last_seen.day, calendar.monthrange(last_seen.year + 1, last_seen.month)[1]))
+    return add_months(last_seen, 1)
+
+
+def _manual_recurring_template_covers_detection(
+    template: RecurringForecastTemplate, label: str, category_label: str, amount: float
+) -> bool:
+    if template.item_type != "expense":
+        return False
+    template_label = normalize_text(template.name or "")
+    if template.category_label and category_label and normalize_text(template.category_label) != category_label:
+        return False
+    if abs(abs(template.amount or 0) - amount) > max(5.0, amount * 0.08):
+        return False
+    return bool(template_label and label and (template_label in label or label in template_label))
+
+
+def detected_recurring_transaction_schedules(db: Session, user: User, as_of: date) -> list[dict]:
+    history_start = as_of - timedelta(days=240)
+    account_ids = {account.id for account in cash_projection_accounts(db, user) if account.id}
+    query = (
+        select(Transaction)
+        .options(joinedload(Transaction.category))
+        .where(
+            Transaction.user_id == user.id,
+            Transaction.amount < 0,
+            Transaction.posted_date >= history_start,
+            Transaction.posted_date <= as_of,
+        )
+        .order_by(Transaction.posted_date.asc(), Transaction.id.asc())
+    )
+    if account_ids:
+        query = query.where(or_(Transaction.account_id.in_(account_ids), Transaction.account_id.is_(None)))
+    grouped: dict[tuple[str, str, float], list[Transaction]] = defaultdict(list)
+    for transaction in db.scalars(query).unique().all():
+        if not transaction_counts_as_spending(transaction) or not transaction.category:
+            continue
+        label, category_label, amount = _recurring_transaction_group_key(transaction)
+        if label and amount > 0:
+            grouped[(label, category_label, amount)].append(transaction)
+    manual_templates = db.scalars(
+        select(RecurringForecastTemplate).where(
+            RecurringForecastTemplate.user_id == user.id,
+            RecurringForecastTemplate.item_type == "expense",
+        )
+    ).all()
+    ignored_keys = set(
+        db.scalars(
+            select(CashProjectionRecurringIgnore.detection_key).where(CashProjectionRecurringIgnore.user_id == user.id)
+        ).all()
+    )
+    schedules = []
+    for (label, category_label, amount), transactions in grouped.items():
+        if len(transactions) < 2:
+            continue
+        detection_key = auto_recurring_detection_key(label, category_label, amount)
+        if detection_key in ignored_keys:
+            continue
+        if any(_manual_recurring_template_covers_detection(template, label, category_label, amount) for template in manual_templates):
+            continue
+        dates = sorted({transaction.posted_date for transaction in transactions if transaction.posted_date})
+        if len(dates) < 2:
+            continue
+        frequency = _best_detected_recurring_frequency(dates)
+        if not frequency:
+            continue
+        latest = max(transactions, key=lambda row: (row.posted_date, row.id or 0))
+        schedules.append(
+            {
+                "name": latest.merchant or latest.description,
+                "amount": amount,
+                "frequency": frequency,
+                "start_date": _next_detected_recurring_date(dates[-1], frequency),
+                "second_day_of_month": dates[-1].day if frequency == "semimonthly" else None,
+                "category_label": latest.category.name if latest.category else None,
+                "notes": f"Auto-detected from {len(transactions)} similar transaction{'s' if len(transactions) != 1 else ''}.",
+                "last_seen": dates[-1],
+                "detection_key": detection_key,
+            }
+        )
+    return sorted(schedules, key=lambda schedule: (-schedule["amount"], schedule["name"].lower()))
+
+
+def detected_recurring_cash_schedule(
+    db: Session, user: User, detection_key: str, as_of: date | None = None
+) -> dict | None:
+    cleaned_key = (detection_key or "").strip()
+    if not cleaned_key:
+        return None
+    return next(
+        (
+            schedule
+            for schedule in detected_recurring_transaction_schedules(db, user, as_of or app_today())
+            if schedule["detection_key"] == cleaned_key
+        ),
+        None,
+    )
+
+
+def _generate_auto_recurring_transaction_entries(db: Session, user: User, month_start: date) -> list[dict]:
+    entries = []
+    for schedule in detected_recurring_transaction_schedules(db, user, app_today()):
+        for occurrence in _occurrences_for_month(
+            schedule["start_date"],
+            schedule["frequency"],
+            month_start.replace(day=1),
+            second_day_of_month=schedule["second_day_of_month"],
+        ):
+            if occurrence <= app_today():
+                continue
+            _append_generated_entry(
+                entries,
+                occurrence,
+                schedule["name"],
+                schedule["amount"],
+                "expense",
+                "auto_recurring",
+                schedule["category_label"],
+                schedule["notes"],
+                schedule["detection_key"],
+            )
+    return entries
+
+
+def _cash_projection_schedule_entries_between(db: Session, user: User, start: date, end: date) -> list[dict]:
+    if start > end:
+        return []
+    entries = []
+    entries.extend(_generated_entries_between(db, user, _generate_recurring_template_entries, start, end))
+    entries.extend(_generated_entries_between(db, user, _generate_loan_cash_entries, start, end))
+    entries.extend(_generated_entries_between(db, user, _generate_auto_recurring_transaction_entries, start, end))
+    entries.extend(_generated_entries_between(db, user, _generate_one_time_entries, start, end))
+    return entries
+
+
+def _planned_cash_entries_between(db: Session, user: User, start: date, end: date) -> list[dict]:
+    if start > end:
+        return []
+    return [
+        *_paycheck_entries_between(db, user, start, end),
+        *_cash_projection_schedule_entries_between(db, user, start, end),
+    ]
+
+
+def _signed_cash_event_amount(event: dict) -> float:
+    return event["amount"] if event["item_type"] == "income" else -abs(event["amount"])
+
+
+def _planned_cash_event_matches_actual(planned: dict, actual: dict) -> bool:
+    if planned["item_type"] != actual["item_type"]:
+        return False
+    tolerance = max(5.0, abs(planned["amount"]) * (0.15 if planned.get("source") == "paycheck" else 0.05))
+    if abs(abs(planned["amount"]) - abs(actual["amount"])) > tolerance:
+        return False
+    if planned.get("source") == "paycheck":
+        return True
+    planned_label = normalize_text(planned.get("description") or "")
+    actual_label = normalize_text(actual.get("description") or "")
+    planned_category = normalize_text(planned.get("category_label") or "")
+    actual_category = normalize_text(actual.get("category_label") or "")
+    return bool(planned_label and actual_label and (planned_label in actual_label or actual_label in planned_label)) or bool(
+        planned_category and planned_category == actual_category
+    )
+
+
+def _remaining_planned_cash_entries(planned_entries: list[dict], actual_entries: list[dict]) -> list[dict]:
+    unmatched_actual_indexes = set(range(len(actual_entries)))
+    remaining = []
+    for planned in planned_entries:
+        matched_index = next(
+            (index for index in unmatched_actual_indexes if _planned_cash_event_matches_actual(planned, actual_entries[index])),
+            None,
+        )
+        if matched_index is None:
+            remaining.append(planned)
+        else:
+            unmatched_actual_indexes.remove(matched_index)
+    return remaining
+
+
+def _variable_spending_timing_insight(db: Session, user: User, month_start: date) -> dict:
+    month_start, month_end = month_bounds(month_start)
+    current_variable = sum(
+        abs(transaction.amount)
+        for transaction in _expense_transactions_between(db, user, month_start, min(app_today(), month_end))
+    )
+    prior_rows = []
+    for offset in range(1, 4):
+        prior_start = add_months(month_start, -offset)
+        prior_end = prior_start.replace(day=calendar.monthrange(prior_start.year, prior_start.month)[1])
+        midpoint = prior_start.replace(day=min(15, prior_end.day))
+        first_half = sum(abs(row.amount) for row in _expense_transactions_between(db, user, prior_start, midpoint))
+        total = sum(abs(row.amount) for row in _expense_transactions_between(db, user, prior_start, prior_end))
+        if total > 0:
+            prior_rows.append(first_half / total)
+    average_first_half_share = sum(prior_rows) / len(prior_rows) if prior_rows else 0
+    return {
+        "current_variable_spend": current_variable,
+        "planned_variable_spend": variable_expense_plan_total(db, user),
+        "average_first_half_share": average_first_half_share,
+        "affects_projection": False,
+        "message": (
+            "Prior months show variable spending tends to arrive earlier in the month."
+            if average_first_half_share >= 0.6
+            else "Prior months do not show a strong early-month variable spending pattern yet."
+        ),
+    }
+
+
+def _week_rows_from_projection_days(days: list[dict]) -> list[dict]:
+    weeks = []
+    current_week = None
+    for day in days:
+        week_start = day["date"] - timedelta(days=day["date"].weekday())
+        if not current_week or current_week["week_start"] != week_start:
+            current_week = {
+                "week_start": week_start,
+                "days": [],
+                "income": 0.0,
+                "expenses": 0.0,
+                "ending_balance": day["ending_balance"],
+            }
+            weeks.append(current_week)
+        current_week["days"].append(day)
+        current_week["income"] += sum(event["amount"] for event in day["events"] if event["item_type"] == "income")
+        current_week["expenses"] += sum(event["amount"] for event in day["events"] if event["item_type"] != "income")
+        current_week["ending_balance"] = day["ending_balance"]
+    for week in weeks:
+        week["week_end"] = week["days"][-1]["date"]
+        week["net_change"] = week["income"] - week["expenses"]
+    return weeks
+
+
+def _add_months_preserving_day(target_date: date, months: int) -> date:
+    month_index = target_date.month - 1 + months
+    year = target_date.year + month_index // 12
+    month = month_index % 12 + 1
+    day = min(target_date.day, calendar.monthrange(year, month)[1])
+    return date(year, month, day)
+
+
+def _cash_projection_graph(days: list[dict], lowest_balance: dict, highest_balance: dict) -> dict:
+    if not days:
+        return {
+            "points": "",
+            "zero_axis_pct": 100,
+            "show_zero_line": False,
+            "min_value": 0,
+            "max_value": 0,
+            "month_markers": [],
+            "point_rows": [],
+        }
+    min_value = min(lowest_balance["balance"], 0)
+    max_value = max(highest_balance["balance"], 0)
+    value_range = max(max_value - min_value, 1)
+    x_denominator = max(len(days) - 1, 1)
+    start_date = days[0]["date"]
+    end_date = days[-1]["date"]
+    points = []
+    point_rows = []
+    for index, day in enumerate(days):
+        x = (index / x_denominator) * 100
+        y = ((max_value - day["ending_balance"]) / value_range) * 100
+        points.append(f"{x:.2f},{y:.2f}")
+        point_rows.append(
+            {
+                "x_pct": round(x, 2),
+                "y_pct": round(y, 2),
+                "date_label": day["date"].strftime("%b %d, %Y"),
+                "balance": day["ending_balance"],
+                "balance_basis": day.get("balance_basis", "Projected"),
+            }
+        )
+    month_markers = []
+    offset = 1
+    while True:
+        marker_date = _add_months_preserving_day(start_date, offset)
+        if marker_date > end_date:
+            break
+        day_index = (marker_date - start_date).days
+        x = (day_index / x_denominator) * 100
+        month_markers.append(
+            {"label": marker_date.strftime("%b %d"), "axis_label": marker_date.strftime("%b %d"), "x_pct": round(x, 2)}
+        )
+        offset += 1
+    zero_axis_pct = ((max_value - 0) / value_range) * 100
+    return {
+        "points": " ".join(points),
+        "zero_axis_pct": zero_axis_pct,
+        "show_zero_line": 2 < zero_axis_pct < 98,
+        "min_value": min_value,
+        "max_value": max_value,
+        "month_markers": month_markers,
+        "point_rows": point_rows,
+    }
+
+
+def _projection_calendar_cells(days: list[dict], start_date: date) -> list[dict | None]:
+    calendar_cells = [None] * ((start_date.weekday() + 1) % 7) + days
+    while len(calendar_cells) % 7:
+        calendar_cells.append(None)
+    return calendar_cells
+
+
+def _projection_month_group(projection: dict, month_start: date, days: list[dict]) -> dict:
+    first_day = days[0]["date"]
+    last_day = days[-1]["date"]
+    events = [event for day in days for event in day["events"]]
+    is_full_month = first_day.day == 1 and last_day == month_bounds(first_day)[1]
+    return {
+        "month": month_start,
+        "month_label": month_start.strftime("%B %Y") if is_full_month else f"{first_day.strftime('%b %d')} - {last_day.strftime('%b %d, %Y')}",
+        "start_date": first_day,
+        "end_date": last_day,
+        "days": days,
+        "calendar_cells": _projection_calendar_cells(days, first_day),
+        "events": events,
+        "start_balance": projection["start_balance"] if first_day == projection["start_date"] else days[0]["ending_balance"] - days[0]["net_change"],
+        "end_balance": days[-1]["ending_balance"],
+        "balance_anchor": projection["balance_anchor"],
+        "lowest_balance": min(
+            ({"date": day["date"], "balance": day["ending_balance"]} for day in days), key=lambda row: row["balance"]
+        ),
+        "highest_balance": max(
+            ({"date": day["date"], "balance": day["ending_balance"]} for day in days), key=lambda row: row["balance"]
+        ),
+        "trend": projection["trend"],
+        "graph": projection["graph"],
+    }
+
+
+def split_projection_into_months(projection: dict) -> list[dict]:
+    grouped = []
+    current_month = None
+    current_days = []
+    for day in projection.get("days", []):
+        month_start = day["date"].replace(day=1)
+        if current_month and month_start != current_month:
+            grouped.append(_projection_month_group(projection, current_month, current_days))
+            current_days = []
+        current_month = month_start
+        current_days.append(day)
+    if current_month and current_days:
+        grouped.append(_projection_month_group(projection, current_month, current_days))
+    return grouped
+
+
+def build_cash_projection_period(
+    db: Session,
+    user: User,
+    start_date: date,
+    end_date: date,
+    starting_balance: float | None = None,
+) -> dict:
+    month_start = start_date.replace(day=1)
+    today = app_today()
+    balance_anchor = cash_projection_balance_anchor(db, user)
+    uses_live_cash_anchor = starting_balance is None and balance_anchor["account_count"] > 0
+    actual_today = _actual_cash_transactions_between(db, user, today, today)
+    actual_end = min(end_date, today)
+    range_actual_events = _actual_cash_transactions_between(db, user, start_date, actual_end) if start_date <= actual_end else []
+    planned_start = max(start_date, today + timedelta(days=1) if uses_live_cash_anchor else today)
+    range_planned_events = _planned_cash_entries_between(db, user, planned_start, end_date) if planned_start <= end_date else []
+    if planned_start == today:
+        planned_today = [event for event in range_planned_events if event["date"] == today]
+        remaining_today = _remaining_planned_cash_entries(planned_today, actual_today)
+        range_planned_events = [event for event in range_planned_events if event["date"] != today] + remaining_today
+    events = sorted(
+        range_actual_events + range_planned_events,
+        key=lambda event: (event["date"], 0 if event["item_type"] == "income" else 1, event["description"]),
+    )
+    daily_events: dict[date, list[dict]] = defaultdict(list)
+    for event in events:
+        event["signed_amount"] = _signed_cash_event_amount(event)
+        daily_events[event["date"]].append(event)
+    if starting_balance is not None:
+        balance = starting_balance
+    elif start_date <= today:
+        actual_events_to_anchor = _actual_cash_transactions_between(db, user, start_date, today)
+        balance = balance_anchor["balance"] - sum(_signed_cash_event_amount(event) for event in actual_events_to_anchor)
+    else:
+        bridge_start = today + timedelta(days=1) if uses_live_cash_anchor else today
+        bridge_planned = _planned_cash_entries_between(db, user, bridge_start, start_date - timedelta(days=1))
+        bridge_planned_today = [event for event in bridge_planned if event["date"] == today]
+        bridge_planned = [event for event in bridge_planned if event["date"] != today] + _remaining_planned_cash_entries(
+            bridge_planned_today, actual_today
+        )
+        balance = balance_anchor["balance"] + sum(_signed_cash_event_amount(event) for event in bridge_planned)
+    initial_balance = balance
+    days = []
+    lowest_balance = {"date": start_date, "balance": balance}
+    highest_balance = {"date": start_date, "balance": balance}
+    current = start_date
+    while current <= end_date:
+        day_events = daily_events.get(current, [])
+        net_change = sum(event["signed_amount"] for event in day_events)
+        balance += net_change
+        scheduled_events = [event for event in day_events if event["source"] != "actual"]
+        actual_events = [event for event in day_events if event["source"] == "actual"]
+        if current < today:
+            balance_basis = "Actual"
+        elif current == today:
+            balance_basis = "Projected EOD" if scheduled_events else "Current"
+        else:
+            balance_basis = "Projected"
+        day_row = {
+            "date": current,
+            "day": current.day,
+            "weekday": current.strftime("%a"),
+            "is_today": current == today,
+            "is_past": current < today,
+            "events": day_events,
+            "actual_events": actual_events,
+            "scheduled_events": scheduled_events,
+            "actual_balance": balance_anchor["balance"] if current == today and starting_balance is None else None,
+            "balance_basis": balance_basis,
+            "net_change": net_change,
+            "actual_change": sum(event["signed_amount"] for event in actual_events),
+            "scheduled_change": sum(event["signed_amount"] for event in scheduled_events),
+            "ending_balance": balance,
+        }
+        days.append(day_row)
+        if balance < lowest_balance["balance"]:
+            lowest_balance = {"date": current, "balance": balance}
+        if balance > highest_balance["balance"]:
+            highest_balance = {"date": current, "balance": balance}
+        current += timedelta(days=1)
+    graph = _cash_projection_graph(days, lowest_balance, highest_balance)
+    return {
+        "month": month_start,
+        "month_label": month_start.strftime("%B %Y") if start_date.day == 1 and end_date == month_bounds(start_date)[1] else f"{start_date.strftime('%b %d')} - {end_date.strftime('%b %d, %Y')}",
+        "start_date": start_date,
+        "end_date": end_date,
+        "start_balance": initial_balance,
+        "end_balance": days[-1]["ending_balance"] if days else initial_balance,
+        "balance_anchor": balance_anchor,
+        "lowest_balance": lowest_balance,
+        "highest_balance": highest_balance,
+        "days": days,
+        "weeks": _week_rows_from_projection_days(days),
+        "calendar_cells": _projection_calendar_cells(days, start_date),
+        "events": events,
+        "trend": _variable_spending_timing_insight(db, user, month_start),
+        "graph": graph,
+    }
+
+
+def build_cash_projection_range(db: Session, user: User, start_month: date | None = None, months: int = 1) -> dict:
+    months = min(max(int(months or 1), 1), 6)
+    month_start = (start_month or app_today()).replace(day=1)
+    end_month = add_months(month_start, months - 1)
+    range_end = month_bounds(end_month)[1]
+    full_projection = build_cash_projection_period(db, user, month_start, range_end)
+    return {
+        "start_month": month_start,
+        "start_date": full_projection["start_date"],
+        "end_date": full_projection["end_date"],
+        "months": months,
+        "projections": split_projection_into_months(full_projection),
+        "days": full_projection["days"],
+        "events": full_projection["events"],
+        "start_balance": full_projection["start_balance"],
+        "end_balance": full_projection["end_balance"],
+        "balance_anchor": full_projection["balance_anchor"],
+        "lowest_balance": full_projection["lowest_balance"],
+        "highest_balance": full_projection["highest_balance"],
+        "graph": full_projection["graph"],
+    }
+
+
+def build_three_month_forecast(
+    db: Session,
+    user: User,
+    start_date: date | None = None,
+    *,
+    purpose: str = "forecast",
+) -> list[dict]:
+    assert_plaid_data_purpose(purpose)
+    start_date = (start_date or app_today()).replace(day=1)
+    profile = user.profile or OnboardingProfile(
+        income_amount=0,
+        income_frequency="monthly",
+        monthly_income=0,
+        fixed_expenses=0,
+        planned_savings_contribution=0,
+        planned_debt_payment=0,
+        target_investment_contribution=0,
+    )
+    variable_plan_total = variable_expense_plan_total(db, user)
+    planned_savings = planned_savings_contribution_for_user(db, user, profile)
+    retirement_total = retirement_cash_flow_contribution(profile)
+    loan_extra_total = selected_loan_extra_payment_total(db, user)
+    running_cash = cash_account_balance(db, user, purpose=purpose)
+    forecast = []
+    for offset in range(3):
+        month_start = add_months(start_date, offset)
+        fixed_total = fixed_expense_total(db, user, month_start)
+        month_end = month_bounds(month_start)[1]
+        monthly_income = planned_income_for_period_with_future_adjustments(db, user, month_start, month_end)
+        monthly_tax = planned_tax_for_period_with_future_adjustments(db, user, month_start, month_end)
+        generated_entries = _cash_projection_schedule_entries_between(db, user, month_start, month_end)
+        generated_entries.sort(key=lambda item: (-item["amount"], item["date"], item["description"].lower()))
+        recurring_income = sum(item["amount"] for item in generated_entries if item["item_type"] == "income")
+        recurring_expenses = sum(item["amount"] for item in generated_entries if item["item_type"] == "expense")
+        one_time_income = sum(
+            item["amount"] for item in generated_entries if item["item_type"] == "income" and item["source"] == "one_time"
+        )
+        one_time_expenses = sum(
+            item["amount"] for item in generated_entries if item["item_type"] == "expense" and item["source"] == "one_time"
+        )
+        planned_income_total = recurring_income
+        planned_expense_total = recurring_expenses
+        required_outflow_total = (
+            monthly_tax
+            + planned_expense_total
+            + planned_savings
+            + profile.planned_debt_payment
+            + retirement_total
+            + loan_extra_total
+        )
+        forecast_income_total = monthly_income + planned_income_total
+        forecast_expense_total = required_outflow_total
+        _baseline_budget = (
+            monthly_income
+            - monthly_tax
+            - fixed_total
+            - planned_savings
+            - profile.planned_debt_payment
+            - retirement_total
+            - loan_extra_total
+            - variable_plan_total
+        )
+        planned_buffer = forecast_income_total - forecast_expense_total
+        ending_cash = running_cash + planned_buffer
+        forecast.append(
+            {
+                "month_start": month_start,
+                "month_name": current_month_name(month_start),
+                "baseline_income": monthly_income,
+                "fixed_expenses": fixed_total,
+                "planned_savings": planned_savings,
+                "planned_debt": profile.planned_debt_payment + loan_extra_total,
+                "planned_taxes": monthly_tax,
+                "planned_retirement": retirement_total,
+                "planned_variable": variable_plan_total,
+                "planned_income": planned_income_total,
+                "planned_expenses": planned_expense_total,
+                "one_time_income": one_time_income,
+                "one_time_expenses": one_time_expenses,
+                "forecast_income_total": forecast_income_total,
+                "forecast_expense_total": forecast_expense_total,
+                "planned_buffer": planned_buffer,
+                "starting_cash": running_cash,
+                "ending_cash": ending_cash,
+                "forecast_items": generated_entries,
+            }
+        )
+        running_cash = ending_cash
+    return forecast
+
+
+def generate_cash_projection_calendar_token() -> str:
+    return secrets.token_urlsafe(32)
+
+
+def cash_projection_calendar_token_hash(token: str) -> str:
+    return hashlib.sha256((token or "").strip().encode("utf-8")).hexdigest()
+
+
+def _ics_escape(value) -> str:
+    text = str(value or "")
+    return (
+        text.replace("\\", "\\\\")
+        .replace(";", "\\;")
+        .replace(",", "\\,")
+        .replace("\r\n", "\\n")
+        .replace("\n", "\\n")
+        .replace("\r", "\\n")
+    )
+
+
+def _fold_ics_line(line: str) -> list[str]:
+    if len(line) <= 73:
+        return [line]
+    lines = [line[:73]]
+    remaining = line[73:]
+    while remaining:
+        lines.append(" " + remaining[:72])
+        remaining = remaining[72:]
+    return lines
+
+
+def _calendar_source_label(source: str | None) -> str:
+    return {
+        "actual": "Actual cash transaction",
+        "paycheck": "Income planning",
+        "fixed": "Scheduled fixed item",
+        "variable": "Scheduled variable item",
+        "recurring": "Recurring forecast schedule",
+        "auto_recurring": "Auto-detected recurring charge",
+        "one_time": "One-time forecast item",
+    }.get(source or "", "Scheduled cash item")
+
+
+def _calendar_amount_label(event: dict) -> str:
+    signed_amount = event["amount"] if event["item_type"] == "income" else -abs(event["amount"])
+    sign = "+" if signed_amount >= 0 else "-"
+    return f"{sign}${abs(signed_amount):,.2f}"
+
+
+def _calendar_balance_label(amount: float | int | None) -> str:
+    balance = float(amount or 0)
+    return f"{'-' if balance < 0 else ''}${abs(balance):,.2f}"
+
+
+def _calendar_signed_money_label(amount: float | int | None) -> str:
+    value = float(amount or 0)
+    return f"{'+' if value >= 0 else '-'}${abs(value):,.2f}"
+
+
+def _calendar_cash_item_label(event: dict) -> str:
+    label = f"{_calendar_amount_label(event)} {event.get('description') or 'Cash item'}"
+    metadata = []
+    if event.get("category_label"):
+        metadata.append(f"Category: {event['category_label']}")
+    if event.get("source") == "actual" and event.get("account_name"):
+        metadata.append(f"Account: {event['account_name']}")
+    elif event.get("source") and event.get("source") != "actual":
+        metadata.append(f"Source: {_calendar_source_label(event.get('source'))}")
+    if metadata:
+        label = f"{label} ({'; '.join(metadata)})"
+    return label
+
+
+def _calendar_cash_event_lines(title: str, events: list[dict]) -> list[str]:
+    return [title] + [f"* {_calendar_cash_item_label(event)}" for event in events] if events else []
+
+
+def _shift_calendar_months(target_date: date, months: int) -> date:
+    month_index = target_date.month - 1 + months
+    year = target_date.year + month_index // 12
+    month = month_index % 12 + 1
+    day = min(target_date.day, calendar.monthrange(year, month)[1])
+    return date(year, month, day)
+
+
+def cash_projection_calendar_history_months(user: User) -> int:
+    from app.core.feature_access import user_has_plan_at_least
+
+    return 6 if user_has_plan_at_least(user, "premium") else 3
+
+
+def cash_projection_calendar_feed_window(user: User, anchor_date: date | None = None) -> tuple[date, date]:
+    anchor = anchor_date or app_today()
+    return (
+        _shift_calendar_months(anchor, -cash_projection_calendar_history_months(user)),
+        _shift_calendar_months(anchor, 6),
+    )
+
+
+def build_cash_projection_calendar_feed(
+    db: Session,
+    user: User,
+    start_date: date | None = None,
+    end_date: date | None = None,
+) -> str:
+    default_start_date, default_end_date = cash_projection_calendar_feed_window(user)
+    start_was_provided = start_date is not None
+    start_date = start_date or default_start_date
+    if end_date is None:
+        end_date = _shift_calendar_months(start_date, 6) if start_was_provided else default_end_date
+    projection = build_cash_projection_period(db, user, start_date, end_date)
+    now_stamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
+    calendar_lines = [
+        "BEGIN:VCALENDAR",
+        "VERSION:2.0",
+        "PRODID:-//ClearPath Finance//Cash Balance Projections//EN",
+        "CALSCALE:GREGORIAN",
+        "METHOD:PUBLISH",
+        "X-WR-CALNAME:ClearPath Cash Balance Projections",
+        "X-WR-CALDESC:Daily projected cash balances plus scheduled income and expenses from ClearPath Finance.",
+        "REFRESH-INTERVAL;VALUE=DURATION:PT6H",
+        "X-PUBLISHED-TTL:PT6H",
+    ]
+    today = app_today()
+    for day in projection.get("days", []):
+        day_date = day["date"]
+        day_end_date = day_date + timedelta(days=1)
+        balance_label = _calendar_balance_label(day.get("ending_balance"))
+        basis = day.get("balance_basis") or "Projected"
+        is_actual_day = day_date <= today
+        relevant_events = day.get("actual_events", []) if is_actual_day else day.get("scheduled_events", [])
+        expense_events = [event for event in relevant_events if event.get("item_type") != "income"]
+        income_events = [event for event in relevant_events if event.get("item_type") == "income"]
+        if expense_events:
+            noun = "expense" if len(expense_events) == 1 else "expenses"
+            if not is_actual_day:
+                noun = "planned expense" if len(expense_events) == 1 else "planned expenses"
+            expense_count_label = f" ({len(expense_events)} {noun})"
+        else:
+            expense_count_label = ""
+        uid_seed = "|".join([str(user.id), day_date.isoformat(), "balance"])
+        uid = f"cash-balance-{hashlib.sha256(uid_seed.encode('utf-8')).hexdigest()}@clearpath-finance"
+        description_parts = [
+            f"{basis} cash balance: {balance_label}",
+            f"Net cash movement: {_calendar_signed_money_label(day.get('net_change'))}",
+        ]
+        if expense_events:
+            expense_total = sum(_signed_cash_event_amount(event) for event in expense_events)
+            description_parts.append(
+                f"{'Actual' if is_actual_day else 'Planned'} expense total: {_calendar_signed_money_label(expense_total)}"
+            )
+            description_parts.extend(
+                _calendar_cash_event_lines("Actual expenses:" if is_actual_day else "Planned expenses:", expense_events)
+            )
+        if income_events:
+            income_total = sum(_signed_cash_event_amount(event) for event in income_events)
+            description_parts.append(
+                f"{'Actual' if is_actual_day else 'Planned'} income total: {_calendar_signed_money_label(income_total)}"
+            )
+            description_parts.extend(
+                _calendar_cash_event_lines("Actual income items:" if is_actual_day else "Planned income items:", income_events)
+            )
+        if not expense_events and not income_events:
+            description_parts.append("No planned or actual expenses are scheduled for this day.")
+        description_parts.append(
+            "This is a ClearPath cash balance projection. Review in ClearPath before relying on timing or amount."
+        )
+        calendar_lines.extend(
+            [
+                "BEGIN:VEVENT",
+                f"UID:{uid}",
+                f"DTSTAMP:{now_stamp}",
+                f"DTSTART;VALUE=DATE:{day_date.strftime('%Y%m%d')}",
+                f"DTEND;VALUE=DATE:{day_end_date.strftime('%Y%m%d')}",
+                f"SUMMARY:{_ics_escape(f'{basis} Balance: {balance_label}{expense_count_label}')}",
+                f"DESCRIPTION:{_ics_escape(chr(10).join(description_parts))}",
+                "TRANSP:TRANSPARENT",
+                "END:VEVENT",
+            ]
+        )
+    calendar_lines.append("END:VCALENDAR")
+    return "\r\n".join(folded for line in calendar_lines for folded in _fold_ics_line(line)) + "\r\n"
 
 
 # --- Plan-vs-actual detail rows ---------------------------------------------
