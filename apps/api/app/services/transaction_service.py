@@ -16,7 +16,19 @@ from fastapi import HTTPException, status
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session, joinedload, selectinload
 
-from app.models import Account, Category, CategoryRule, OnboardingProfile, Transaction, TransactionSplit, User
+from app.models import (
+    Account,
+    Category,
+    CategoryRule,
+    FixedExpenseItem,
+    ForecastItem,
+    OnboardingProfile,
+    RecurringForecastTemplate,
+    Transaction,
+    TransactionSplit,
+    User,
+    VariableExpenseItem,
+)
 
 
 STARTER_CATEGORY_TUPLES = [
@@ -450,6 +462,18 @@ def ensure_category_option(db: Session, label: str | None, user: User | None = N
     return category
 
 
+def rename_planning_category_label(db: Session, old_label: str, new_label: str, user: User) -> None:
+    for model in [FixedExpenseItem, VariableExpenseItem, ForecastItem, RecurringForecastTemplate]:
+        for item in db.scalars(select(model).where(model.user_id == user.id, model.category_label == old_label)).all():
+            item.category_label = new_label
+
+
+def clear_planning_category_label(db: Session, label: str, user: User) -> None:
+    for model in [FixedExpenseItem, VariableExpenseItem, ForecastItem, RecurringForecastTemplate]:
+        for item in db.scalars(select(model).where(model.user_id == user.id, model.category_label == label)).all():
+            item.category_label = None
+
+
 def delete_category_and_reassign(db: Session, category: Category, user: User) -> Category | None:
     replacement = None
     if category.name.strip().lower() != "other":
@@ -465,6 +489,7 @@ def delete_category_and_reassign(db: Session, category: Category, user: User) ->
             db.delete(split)
     for rule in db.scalars(select(CategoryRule).where(CategoryRule.user_id == user.id, CategoryRule.category_id == category.id)).all():
         db.delete(rule)
+    clear_planning_category_label(db, category.name, user)
     db.delete(category)
     return replacement
 
@@ -1043,6 +1068,67 @@ def _transaction_match_text(transaction: Transaction) -> str:
 
 def _strong_transaction_match_token(token: str) -> bool:
     return len(token) >= 5 and token not in TRANSACTION_DEDUP_WEAK_TOKENS
+
+
+def transaction_description_match_text(transaction: Transaction) -> str:
+    return (transaction.merchant or transaction.description or "").strip()
+
+
+def transaction_description_match_key(transaction: Transaction) -> str:
+    return normalize_text(transaction_description_match_text(transaction))
+
+
+def matching_description_transactions(db: Session, user: User, transaction: Transaction) -> list[Transaction]:
+    match_key = transaction_description_match_key(transaction)
+    if not match_key:
+        return []
+    candidates = db.scalars(
+        select(Transaction)
+        .options(joinedload(Transaction.splits))
+        .where(Transaction.user_id == user.id)
+        .order_by(Transaction.posted_date.desc(), Transaction.id.desc())
+    ).unique().all()
+    return [
+        candidate
+        for candidate in candidates
+        if candidate.id != transaction.id and transaction_description_match_key(candidate) == match_key
+    ]
+
+
+def ensure_category_rule_for_transaction_description(db: Session, user: User, transaction: Transaction, category: Category) -> bool:
+    match_text = transaction_description_match_text(transaction)
+    if not match_text:
+        return False
+    normalized_match = normalize_text(match_text)
+    for rule in db.scalars(select(CategoryRule).where(CategoryRule.user_id == user.id, CategoryRule.category_id == category.id)).all():
+        for condition in rule_conditions(rule):
+            if (
+                condition.get("field") == "description"
+                and condition.get("operator") == "equals"
+                and normalize_text(condition.get("value") or "") == normalized_match
+            ):
+                return False
+    conditions = [
+        {
+            "field": "description",
+            "operator": "equals",
+            "value": match_text,
+            "value_secondary": "",
+            "group": "primary",
+            "join": "and",
+        }
+    ]
+    db.add(
+        CategoryRule(
+            user_id=user.id,
+            category_id=category.id,
+            match_text=match_text,
+            match_type="equals",
+            rule_logic="all",
+            conditions_json=serialize_rule_conditions(conditions),
+        )
+    )
+    return True
 
 
 def get_owned_transaction(db: Session, user: User, transaction_id: int) -> Transaction:

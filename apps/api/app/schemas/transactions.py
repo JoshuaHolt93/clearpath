@@ -62,6 +62,15 @@ class TransactionResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+class TransactionBudgetActionResponse(BaseModel):
+    # Flask 964c369 transaction_budget_action payload: the "make this a
+    # budget" hint shown next to categorized expense transactions.
+    category_name: str
+    target: float
+    target_label: str
+    hint: str
+
+
 class DuplicateSuggestionResponse(BaseModel):
     plaid_transaction_id: int
     manual_transaction_id: int
@@ -77,6 +86,7 @@ class TransactionListResponse(BaseModel):
     categories: list[CategoryResponse]
     accounts: list[AccountResponse]
     duplicate_suggestions: list[DuplicateSuggestionResponse]
+    budget_actions: dict[int, TransactionBudgetActionResponse] = Field(default_factory=dict)
 
 
 class TransactionCreateRequest(BaseModel):
@@ -94,6 +104,18 @@ class TransactionCreateRequest(BaseModel):
 class TransactionCategoryUpdateRequest(BaseModel):
     category_id: int | None = None
     new_category_name: str | None = None
+    apply_to_similar: bool = False
+
+
+class TransactionCategoryUpdateResponse(BaseModel):
+    # Mirrors the Flask update_transaction_category JSON payload (420b456
+    # apply-to-similar + 964c369 budget activation).
+    transaction: TransactionResponse
+    updated_transaction_ids: list[int] = Field(default_factory=list)
+    similar_updated_count: int = 0
+    rule_created: bool = False
+    created_budget_target: float | None = None
+    budget_action: TransactionBudgetActionResponse | None = None
 
 
 class TransactionSplitInput(BaseModel):
@@ -173,6 +195,10 @@ class TransactionImportCommitResponse(BaseModel):
 class CategoryCreateRequest(BaseModel):
     name: str
     kind: str = "expense"
+    # API adaptation of Flask create_category's return_to sniffing: when the
+    # category is created from the transactions screen, Flask seeds an initial
+    # budget target. The stateless API carries that intent explicitly.
+    activate_budget: bool = False
 
 
 class CategoryUpdateRequest(BaseModel):

@@ -2,13 +2,14 @@ from __future__ import annotations
 
 import calendar
 import json
+import math
 import os
 from collections import defaultdict
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session, joinedload, selectinload
 
 from app.core.config import get_settings
@@ -18,6 +19,7 @@ from app.core.planning_constants import (
     ADDITIONAL_MEDICARE_THRESHOLDS,
     ANALYTICS_RANGE_OPTIONS,
     DEFAULT_APP_TIMEZONE,
+    DEFAULT_CATEGORY_TARGETS,
     FEDERAL_TAX_BRACKETS_2026,
     FIXED_EXPENSE_CATEGORY_NAMES,
     MEDICARE_RATE_2026,
@@ -49,7 +51,12 @@ from app.models import (
 from app.core.planning_constants import LIABILITY_ACCOUNT_LABEL_KEYWORDS, LIABILITY_ACCOUNT_TYPES
 from app.models import Account
 from app.services import plaid_service
-from app.services.transaction_service import CREDIT_CARD_PAYMENT_CATEGORY_NAME, looks_like_credit_card_payment, normalize_text
+from app.services.transaction_service import (
+    CREDIT_CARD_PAYMENT_CATEGORY_NAME,
+    categories_for_user,
+    looks_like_credit_card_payment,
+    normalize_text,
+)
 
 # Faithful port of the planning foundations from Flask services.py at 9b5dff0:
 # timezone/date helpers, income normalization, retirement and loan-extra
@@ -2007,14 +2014,136 @@ def spending_by_category_between(db: Session, user: User, start_date: date, end_
     ]
 
 
+# Budget-row helpers ported from Flask main.py at cb7d969 (incl. 964c369
+# budgets-from-transaction-categories).
+
+BUDGET_CATEGORY_GROUP_BY_KEY = {group["key"]: group for group in STARTER_CATEGORY_GROUPS}
+
+
+def current_budget_month_start() -> date:
+    return app_today().replace(day=1)
+
+
+def budget_category_group_for_label(label: str) -> dict:
+    normalized = (label or "").strip().lower()
+    for group in STARTER_CATEGORY_GROUPS:
+        if normalized in group["aliases"]:
+            return group
+    for group in STARTER_CATEGORY_GROUPS:
+        if any(keyword in normalized for keyword in group["keywords"]):
+            return group
+    return BUDGET_CATEGORY_GROUP_BY_KEY["miscellaneous"]
+
+
+def budget_category_group_for_row(category: Category | None, label: str) -> dict:
+    saved_key = (category.budget_group_key if category else "") or ""
+    if saved_key in BUDGET_CATEGORY_GROUP_BY_KEY:
+        return BUDGET_CATEGORY_GROUP_BY_KEY[saved_key]
+    return budget_category_group_for_label(label)
+
+
+def budget_row_is_canonical_income(label: str) -> bool:
+    return normalize_text(label) == "income"
+
+
+def editable_budget_category_for_user(db: Session, category: Category, user: User) -> Category:
+    if category.user_id == user.id:
+        return category
+
+    existing = db.scalar(
+        select(Category).where(
+            Category.user_id == user.id,
+            func.lower(Category.name) == category.name.strip().lower(),
+        )
+    )
+    if existing:
+        return existing
+
+    override = Category(
+        user_id=user.id,
+        name=category.name,
+        kind=category.kind,
+        monthly_target=category.monthly_target,
+        is_default=False,
+    )
+    db.add(override)
+    return override
+
+
+def active_budget_categories_by_key(db: Session, user: User) -> dict[str, Category]:
+    planning_labels = {
+        normalize_text(getattr(item, "category_label", "") or "")
+        for item in [
+            *db.scalars(select(FixedExpenseItem).where(FixedExpenseItem.user_id == user.id)).all(),
+            *db.scalars(select(VariableExpenseItem).where(VariableExpenseItem.user_id == user.id)).all(),
+            *db.scalars(select(ForecastItem).where(ForecastItem.user_id == user.id, ForecastItem.item_type == "expense")).all(),
+            *db.scalars(select(RecurringForecastTemplate).where(RecurringForecastTemplate.user_id == user.id, RecurringForecastTemplate.item_type == "expense")).all(),
+        ]
+        if normalize_text(getattr(item, "category_label", "") or "")
+    }
+    return {
+        normalize_text(category.name): category
+        for category in categories_for_user(db, user)
+        if category_is_active_budget(db, category, user, planning_labels=planning_labels)
+    }
+
+
+def initial_budget_target_for_transaction_category(db: Session, category: Category, user: User, transaction: Transaction | None = None) -> float:
+    month_start = current_budget_month_start()
+    month_end = month_start.replace(day=calendar.monthrange(month_start.year, month_start.month)[1])
+    category_key = normalize_text(category.name or "")
+    current_month_actual = sum(
+        allocation["amount"]
+        for allocation in transaction_category_allocations_for_period(db, user, month_start, month_end, purpose="monthly_plan")
+        if normalize_text(allocation.get("category_name") or "") == category_key
+    )
+    transaction_actual = abs(transaction.amount or 0) if transaction and (transaction.amount or 0) < 0 else 0
+    actual_basis = current_month_actual or transaction_actual
+    rounded_actual = math.ceil(actual_basis / 25) * 25 if actual_basis > 0 else 0
+    return max(DEFAULT_CATEGORY_TARGETS.get(category.name, 0), rounded_actual, 25)
+
+
+def category_can_be_transaction_budget(category: Category | None) -> bool:
+    if not category:
+        return False
+    return (category.kind or "expense") == "expense" and normalize_text(category.name or "") != "other"
+
+
+def activate_transaction_budget_category(db: Session, category: Category, user: User, transaction: Transaction | None = None) -> tuple[Category, float]:
+    editable_category = editable_budget_category_for_user(db, category, user)
+    target = initial_budget_target_for_transaction_category(db, category, user, transaction)
+    editable_category.kind = "expense"
+    editable_category.monthly_target = target
+    editable_category.is_default = False
+    return editable_category, target
+
+
+def transaction_budget_action(db: Session, transaction: Transaction, user: User, active_budget_keys: set[str] | None = None) -> dict | None:
+    category = transaction.category
+    if (transaction.amount or 0) >= 0 or not category_can_be_transaction_budget(category):
+        return None
+    if active_budget_keys is None:
+        active_budget_keys = set(active_budget_categories_by_key(db, user))
+    if normalize_text(category.name or "") in active_budget_keys:
+        return None
+    target = initial_budget_target_for_transaction_category(db, category, user, transaction)
+    return {
+        "category_name": category.name,
+        "target": target,
+        "target_label": f"${target:,.0f}",
+        "hint": f"Starts {category.name} at ${target:,.0f} per month.",
+    }
+
+
 def _plaid_post_sync_hook(db: Session, user: User) -> None:
     sync_monthly_plan(db, user, purpose="monthly_plan")
 
 
 # Flask calls sync_monthly_plan after subscription rescans on Plaid syncs.
-# planning_service imports subscription_service (inside the detail-row
-# builders), and the subscriptions router imports subscription_service at app
-# startup, so its hook registers before this one — matching Flask's
-# scan-then-sync ordering.
+# Import subscription_service before registering this hook so its hook always
+# registers first — matching Flask's scan-then-sync ordering regardless of
+# which router module is imported first at app startup.
+from app.services import subscription_service as _subscription_service  # noqa: E402,F401
+
 if _plaid_post_sync_hook not in plaid_service.POST_SYNC_HOOKS:
     plaid_service.POST_SYNC_HOOKS.append(_plaid_post_sync_hook)

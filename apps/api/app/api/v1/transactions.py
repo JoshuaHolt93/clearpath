@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session, selectinload
 from app.core.database import get_db
 from app.dependencies import Principal, require_household_access
 from app.models import Account, Category, CategoryRule, Transaction, TransactionSplit
+from app.schemas.planning import TransactionBudgetActivateResponse
 from app.schemas.transactions import (
     AccountResponse,
     CategoryCreateRequest,
@@ -25,7 +26,9 @@ from app.schemas.transactions import (
     CategoryRuleUpdateRequest,
     DuplicateTransactionMergeRequest,
     DuplicateTransactionMergeResponse,
+    TransactionBudgetActionResponse,
     TransactionCategoryUpdateRequest,
+    TransactionCategoryUpdateResponse,
     TransactionCreateRequest,
     TransactionImportCommitRequest,
     TransactionImportCommitResponse,
@@ -35,6 +38,14 @@ from app.schemas.transactions import (
     TransactionListResponse,
     TransactionResponse,
     TransactionSplitsUpdateRequest,
+)
+from app.services.planning_service import (
+    activate_transaction_budget_category,
+    active_budget_categories_by_key,
+    category_can_be_transaction_budget,
+    initial_budget_target_for_transaction_category,
+    sync_monthly_plan,
+    transaction_budget_action,
 )
 from app.services.transaction_service import (
     apply_category_rules,
@@ -50,13 +61,17 @@ from app.services.transaction_service import (
     decode_csv_payload,
     delete_category_and_reassign,
     ensure_category_option,
+    ensure_category_rule_for_transaction_description,
     get_or_create_account,
     get_owned_category_for_management,
     get_owned_rule,
     get_owned_transaction,
     load_staged_import,
+    matching_description_transactions,
     merge_transaction_pair_for_user,
+    rename_planning_category_label,
     normalize_rule_conditions,
+    normalize_text,
     parse_amount,
     preview_csv_content,
     require_onboarding_complete,
@@ -187,6 +202,15 @@ def list_transactions(
     items = rows[start_index : start_index + per_page]
     accounts = db.scalars(select(Account).where(Account.user_id == user.id)).all()
     accounts = sorted(accounts, key=lambda account: ((account.institution or "").lower(), (account.name or "").lower()))
+    # Flask 964c369: budget-activation hints for the visible page rows.
+    active_budget_keys = set(active_budget_categories_by_key(db, user))
+    budget_actions = {
+        transaction.id: TransactionBudgetActionResponse(**action)
+        for transaction in items
+        if transaction.id
+        for action in [transaction_budget_action(db, transaction, user, active_budget_keys=active_budget_keys)]
+        if action
+    }
     return TransactionListResponse(
         items=[transaction_response(transaction) for transaction in items],
         total=total,
@@ -195,6 +219,7 @@ def list_transactions(
         categories=[category_response(db, user, category) for category in categories],
         accounts=[account_response(account) for account in accounts],
         duplicate_suggestions=transaction_duplicate_suggestions_for_user(db, user),
+        budget_actions=budget_actions,
     )
 
 
@@ -314,15 +339,20 @@ def merge_duplicate_transactions(
     return DuplicateTransactionMergeResponse(merged=True, surviving_transaction=transaction_response(get_owned_transaction(db, principal.user, surviving.id)), deleted_transaction_id=deleted_id)
 
 
-@router.patch("/transactions/{transaction_id}/category", response_model=TransactionResponse)
+@router.patch("/transactions/{transaction_id}/category", response_model=TransactionCategoryUpdateResponse)
 def update_transaction_category(
     transaction_id: int,
     payload: TransactionCategoryUpdateRequest,
     principal: Annotated[Principal, Depends(require_household_access("editor"))],
     db: Annotated[Session, Depends(get_db)],
-) -> TransactionResponse:
+) -> TransactionCategoryUpdateResponse:
     transaction = get_owned_transaction(db, principal.user, transaction_id)
     category = None
+    created_new_category = False
+    created_budget_target: float | None = None
+    updated_transaction_ids: list[int] = []
+    similar_updated_count = 0
+    rule_created = False
     if payload.new_category_name:
         name = payload.new_category_name.strip()
         if not name:
@@ -334,6 +364,7 @@ def update_transaction_category(
         category = Category(user_id=principal.user.id, name=name, kind="income" if transaction.amount > 0 else "expense", monthly_target=0, is_default=False)
         db.add(category)
         db.flush()
+        created_new_category = True
     elif payload.category_id:
         category = category_for_user(db, payload.category_id, principal.user)
     if not category:
@@ -341,9 +372,58 @@ def update_transaction_category(
     if transaction.category_id != category.id and transaction.splits:
         transaction.splits.clear()
     transaction.category_id = category.id
+    updated_transaction_ids.append(transaction.id)
+    # Flask 964c369: a brand-new expense category starts as a budget row.
+    if created_new_category and category_can_be_transaction_budget(category):
+        _, created_budget_target = activate_transaction_budget_category(db, category, principal.user, transaction)
+    # Flask 420b456: optionally recategorize matching descriptions and learn a rule.
+    if payload.apply_to_similar:
+        for matching_transaction in matching_description_transactions(db, principal.user, transaction):
+            if matching_transaction.splits:
+                continue
+            if matching_transaction.category_id != category.id:
+                matching_transaction.category_id = category.id
+                similar_updated_count += 1
+            updated_transaction_ids.append(matching_transaction.id)
+        rule_created = ensure_category_rule_for_transaction_description(db, principal.user, transaction, category)
+    # PHASE 3 (recurring templates): Flask's mark_recurring path
+    # (create_recurring_template_from_transaction) ports with the
+    # recurring-template endpoints.
     db.commit()
+    sync_monthly_plan(db, principal.user)
     db.expire_all()
-    return transaction_response(get_owned_transaction(db, principal.user, transaction.id))
+    transaction = get_owned_transaction(db, principal.user, transaction.id)
+    budget_action = transaction_budget_action(db, transaction, principal.user)
+    # PHASE 3 (loans): Flask HEAD also returns amortization_action (fc97040);
+    # it ports with the loan-plan endpoints.
+    return TransactionCategoryUpdateResponse(
+        transaction=transaction_response(transaction),
+        updated_transaction_ids=updated_transaction_ids,
+        similar_updated_count=similar_updated_count,
+        rule_created=rule_created,
+        created_budget_target=created_budget_target,
+        budget_action=TransactionBudgetActionResponse(**budget_action) if budget_action else None,
+    )
+
+
+@router.post("/transactions/{transaction_id}/budget-category", response_model=TransactionBudgetActivateResponse)
+def activate_transaction_budget(
+    transaction_id: int,
+    principal: Annotated[Principal, Depends(require_household_access("editor"))],
+    db: Annotated[Session, Depends(get_db)],
+) -> TransactionBudgetActivateResponse:
+    require_onboarding_complete(principal.user)
+    transaction = get_owned_transaction(db, principal.user, transaction_id)
+    category = transaction.category
+    if not category_can_be_transaction_budget(category):
+        raise HTTPException(status_code=422, detail="Choose an expense category before making a budget.")
+    if normalize_text(category.name or "") in active_budget_categories_by_key(db, principal.user):
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=f"{category.name} is already on Budgets.")
+
+    editable_category, target = activate_transaction_budget_category(db, category, principal.user, transaction)
+    db.commit()
+    sync_monthly_plan(db, principal.user, purpose="monthly_plan")
+    return TransactionBudgetActivateResponse(category=CategoryResponse.model_validate(editable_category), target=target)
 
 
 @router.patch("/transactions/{transaction_id}/splits", response_model=TransactionResponse)
@@ -384,18 +464,28 @@ def update_transaction_splits(
 
 @router.post("/categories", response_model=CategoryResponse, status_code=status.HTTP_201_CREATED)
 def create_category(
-    payload: CategoryUpdateRequest,
+    payload: CategoryCreateRequest,
     principal: Annotated[Principal, Depends(require_household_access("editor"))],
     db: Annotated[Session, Depends(get_db)],
 ) -> CategoryResponse:
+    require_onboarding_complete(principal.user)
     name = payload.name.strip()
+    kind = (payload.kind or "expense").strip().lower()
+    if kind not in {"expense", "income"}:
+        kind = "expense"
     if not name:
         raise HTTPException(status_code=422, detail="Enter a category name.")
     if not category_name_available_for_user(db, name, principal.user):
         raise HTTPException(status_code=422, detail="That category already exists.")
-    category = Category(user_id=principal.user.id, name=name, kind=payload.kind or "expense", monthly_target=0, is_default=False)
+    category = Category(user_id=principal.user.id, name=name, kind=kind, monthly_target=0, is_default=False)
+    # Flask 964c369: creating an expense category from the transactions screen
+    # seeds an initial budget target (activate_budget replaces return_to sniffing).
+    if kind == "expense" and payload.activate_budget:
+        category.monthly_target = initial_budget_target_for_transaction_category(db, category, principal.user)
     db.add(category)
     db.commit()
+    if category.monthly_target > 0:
+        sync_monthly_plan(db, principal.user, purpose="monthly_plan")
     db.refresh(category)
     return category_response(db, principal.user, category)
 
@@ -403,12 +493,13 @@ def create_category(
 @router.patch("/categories/{category_id}", response_model=CategoryResponse)
 def update_category(
     category_id: int,
-    payload: CategoryCreateRequest,
+    payload: CategoryUpdateRequest,
     principal: Annotated[Principal, Depends(require_household_access("editor"))],
     db: Annotated[Session, Depends(get_db)],
 ) -> CategoryResponse:
     category = get_owned_category_for_management(db, principal.user, category_id)
-    new_name = payload.name.strip()
+    old_name = category.name
+    new_name = (payload.name or "").strip()
     if not new_name:
         raise HTTPException(status_code=422, detail="Category name is required.")
     if not category_name_available_for_user(db, new_name, principal.user, exclude_id=category.id):
@@ -417,7 +508,10 @@ def update_category(
     category.kind = payload.kind or category.kind
     if category.user_id is None:
         category.user_id = principal.user.id
+    # Flask rename_category: planning worksheets follow the rename.
+    rename_planning_category_label(db, old_name, new_name, principal.user)
     db.commit()
+    sync_monthly_plan(db, principal.user)
     return category_response(db, principal.user, category)
 
 
@@ -431,6 +525,7 @@ def delete_category(
     category = get_owned_category_for_management(db, principal.user, category_id)
     replacement = delete_category_and_reassign(db, category, principal.user)
     db.commit()
+    sync_monthly_plan(db, principal.user)
     return CategoryDeleteResponse(deleted_category_id=category_id, replacement_category=category_response(db, principal.user, replacement) if replacement else None)
 
 
@@ -471,8 +566,6 @@ def create_category_rule(
     db.commit()
     db.refresh(rule)
     # Flask add_rule/auto_rules refresh the monthly plan after applying.
-    from app.services.planning_service import sync_monthly_plan
-
     sync_monthly_plan(db, principal.user, purpose="monthly_plan")
     return rule_response(get_owned_rule(db, principal.user, rule.id), applied_count=applied_count)
 
