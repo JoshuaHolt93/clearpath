@@ -7,7 +7,7 @@
   "types": "src/index.ts",
   "scripts": {
     "build": "tsc --noEmit",
-    "test": "echo \"No tests yet for @clearpath/domain\"",
+    "test": "node --test test/index.test.mjs",
     "typecheck": "tsc --noEmit",
     "lint": "echo \"No lint configured yet for @clearpath/domain\""
   },

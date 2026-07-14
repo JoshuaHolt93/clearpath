@@ -272,6 +272,49 @@ def selected_extra_payment_for_loan_plan(plan: LoanPlan | None) -> float:
     return 0.0
 
 
+def scheduled_payment_for_term(principal: float, annual_rate: float, term_months: int) -> float:
+    principal = max(principal or 0, 0)
+    term_months = max(int(term_months or 0), 1)
+    monthly_rate = max(annual_rate or 0, 0) / 100 / 12
+    if principal <= 0:
+        return 0.0
+    if monthly_rate <= 0:
+        return principal / term_months
+    factor = (1 + monthly_rate) ** term_months
+    return principal * monthly_rate * factor / (factor - 1)
+
+
+def amortization_summary(
+    principal: float,
+    annual_rate: float,
+    payment: float,
+    extra_payment: float = 0.0,
+    max_months: int = 360,
+) -> dict:
+    principal = max(principal or 0, 0)
+    monthly_rate = max(annual_rate or 0, 0) / 100 / 12
+    baseline_payment = scheduled_payment_for_term(principal, annual_rate, max_months) if max_months else (payment or 0)
+    monthly_payment = max(baseline_payment + (extra_payment or 0), 0)
+    if principal <= 0 or monthly_payment <= 0:
+        return {"months": 0, "years": 0, "interest_paid": 0.0, "payoff_possible": principal <= 0}
+    if monthly_rate and monthly_payment <= principal * monthly_rate:
+        return {"months": max_months, "years": max_months / 12, "interest_paid": 0.0, "payoff_possible": False}
+
+    balance = principal
+    interest_paid = 0.0
+    months = 0
+    limit = max(max_months, 1) + 600
+    while balance > 0.01 and months < limit:
+        interest = balance * monthly_rate
+        principal_paid = min(monthly_payment - interest, balance)
+        if principal_paid <= 0:
+            return {"months": months, "years": months / 12, "interest_paid": interest_paid, "payoff_possible": False}
+        interest_paid += interest
+        balance -= principal_paid
+        months += 1
+    return {"months": months, "years": months / 12, "interest_paid": interest_paid, "payoff_possible": balance <= 0.01}
+
+
 def selected_loan_extra_payment_total(db: Session, user: User) -> float:
     total = 0.0
     for plan in db.scalars(select(LoanPlan).where(LoanPlan.user_id == user.id)).all():

@@ -5,6 +5,29 @@ on:
   pull_request:
 
 jobs:
+  domain:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Node.js 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
+      - name: Enable pnpm
+        run: corepack enable
+
+      - name: Install workspace dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Type-check shared domain
+        run: pnpm --filter @clearpath/domain typecheck
+
+      - name: Test shared domain
+        run: pnpm --filter @clearpath/domain test
+
   test:
     runs-on: ubuntu-latest
 
