@@ -43,7 +43,9 @@ from app.services.planning_service import (
     activate_transaction_budget_category,
     active_budget_categories_by_key,
     category_can_be_transaction_budget,
+    create_recurring_template_from_transaction,
     initial_budget_target_for_transaction_category,
+    recurring_transaction_ids_for_page,
     sync_monthly_plan,
     transaction_budget_action,
 )
@@ -220,6 +222,7 @@ def list_transactions(
         accounts=[account_response(account) for account in accounts],
         duplicate_suggestions=transaction_duplicate_suggestions_for_user(db, user),
         budget_actions=budget_actions,
+        recurring_transaction_ids=sorted(recurring_transaction_ids_for_page(db, user, items)),
     )
 
 
@@ -386,9 +389,22 @@ def update_transaction_category(
                 similar_updated_count += 1
             updated_transaction_ids.append(matching_transaction.id)
         rule_created = ensure_category_rule_for_transaction_description(db, principal.user, transaction, category)
-    # PHASE 3 (recurring templates): Flask's mark_recurring path
-    # (create_recurring_template_from_transaction) ports with the
-    # recurring-template endpoints.
+    recurring_message: str | None = None
+    recurring_success: bool | None = None
+    if payload.mark_recurring:
+        recurring_message, recurring_success = create_recurring_template_from_transaction(
+            db,
+            principal.user,
+            transaction,
+            category,
+            recurring_name=payload.recurring_name,
+            recurring_start_date=payload.recurring_start_date,
+            recurring_second_date=payload.recurring_second_date,
+            recurring_frequency=payload.recurring_frequency,
+            recurring_days_of_week=payload.recurring_days_of_week,
+            recurring_monthly_week_numbers=payload.recurring_monthly_week_numbers,
+            recurring_monthly_weekday=payload.recurring_monthly_weekday,
+        )
     db.commit()
     sync_monthly_plan(db, principal.user)
     db.expire_all()
@@ -403,6 +419,8 @@ def update_transaction_category(
         rule_created=rule_created,
         created_budget_target=created_budget_target,
         budget_action=TransactionBudgetActionResponse(**budget_action) if budget_action else None,
+        recurring_message=recurring_message,
+        recurring_success=recurring_success,
     )
 
 

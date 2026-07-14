@@ -87,6 +87,8 @@ class TransactionListResponse(BaseModel):
     accounts: list[AccountResponse]
     duplicate_suggestions: list[DuplicateSuggestionResponse]
     budget_actions: dict[int, TransactionBudgetActionResponse] = Field(default_factory=dict)
+    # Flask 0ddefb0: page rows already linked to a recurring template.
+    recurring_transaction_ids: list[int] = Field(default_factory=list)
 
 
 class TransactionCreateRequest(BaseModel):
@@ -105,6 +107,16 @@ class TransactionCategoryUpdateRequest(BaseModel):
     category_id: int | None = None
     new_category_name: str | None = None
     apply_to_similar: bool = False
+    # Flask 0ddefb0 mark_recurring: create/refresh a recurring expense
+    # template from this transaction.
+    mark_recurring: bool = False
+    recurring_name: str | None = None
+    recurring_start_date: str | None = None
+    recurring_second_date: str | None = None
+    recurring_frequency: str = "monthly"
+    recurring_days_of_week: list[int | str] = Field(default_factory=list)
+    recurring_monthly_week_numbers: list[int | str] = Field(default_factory=list)
+    recurring_monthly_weekday: int | str | None = None
 
 
 class TransactionCategoryUpdateResponse(BaseModel):
@@ -116,6 +128,8 @@ class TransactionCategoryUpdateResponse(BaseModel):
     rule_created: bool = False
     created_budget_target: float | None = None
     budget_action: TransactionBudgetActionResponse | None = None
+    recurring_message: str | None = None
+    recurring_success: bool | None = None
 
 
 class TransactionSplitInput(BaseModel):

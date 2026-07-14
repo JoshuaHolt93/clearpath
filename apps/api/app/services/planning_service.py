@@ -26,6 +26,7 @@ from app.core.planning_constants import (
     FIXED_EXPENSE_CATEGORY_NAMES,
     MEDICARE_RATE_2026,
     MONTHLY_WEEK_OPTIONS,
+    RECURRING_FREQUENCY_OPTIONS,
     SOCIAL_SECURITY_RATE_2026,
     SOCIAL_SECURITY_WAGE_BASE_2026,
     STANDARD_DEDUCTIONS_2026,
@@ -2323,6 +2324,252 @@ def spending_by_category(db: Session, user: User, target_date: date | None = Non
         {"category": category, "category_id": row["category_id"], "amount": float(row["amount"] or 0)}
         for category, row in rows
     ]
+
+
+# Recurring-templates-from-transactions cluster ported from Flask main.py at
+# cb7d969 (0ddefb0 "Add recurring expense planning from transactions").
+
+
+def _template_note_has_transaction(template: RecurringForecastTemplate, transaction: Transaction) -> bool:
+    if not transaction.id:
+        return False
+    return bool(re.search(rf"\btransaction #{transaction.id}\b", template.notes or "", re.IGNORECASE))
+
+
+def _append_recurring_transaction_note(template: RecurringForecastTemplate, transaction: Transaction) -> None:
+    if not transaction.id:
+        return
+    date_text = transaction.posted_date.isoformat() if transaction.posted_date else "date not set"
+    marker = f"transaction #{transaction.id}"
+    notes = template.notes or ""
+    if marker not in notes.lower():
+        template.notes = f"{notes} Created from transaction #{transaction.id} dated {date_text}.".strip()
+
+
+def _recurring_template_matches_transaction(
+    template: RecurringForecastTemplate,
+    transaction: Transaction,
+    category: Category,
+    proposed_name: str,
+    amount: float,
+) -> bool:
+    if template.item_type != "expense":
+        return False
+    if _template_note_has_transaction(template, transaction):
+        return True
+
+    template_category = normalize_text(template.category_label or "")
+    transaction_category = normalize_text(category.name if category else "")
+    if template_category and transaction_category and template_category != transaction_category:
+        return False
+
+    template_amount = abs(template.amount or 0)
+    amount_exact = abs(template_amount - amount) < 0.01
+    amount_close = abs(template_amount - amount) <= max(2.0, amount * 0.1)
+    if not (amount_exact or amount_close):
+        return False
+
+    template_text = normalize_text(template.name or "")
+    transaction_texts = [
+        normalize_text(proposed_name),
+        normalize_text(transaction.merchant or ""),
+        normalize_text(transaction.description or ""),
+    ]
+    return any(
+        template_text
+        and text
+        and (template_text in text or text in template_text)
+        for text in transaction_texts
+    )
+
+
+def _recurring_template_candidates_for_transaction(db: Session, transaction: Transaction, category: Category, name: str, amount: float) -> list[RecurringForecastTemplate]:
+    candidates = []
+    for template in db.scalars(select(RecurringForecastTemplate).where(RecurringForecastTemplate.user_id == transaction.user_id, RecurringForecastTemplate.item_type == "expense")).all():
+        if _recurring_template_matches_transaction(template, transaction, category, name, amount):
+            candidates.append(template)
+    return sorted(
+        candidates,
+        key=lambda template: (
+            0 if _template_note_has_transaction(template, transaction) else 1,
+            template.id or 0,
+        ),
+    )
+
+
+def _merge_recurring_template_notes(primary: RecurringForecastTemplate, duplicate: RecurringForecastTemplate) -> None:
+    primary_notes = primary.notes or ""
+    for transaction_id in re.findall(r"transaction #(\d+)", duplicate.notes or "", re.IGNORECASE):
+        marker = f"transaction #{transaction_id}"
+        if marker not in primary_notes.lower():
+            primary_notes = f"{primary_notes} Created from transaction #{transaction_id}.".strip()
+    primary.notes = primary_notes or primary.notes
+
+
+def _apply_transaction_recurring_schedule(
+    template: RecurringForecastTemplate,
+    transaction: Transaction,
+    category: Category,
+    *,
+    name: str,
+    amount: float,
+    frequency: str,
+    start_date: date,
+    second_date: date | None,
+    selected_weekdays: list[str],
+    monthly_week_numbers: str | None,
+    monthly_weekday: int | None,
+) -> None:
+    template.name = name[:160]
+    template.amount = amount
+    template.item_type = "expense"
+    template.frequency = frequency
+    template.start_date = start_date
+    template.second_date = second_date
+    template.days_of_week = ",".join(selected_weekdays) if selected_weekdays else None
+    template.second_day_of_month = second_date.day if second_date else None
+    template.monthly_week_numbers = monthly_week_numbers
+    template.monthly_weekday = monthly_weekday
+    template.category_label = category.name
+    _append_recurring_transaction_note(template, transaction)
+
+
+def recurring_monthly_week_pattern(selected_week_numbers: list[str | int] | None, monthly_weekday_raw: str | int | None) -> tuple[str | None, int | None]:
+    selected_weeks = [
+        str(value)
+        for value in (selected_week_numbers or [])
+        if str(value) in {str(week) for week in MONTHLY_WEEK_OPTIONS}
+    ]
+    try:
+        monthly_weekday = int(monthly_weekday_raw if monthly_weekday_raw is not None else "")
+    except (TypeError, ValueError):
+        monthly_weekday = None
+    if monthly_weekday not in WEEKDAY_OPTIONS or not selected_weeks:
+        return None, None
+    return ",".join(selected_weeks), monthly_weekday
+
+
+def create_recurring_template_from_transaction(
+    db: Session,
+    user: User,
+    transaction: Transaction,
+    category: Category,
+    *,
+    recurring_name: str | None = None,
+    recurring_start_date: str | None = None,
+    recurring_second_date: str | None = None,
+    recurring_frequency: str = "monthly",
+    recurring_days_of_week: list[str | int] | None = None,
+    recurring_monthly_week_numbers: list[str | int] | None = None,
+    recurring_monthly_weekday: str | int | None = None,
+) -> tuple[str, bool]:
+    from app.services.transaction_service import parse_flexible_date
+
+    if transaction.amount >= 0:
+        return "Category updated. Recurring schedules from Transactions are for expense charges; income belongs in Income Planning.", False
+
+    raw_start = (recurring_start_date or "").strip()
+    raw_second_date = (recurring_second_date or "").strip()
+    frequency = recurring_frequency or "monthly"
+    selected_weekdays = [
+        str(value)
+        for value in (recurring_days_of_week or [])
+        if str(value) in {str(day) for day in WEEKDAY_OPTIONS}
+    ]
+    monthly_week_numbers, monthly_weekday = recurring_monthly_week_pattern(recurring_monthly_week_numbers, recurring_monthly_weekday)
+    name = (recurring_name or transaction.merchant or transaction.description or "Recurring expense").strip()
+    amount = abs(transaction.amount or 0)
+
+    try:
+        start_date = parse_flexible_date(raw_start) if raw_start else transaction.posted_date
+    except ValueError:
+        start_date = None
+    try:
+        second_date = parse_flexible_date(raw_second_date) if raw_second_date else None
+    except ValueError:
+        second_date = None
+
+    if frequency not in RECURRING_FREQUENCY_OPTIONS:
+        return "Category updated, but the recurring cadence was not valid.", False
+    if not start_date:
+        return "Category updated, but the recurring start date was not valid.", False
+    if frequency == "semimonthly" and raw_second_date and not second_date:
+        return "Category updated, but the second recurring date was not valid.", False
+    if frequency in {"weekly", "biweekly"} and not selected_weekdays:
+        selected_weekdays = [str(start_date.weekday())]
+
+    category_label = category.name
+    matching_templates = _recurring_template_candidates_for_transaction(db, transaction, category, name, amount)
+    if matching_templates:
+        primary_template = matching_templates[0]
+        for duplicate_template in matching_templates[1:]:
+            _merge_recurring_template_notes(primary_template, duplicate_template)
+            db.delete(duplicate_template)
+        _apply_transaction_recurring_schedule(
+            primary_template,
+            transaction,
+            category,
+            name=name,
+            amount=amount,
+            frequency=frequency,
+            start_date=start_date,
+            second_date=second_date,
+            selected_weekdays=selected_weekdays,
+            monthly_week_numbers=monthly_week_numbers,
+            monthly_weekday=monthly_weekday,
+        )
+        return "Category updated and recurring expense schedule updated for matching transactions.", True
+
+    template = RecurringForecastTemplate(
+        user_id=user.id,
+        name=name[:160],
+        amount=amount,
+        item_type="expense",
+        frequency=frequency,
+        start_date=start_date,
+        second_date=second_date,
+        days_of_week=",".join(selected_weekdays) if selected_weekdays else None,
+        second_day_of_month=second_date.day if second_date else None,
+        monthly_week_numbers=monthly_week_numbers,
+        monthly_weekday=monthly_weekday,
+        category_label=category_label,
+    )
+    _append_recurring_transaction_note(template, transaction)
+    db.add(template)
+    return "Category updated and recurring expense schedule added to forecasts and cash balance projections.", True
+
+
+def recurring_transaction_ids_for_page(db: Session, user: User, transactions: list[Transaction]) -> set[int]:
+    transaction_by_id = {transaction.id: transaction for transaction in transactions if transaction.id}
+    if not transaction_by_id:
+        return set()
+
+    recurring_ids: set[int] = set()
+    templates = db.scalars(select(RecurringForecastTemplate).where(RecurringForecastTemplate.user_id == user.id, RecurringForecastTemplate.item_type == "expense")).all()
+    for template in templates:
+        notes = template.notes or ""
+        for raw_id in re.findall(r"transaction #(\d+)", notes, re.IGNORECASE):
+            transaction_id = int(raw_id)
+            if transaction_id in transaction_by_id:
+                recurring_ids.add(transaction_id)
+
+    for transaction in transaction_by_id.values():
+        if transaction.id in recurring_ids or (transaction.amount or 0) >= 0:
+            continue
+        transaction_category = (transaction.category.name if transaction.category else "") or ""
+        transaction_text = normalize_text(transaction.merchant or transaction.description or "")
+        transaction_amount = abs(transaction.amount or 0)
+        for template in templates:
+            if abs((template.amount or 0) - transaction_amount) >= 0.01:
+                continue
+            if template.category_label and transaction_category and normalize_text(template.category_label) != normalize_text(transaction_category):
+                continue
+            template_text = normalize_text(template.name or "")
+            if template_text and transaction_text and (template_text in transaction_text or transaction_text in template_text):
+                recurring_ids.add(transaction.id)
+                break
+
+    return recurring_ids
 
 
 # Timing helpers ported from Flask main.py at cb7d969. Flask reads these

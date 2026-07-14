@@ -412,6 +412,68 @@ class VariableExpenseDeleteResponse(BaseModel):
     deleted_item_id: int
 
 
+class ForecastItemCreateRequest(BaseModel):
+    item_date: str = ""
+    description: str = ""
+    amount: float | None = None
+    item_type: str = "expense"
+    category_label: str | None = None
+    notes: str | None = None
+
+
+class ForecastItemUpdateRequest(ForecastItemCreateRequest):
+    pass
+
+
+class ForecastItemDeleteRequest(BaseModel):
+    confirm: bool = True
+
+
+class ForecastItemDeleteResponse(BaseModel):
+    deleted_item_id: int
+
+
+class RecurringForecastTemplateCreateRequest(BaseModel):
+    name: str = ""
+    amount: float | None = None
+    item_type: str = "expense"
+    frequency: str = "monthly"
+    start_date: str | None = None
+    second_date: str | None = None
+    recurring_days_of_week: list[int | str] = Field(default_factory=list)
+    recurring_monthly_week_numbers: list[int | str] = Field(default_factory=list)
+    recurring_monthly_weekday: int | str | None = None
+    category_label: str | None = None
+    notes: str | None = None
+    # Future income adjustment fields (Flask income_adjustment="yes" path).
+    income_adjustment: bool = False
+    income_replacement: bool | None = None
+    income_basis: str = "take_home"
+    income_type: str = "salary"
+    paycheck_cadence: str = "monthly"
+    income_next_pay_date: str | None = None
+    income_amount: float | None = None
+    hourly_hours_per_week: float | None = None
+    additional_income_amount: float | None = None
+    additional_income_frequency: str = "annual"
+    tax_state: str | None = None
+    tax_filing_status: str = "married_joint"
+    include_payroll_taxes: bool = False
+
+
+class RecurringForecastTemplateUpdateRequest(RecurringForecastTemplateCreateRequest):
+    # A monthly_target-only payload follows Flask's amount-only route.
+    monthly_target: float | None = None
+
+
+class RecurringForecastTemplateDeleteRequest(BaseModel):
+    confirm: bool = True
+
+
+class RecurringForecastTemplateDeleteResponse(BaseModel):
+    deleted_template_id: int
+
+
 class MonthlyPlanBaselineUpdateRequest(BaseModel):
     # Flask applies only the fields present in the form; the API mirrors that
     # with fields-set semantics (model_fields_set).

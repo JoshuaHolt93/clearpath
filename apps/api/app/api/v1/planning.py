@@ -3,7 +3,7 @@
 import calendar
 import json
 from collections import defaultdict
-from datetime import date
+from datetime import date, datetime
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -53,14 +53,22 @@ from app.schemas.planning import (
     FixedExpenseDeleteResponse,
     FixedExpenseItemResponse,
     FixedExpenseUpdateRequest,
+    ForecastItemCreateRequest,
+    ForecastItemDeleteRequest,
+    ForecastItemDeleteResponse,
     ForecastItemResponse,
+    ForecastItemUpdateRequest,
     MonthlyPlanBaselineUpdateRequest,
     MonthlyPlanRecordResponse,
     MonthlyPlanResponse,
     PayPeriodResponse,
     PlanRowResponse,
     QuickWorksheetRowResponse,
+    RecurringForecastTemplateCreateRequest,
+    RecurringForecastTemplateDeleteRequest,
+    RecurringForecastTemplateDeleteResponse,
     RecurringForecastTemplateResponse,
+    RecurringForecastTemplateUpdateRequest,
     SuggestedBudgetSectionResponse,
     TaxEstimateResponse,
     VariableExpenseCreateRequest,
@@ -105,6 +113,7 @@ from app.services.planning_service import (
     paycheck_timing_values,
     planned_income_for_period,
     recorded_month_income,
+    recurring_monthly_week_pattern,
     recurring_template_monthly_amount,
     retirement_cash_flow_contribution,
     selected_loan_extra_payment_total,
@@ -535,6 +544,397 @@ def delete_variable_expense(
     db.commit()
     sync_monthly_plan(db, user)
     return VariableExpenseDeleteResponse(deleted_item_id=item_id)
+
+
+# --- Forecast items and recurring templates ----------------------------------
+# Faithful ports of Flask add/edit/amount/delete handlers (main.py at cb7d969).
+
+
+def _template_response(template: RecurringForecastTemplate) -> RecurringForecastTemplateResponse:
+    response = RecurringForecastTemplateResponse.model_validate(template)
+    response.monthly_amount = recurring_template_monthly_amount(template)
+    return response
+
+
+def _get_owned_forecast_item(db: Session, user: User, item_id: int) -> ForecastItem:
+    item = db.scalar(select(ForecastItem).where(ForecastItem.user_id == user.id, ForecastItem.id == item_id))
+    if not item:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Forecast item not found.")
+    return item
+
+
+def _get_owned_template(db: Session, user: User, template_id: int) -> RecurringForecastTemplate:
+    template = db.scalar(select(RecurringForecastTemplate).where(RecurringForecastTemplate.user_id == user.id, RecurringForecastTemplate.id == template_id))
+    if not template:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Recurring template not found.")
+    return template
+
+
+def _income_planning_locked_detail() -> dict:
+    return {
+        "code": "feature_locked",
+        "feature": "income_planning",
+        "message": f"Future income adjustments are available on ClearPath {feature_min_plan_label('income_planning')} or higher.",
+    }
+
+
+@router.post("/forecast-items", response_model=ForecastItemResponse, status_code=status.HTTP_201_CREATED)
+def create_forecast_item(
+    payload: ForecastItemCreateRequest,
+    principal: Annotated[Principal, Depends(require_household_access("editor"))],
+    db: Annotated[Session, Depends(get_db)],
+) -> ForecastItemResponse:
+    user = principal.user
+    raw_date = (payload.item_date or "").strip()
+    description = (payload.description or "").strip()
+    amount = parse_amount(payload.amount or 0)
+    category_label = (payload.category_label or "").strip() or None
+    if not raw_date or not description or amount <= 0:
+        raise HTTPException(status_code=422, detail="Date, description, and a positive amount are required.")
+    # Flask uses a strict %Y-%m-%d strptime here (HTML date input); an
+    # unparseable date maps to the edit handler's message instead of a 500.
+    try:
+        item_date = datetime.strptime(raw_date, "%Y-%m-%d").date()
+    except ValueError:
+        raise HTTPException(status_code=422, detail="Enter a valid forecast item date.")
+    item = ForecastItem(
+        user_id=user.id,
+        item_date=item_date,
+        description=description,
+        amount=amount,
+        item_type=payload.item_type or "expense",
+        category_label=category_label,
+        notes=(payload.notes or "").strip() or None,
+    )
+    ensure_category_option(db, item.category_label, user)
+    db.add(item)
+    db.commit()
+    return ForecastItemResponse.model_validate(_get_owned_forecast_item(db, user, item.id))
+
+
+@router.patch("/forecast-items/{item_id}", response_model=ForecastItemResponse)
+def update_forecast_item(
+    item_id: int,
+    payload: ForecastItemUpdateRequest,
+    principal: Annotated[Principal, Depends(require_household_access("editor"))],
+    db: Annotated[Session, Depends(get_db)],
+) -> ForecastItemResponse:
+    user = principal.user
+    item = _get_owned_forecast_item(db, user, item_id)
+    raw_date = (payload.item_date or "").strip()
+    description = (payload.description or "").strip()
+    amount = parse_amount(payload.amount or 0)
+    item_type = payload.item_type or "expense"
+    category_label = (payload.category_label or "").strip() or None
+    item_date = _parse_optional_date(raw_date)
+
+    if item_type not in {"income", "expense"}:
+        raise HTTPException(status_code=422, detail="Choose whether this forecast item is income or an expense.")
+    if not raw_date or not description or amount <= 0:
+        raise HTTPException(status_code=422, detail="Date, description, and a positive amount are required.")
+    if not item_date:
+        raise HTTPException(status_code=422, detail="Enter a valid forecast item date.")
+    item.item_date = item_date
+    item.description = description
+    item.amount = amount
+    item.item_type = item_type
+    item.category_label = category_label
+    item.notes = (payload.notes or "").strip() or None
+    ensure_category_option(db, item.category_label, user)
+    db.commit()
+    sync_monthly_plan(db, user)
+    return ForecastItemResponse.model_validate(_get_owned_forecast_item(db, user, item.id))
+
+
+@router.delete("/forecast-items/{item_id}", response_model=ForecastItemDeleteResponse)
+def delete_forecast_item(
+    item_id: int,
+    payload: ForecastItemDeleteRequest,
+    principal: Annotated[Principal, Depends(require_household_access("editor"))],
+    db: Annotated[Session, Depends(get_db)],
+) -> ForecastItemDeleteResponse:
+    user = principal.user
+    item = _get_owned_forecast_item(db, user, item_id)
+    db.delete(item)
+    db.commit()
+    return ForecastItemDeleteResponse(deleted_item_id=item_id)
+
+
+def _income_adjustment_values(payload: RecurringForecastTemplateCreateRequest, *, default_income_replacement: bool) -> dict:
+    # Shared by the create/edit income-adjustment branches; mirrors the Flask
+    # normalization of income fields.
+    income_basis = payload.income_basis or "take_home"
+    income_type = payload.income_type or "salary"
+    paycheck_cadence = payload.paycheck_cadence or "monthly"
+    additional_income_frequency = payload.additional_income_frequency or "annual"
+    tax_state = (payload.tax_state or "").strip().upper()
+    tax_filing_status = payload.tax_filing_status or "married_joint"
+    income_replacement = payload.income_replacement if payload.income_replacement is not None else default_income_replacement
+    return {
+        "income_replacement": income_replacement,
+        "income_basis": income_basis if income_basis in INCOME_BASIS_OPTIONS else "take_home",
+        "income_type": income_type if income_type in INCOME_TYPE_OPTIONS else "salary",
+        "frequency": paycheck_cadence if paycheck_cadence in PAYCHECK_CADENCE_OPTIONS else "monthly",
+        "additional_income_frequency": additional_income_frequency if additional_income_frequency in RECURRING_FREQUENCY_OPTIONS else "annual",
+        "tax_state": tax_state if tax_state in STATE_OPTIONS and tax_state else None,
+        "tax_filing_status": tax_filing_status if tax_filing_status in TAX_FILING_STATUS_OPTIONS else "married_joint",
+        "hourly_hours_per_week": parse_amount(payload.hourly_hours_per_week or 40),
+        "additional_income_amount": parse_amount(payload.additional_income_amount or 0),
+        "include_payroll_taxes": payload.include_payroll_taxes,
+    }
+
+
+@router.post("/recurring-templates", response_model=RecurringForecastTemplateResponse, status_code=status.HTTP_201_CREATED)
+def create_recurring_template(
+    payload: RecurringForecastTemplateCreateRequest,
+    principal: Annotated[Principal, Depends(require_household_access("editor"))],
+    db: Annotated[Session, Depends(get_db)],
+) -> RecurringForecastTemplateResponse:
+    user = principal.user
+    raw_start = (payload.start_date or "").strip()
+    name = (payload.name or "").strip()
+    amount = parse_amount(payload.amount or 0)
+    item_type = payload.item_type or "expense"
+    if item_type == "income" and not user_has_feature(user, "income_planning"):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=_income_planning_locked_detail())
+    frequency = payload.frequency or "monthly"
+    category_label = (payload.category_label or "").strip() or None
+    raw_second_date = (payload.second_date or "").strip()
+    selected_weekdays = clean_selected_weekdays(payload.recurring_days_of_week)
+    monthly_week_numbers, monthly_weekday = recurring_monthly_week_pattern(payload.recurring_monthly_week_numbers, payload.recurring_monthly_weekday)
+    try:
+        start_date = parse_flexible_date(raw_start) if raw_start else (app_today().replace(day=1) if monthly_week_numbers else None)
+    except ValueError:
+        start_date = None
+    second_date = _parse_optional_date(raw_second_date)
+
+    is_income_adjustment = item_type == "income" and payload.income_adjustment
+    if is_income_adjustment:
+        values = _income_adjustment_values(payload, default_income_replacement=True)
+        frequency = values["frequency"]
+        raw_next_pay_date = (payload.income_next_pay_date or "").strip() or raw_start
+        income_next_pay_date = _parse_optional_date(raw_next_pay_date)
+        amount = parse_amount(payload.income_amount or payload.amount or 0)
+        uses_monthly_weekday_pattern = frequency in {"monthly", "semimonthly"} and monthly_week_numbers is not None and monthly_weekday is not None
+        if uses_monthly_weekday_pattern:
+            second_date = None
+            raw_second_date = ""
+        else:
+            monthly_week_numbers = None
+            monthly_weekday = None
+        if income_next_pay_date and frequency in {"weekly", "biweekly"} and not selected_weekdays:
+            selected_weekdays = [str(income_next_pay_date.weekday())]
+        if not raw_start or not name or amount <= 0:
+            raise HTTPException(status_code=422, detail="Future income adjustment needs a start date, name, and positive income amount.")
+        if not start_date:
+            raise HTTPException(status_code=422, detail="Enter a valid future income adjustment start date.")
+        if not income_next_pay_date:
+            raise HTTPException(status_code=422, detail="Enter a valid first pay date for this future income adjustment.")
+        if income_next_pay_date < start_date:
+            raise HTTPException(status_code=422, detail="First pay date cannot be before the adjustment start date.")
+        if frequency == "semimonthly" and raw_second_date and not second_date:
+            raise HTTPException(status_code=422, detail="Enter a valid second date for this future income adjustment.")
+        template = RecurringForecastTemplate(
+            user_id=user.id,
+            name=name,
+            amount=amount,
+            item_type="income",
+            frequency=frequency,
+            start_date=start_date,
+            second_date=second_date,
+            days_of_week=",".join(selected_weekdays) if selected_weekdays else None,
+            second_day_of_month=second_date.day if second_date else None,
+            monthly_week_numbers=monthly_week_numbers,
+            monthly_weekday=monthly_weekday,
+            category_label="Income",
+            notes=(payload.notes or "").strip() or None,
+            income_replacement=values["income_replacement"],
+            income_basis=values["income_basis"],
+            income_type=values["income_type"],
+            paycheck_cadence=frequency,
+            income_next_pay_date=income_next_pay_date,
+            hourly_hours_per_week=values["hourly_hours_per_week"],
+            additional_income_amount=values["additional_income_amount"],
+            additional_income_frequency=values["additional_income_frequency"],
+            tax_state=values["tax_state"],
+            tax_filing_status=values["tax_filing_status"],
+            include_payroll_taxes=values["include_payroll_taxes"],
+        )
+        db.add(template)
+        db.commit()
+        sync_monthly_plan(db, user)
+        return _template_response(_get_owned_template(db, user, template.id))
+
+    if start_date and frequency in {"weekly", "biweekly"} and not selected_weekdays:
+        selected_weekdays = [str(start_date.weekday())]
+
+    if (not raw_start and not monthly_week_numbers) or not name or amount <= 0:
+        raise HTTPException(status_code=422, detail="Recurring income/expense needs a date, description, and positive amount.")
+    if not start_date:
+        raise HTTPException(status_code=422, detail="Enter a valid recurring income/expense date.")
+    if frequency == "semimonthly" and raw_second_date and not second_date:
+        raise HTTPException(status_code=422, detail="Enter a valid second date for twice-per-month recurring items.")
+    template = RecurringForecastTemplate(
+        user_id=user.id,
+        name=name,
+        amount=amount,
+        item_type=item_type,
+        frequency=frequency,
+        start_date=start_date,
+        second_date=second_date,
+        days_of_week=",".join(selected_weekdays) if selected_weekdays else None,
+        second_day_of_month=second_date.day if second_date else None,
+        monthly_week_numbers=monthly_week_numbers,
+        monthly_weekday=monthly_weekday,
+        category_label=category_label,
+        notes=(payload.notes or "").strip() or None,
+    )
+    ensure_category_option(db, template.category_label, user)
+    db.add(template)
+    db.commit()
+    return _template_response(_get_owned_template(db, user, template.id))
+
+
+@router.patch("/recurring-templates/{template_id}", response_model=RecurringForecastTemplateResponse)
+def update_recurring_template(
+    template_id: int,
+    payload: RecurringForecastTemplateUpdateRequest,
+    principal: Annotated[Principal, Depends(require_household_access("editor"))],
+    db: Annotated[Session, Depends(get_db)],
+) -> RecurringForecastTemplateResponse:
+    user = principal.user
+    template = _get_owned_template(db, user, template_id)
+
+    if "monthly_target" in payload.model_fields_set:
+        # Flask edit_recurring_template_amount.
+        if template.item_type != "expense":
+            raise HTTPException(status_code=422, detail="Only expense worksheet items can be updated from Quick Planning.")
+        monthly_target = parse_amount(payload.monthly_target or 0)
+        if monthly_target <= 0:
+            raise HTTPException(status_code=422, detail="Enter a positive planned cash amount.")
+        template.amount = round(amount_for_monthly_target(monthly_target, template.frequency, planning_item_occurrence_multiplier(template)), 2)
+        ensure_category_option(db, template.category_label or "Other", user)
+        sync_planning_item_budget_target(db, template.category_label or "Other", user)
+        db.commit()
+        sync_monthly_plan(db, user, purpose="monthly_plan")
+        return _template_response(_get_owned_template(db, user, template.id))
+
+    raw_start = (payload.start_date or "").strip()
+    name = (payload.name or "").strip()
+    amount = parse_amount(payload.amount or 0)
+    frequency = payload.frequency or "monthly"
+    item_type = payload.item_type or "expense"
+    category_label = (payload.category_label or "").strip() or None
+    raw_second_date = (payload.second_date or "").strip()
+    selected_weekdays = clean_selected_weekdays(payload.recurring_days_of_week)
+    monthly_week_numbers, monthly_weekday = recurring_monthly_week_pattern(payload.recurring_monthly_week_numbers, payload.recurring_monthly_weekday)
+    try:
+        # Flask parenthesization: the template/current-month fallback only
+        # applies when a monthly-week pattern is present.
+        start_date = parse_flexible_date(raw_start) if raw_start else ((template.start_date or app_today().replace(day=1)) if monthly_week_numbers else None)
+    except ValueError:
+        start_date = None
+    second_date = _parse_optional_date(raw_second_date)
+
+    is_income_adjustment = (
+        template.item_type == "income"
+        and (template.income_replacement or template.income_type or payload.income_adjustment)
+    ) or (item_type == "income" and payload.income_adjustment)
+    if is_income_adjustment:
+        if not user_has_feature(user, "income_planning"):
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=_income_planning_locked_detail())
+        values = _income_adjustment_values(payload, default_income_replacement=bool(template.income_replacement))
+        frequency = values["frequency"]
+        raw_next_pay_date = (payload.income_next_pay_date or "").strip() or raw_start
+        income_next_pay_date = _parse_optional_date(raw_next_pay_date)
+        amount = parse_amount(payload.income_amount or payload.amount or 0)
+        uses_monthly_weekday_pattern = frequency in {"monthly", "semimonthly"} and monthly_week_numbers is not None and monthly_weekday is not None
+        if uses_monthly_weekday_pattern:
+            second_date = None
+            raw_second_date = ""
+        else:
+            monthly_week_numbers = None
+            monthly_weekday = None
+        if income_next_pay_date and frequency in {"weekly", "biweekly"} and not selected_weekdays:
+            selected_weekdays = [str(income_next_pay_date.weekday())]
+        if not raw_start or not name or amount <= 0:
+            raise HTTPException(status_code=422, detail="Future income adjustment needs a start date, name, and positive income amount.")
+        if not start_date:
+            raise HTTPException(status_code=422, detail="Enter a valid future income adjustment start date.")
+        if not income_next_pay_date:
+            raise HTTPException(status_code=422, detail="Enter a valid first pay date for this future income adjustment.")
+        if income_next_pay_date < start_date:
+            raise HTTPException(status_code=422, detail="First pay date cannot be before the adjustment start date.")
+        if frequency == "semimonthly" and raw_second_date and not second_date:
+            raise HTTPException(status_code=422, detail="Enter a valid second date for this future income adjustment.")
+        template.name = name
+        template.amount = amount
+        template.item_type = "income"
+        template.frequency = frequency
+        template.start_date = start_date
+        template.second_date = second_date
+        template.days_of_week = ",".join(selected_weekdays) if selected_weekdays else None
+        template.second_day_of_month = second_date.day if second_date else None
+        template.monthly_week_numbers = monthly_week_numbers
+        template.monthly_weekday = monthly_weekday
+        template.category_label = "Income"
+        template.notes = (payload.notes or "").strip() or None
+        template.income_replacement = values["income_replacement"]
+        template.income_basis = values["income_basis"]
+        template.income_type = values["income_type"]
+        template.paycheck_cadence = frequency
+        template.income_next_pay_date = income_next_pay_date
+        template.hourly_hours_per_week = values["hourly_hours_per_week"]
+        template.additional_income_amount = values["additional_income_amount"]
+        template.additional_income_frequency = values["additional_income_frequency"]
+        template.tax_state = values["tax_state"]
+        template.tax_filing_status = values["tax_filing_status"]
+        template.include_payroll_taxes = values["include_payroll_taxes"]
+        db.commit()
+        sync_monthly_plan(db, user)
+        return _template_response(_get_owned_template(db, user, template.id))
+
+    if start_date and frequency in {"weekly", "biweekly"} and not selected_weekdays:
+        selected_weekdays = [str(start_date.weekday())]
+
+    if item_type not in {"income", "expense"}:
+        raise HTTPException(status_code=422, detail="Choose whether this recurring item is income or an expense.")
+    if (not raw_start and not monthly_week_numbers) or not name or amount <= 0:
+        raise HTTPException(status_code=422, detail="Recurring income/expense needs a date, description, and positive amount.")
+    if not start_date:
+        raise HTTPException(status_code=422, detail="Enter a valid recurring income/expense date.")
+    if frequency == "semimonthly" and raw_second_date and not second_date:
+        raise HTTPException(status_code=422, detail="Enter a valid second date for twice-per-month recurring items.")
+    template.name = name
+    template.amount = amount
+    template.item_type = item_type
+    template.frequency = frequency
+    template.start_date = start_date
+    template.second_date = second_date
+    template.days_of_week = ",".join(selected_weekdays) if selected_weekdays else None
+    template.second_day_of_month = second_date.day if second_date else None
+    template.monthly_week_numbers = monthly_week_numbers
+    template.monthly_weekday = monthly_weekday
+    template.category_label = category_label
+    template.notes = (payload.notes or "").strip() or None
+    ensure_category_option(db, template.category_label, user)
+    db.commit()
+    sync_monthly_plan(db, user)
+    return _template_response(_get_owned_template(db, user, template.id))
+
+
+@router.delete("/recurring-templates/{template_id}", response_model=RecurringForecastTemplateDeleteResponse)
+def delete_recurring_template(
+    template_id: int,
+    payload: RecurringForecastTemplateDeleteRequest,
+    principal: Annotated[Principal, Depends(require_household_access("editor"))],
+    db: Annotated[Session, Depends(get_db)],
+) -> RecurringForecastTemplateDeleteResponse:
+    user = principal.user
+    template = _get_owned_template(db, user, template_id)
+    db.delete(template)
+    db.commit()
+    return RecurringForecastTemplateDeleteResponse(deleted_template_id=template_id)
 
 
 # --- GET /v1/monthly-plan assembler ------------------------------------------
