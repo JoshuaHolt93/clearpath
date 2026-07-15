@@ -27,6 +27,76 @@ export interface RetirementMathInput {
   incomeBasis: string | null | undefined;
 }
 
+export interface DashboardMetricMathInput {
+  plannedIncome: number;
+  monthlyTax: number;
+  fixedExpenses: number;
+  plannedSavings: number;
+  plannedDebtPayment: number;
+  retirementContribution: number;
+  loanExtraPayment: number;
+  variableSpend: number;
+  recordedIncome: number;
+  totalExpenses: number;
+  safeToSpendTarget: number;
+  dayOfMonth: number;
+  daysInMonth: number;
+}
+
+export interface DashboardMetricMathResult {
+  safeToSpend: number;
+  netCashFlow: number;
+  expectedVariableSpend: number;
+  onTrackStatus: "green" | "yellow" | "red";
+}
+
+export interface NetWorthAccountMathInput {
+  balance: number;
+  isLiability: boolean;
+}
+
+export interface NetWorthLoanMathInput {
+  principalBalance: number;
+  collateralValue: number;
+}
+
+export interface NetWorthMathResult {
+  assets: number;
+  liabilities: number;
+  loanBalances: number;
+  collateralAssets: number;
+  collateralValue: number;
+  securedLoanEquity: number;
+  securedNegativeEquity: number;
+  securedLoanBalances: number;
+  unsecuredLoanBalances: number;
+  debtGoals: number;
+  netWorth: number;
+}
+
+export interface AnalyticsSnapshotMathInput {
+  plannedIncome: number;
+  plannedFixedExpenses: number;
+  plannedVariableExpenses: number;
+  expectedCashFlow: number;
+  actualIncome: number;
+  actualTotalExpenses: number;
+  netCashFlow: number;
+}
+
+export interface AnalyticsSnapshotMathSummary {
+  totalIncome: number;
+  totalSpending: number;
+  totalExpectedCashFlow: number;
+  totalNetCashFlow: number;
+  averageIncome: number;
+  averageSpending: number;
+  averageNetCashFlow: number;
+  maxIncome: number;
+  maxSpending: number;
+  maxCashFlow: number;
+}
+
 export interface AmortizationSummary {
   months: number;
   years: number;
@@ -71,6 +141,107 @@ export function retirementTaxableIncomeAdjustment(profile: RetirementMathInput |
   if (!profile || !profile.retirementEnabled || !profile.retirementHasEmployerPlan) return 0;
   if (!profile.retirementEmployerWithheld) return 0;
   return Math.max(profile.retirementMonthlyContribution || 0, 0) * 12;
+}
+
+export function calculateDashboardMetricValues(input: DashboardMetricMathInput): DashboardMetricMathResult {
+  const safeToSpend =
+    input.plannedIncome
+    - input.monthlyTax
+    - input.fixedExpenses
+    - input.plannedSavings
+    - input.plannedDebtPayment
+    - input.retirementContribution
+    - input.loanExtraPayment
+    - input.variableSpend;
+  const netCashFlow = input.recordedIncome - input.totalExpenses;
+  const dayOfMonth = Math.max(input.dayOfMonth, 1);
+  const daysInMonth = Math.max(input.daysInMonth, 1);
+  const expectedVariableSpend = Math.max(input.safeToSpendTarget, 0) * (dayOfMonth / daysInMonth);
+  let onTrackStatus: DashboardMetricMathResult["onTrackStatus"] = "red";
+  if (input.variableSpend <= expectedVariableSpend * 1.05) onTrackStatus = "green";
+  else if (input.variableSpend <= expectedVariableSpend * 1.2) onTrackStatus = "yellow";
+  return { safeToSpend, netCashFlow, expectedVariableSpend, onTrackStatus };
+}
+
+export function calculateNetWorthSummary(
+  accounts: NetWorthAccountMathInput[],
+  loans: NetWorthLoanMathInput[],
+  unlinkedDebtGoalBalances: number[],
+): NetWorthMathResult {
+  let accountAssets = 0;
+  let accountLiabilities = 0;
+  for (const account of accounts) {
+    const balance = account.balance || 0;
+    if (account.isLiability || balance < 0) accountLiabilities += Math.abs(balance);
+    else accountAssets += balance;
+  }
+
+  let loanBalances = 0;
+  let collateralValue = 0;
+  let securedPositiveEquity = 0;
+  let securedNegativeEquity = 0;
+  let securedLoanBalances = 0;
+  let unsecuredLoanBalances = 0;
+  for (const loan of loans) {
+    const balance = Math.max(loan.principalBalance || 0, 0);
+    const collateral = Math.max(loan.collateralValue || 0, 0);
+    loanBalances += balance;
+    collateralValue += collateral;
+    if (collateral) {
+      securedLoanBalances += balance;
+      const equity = collateral - balance;
+      if (equity >= 0) securedPositiveEquity += equity;
+      else securedNegativeEquity += Math.abs(equity);
+    } else {
+      unsecuredLoanBalances += balance;
+    }
+  }
+
+  accountAssets += securedPositiveEquity;
+  const debtGoals = unlinkedDebtGoalBalances.reduce((total, balance) => total + Math.max(balance || 0, 0), 0);
+  const liabilities = accountLiabilities + loanBalances + debtGoals;
+  return {
+    assets: accountAssets,
+    liabilities,
+    loanBalances,
+    collateralAssets: securedPositiveEquity,
+    collateralValue,
+    securedLoanEquity: securedPositiveEquity - securedNegativeEquity,
+    securedNegativeEquity,
+    securedLoanBalances,
+    unsecuredLoanBalances,
+    debtGoals,
+    netWorth: accountAssets - liabilities,
+  };
+}
+
+export function summarizeAnalyticsSnapshots(snapshots: AnalyticsSnapshotMathInput[]): AnalyticsSnapshotMathSummary {
+  const count = snapshots.length;
+  const totalIncome = snapshots.reduce((total, snapshot) => total + snapshot.actualIncome, 0);
+  const totalSpending = snapshots.reduce((total, snapshot) => total + snapshot.actualTotalExpenses, 0);
+  const totalExpectedCashFlow = snapshots.reduce((total, snapshot) => total + snapshot.expectedCashFlow, 0);
+  const totalNetCashFlow = snapshots.reduce((total, snapshot) => total + snapshot.netCashFlow, 0);
+  return {
+    totalIncome,
+    totalSpending,
+    totalExpectedCashFlow,
+    totalNetCashFlow,
+    averageIncome: count ? totalIncome / count : 0,
+    averageSpending: count ? totalSpending / count : 0,
+    averageNetCashFlow: count ? totalNetCashFlow / count : 0,
+    maxIncome: Math.max(1, ...snapshots.flatMap((snapshot) => [snapshot.actualIncome, snapshot.plannedIncome])),
+    maxSpending: Math.max(
+      1,
+      ...snapshots.flatMap((snapshot) => [
+        snapshot.actualTotalExpenses,
+        snapshot.plannedFixedExpenses + snapshot.plannedVariableExpenses,
+      ]),
+    ),
+    maxCashFlow: Math.max(
+      1,
+      ...snapshots.flatMap((snapshot) => [Math.abs(snapshot.netCashFlow), Math.abs(snapshot.expectedCashFlow)]),
+    ),
+  };
 }
 
 interface CalendarDateParts {

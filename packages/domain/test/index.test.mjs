@@ -4,7 +4,9 @@ import test from "node:test";
 import {
   amortizationSchedule,
   amortizationSummary,
+  calculateDashboardMetricValues,
   calculateGoalProgress,
+  calculateNetWorthSummary,
   estimateGoalTimeline,
   loanPlanScenarios,
   monthsUntil,
@@ -13,6 +15,7 @@ import {
   retirementCashFlowContribution,
   retirementTaxableIncomeAdjustment,
   savingsGoalBudgetLabel,
+  summarizeAnalyticsSnapshots,
 } from "../src/index.ts";
 
 const goal = {
@@ -63,6 +66,97 @@ test("ports retirement cash-flow and taxable-income adjustments", () => {
   assert.equal(retirementTaxableIncomeAdjustment({ ...grossProfile, retirementHasEmployerPlan: false }), 0);
   assert.equal(retirementCashFlowContribution({ ...grossProfile, retirementEnabled: false }), 0);
   assert.equal(retirementCashFlowContribution({ ...grossProfile, retirementMonthlyContribution: -50 }), 200);
+});
+
+test("ports dashboard safe-to-spend and on-track thresholds", () => {
+  const input = {
+    plannedIncome: 5000,
+    monthlyTax: 0,
+    fixedExpenses: 1800,
+    plannedSavings: 0,
+    plannedDebtPayment: 0,
+    retirementContribution: 0,
+    loanExtraPayment: 0,
+    variableSpend: 200,
+    recordedIncome: 5000,
+    totalExpenses: 2000,
+    safeToSpendTarget: 3200,
+    dayOfMonth: 15,
+    daysInMonth: 31,
+  };
+  const metrics = calculateDashboardMetricValues(input);
+  assert.equal(metrics.safeToSpend, 3000);
+  assert.equal(metrics.netCashFlow, 3000);
+  assert.ok(Math.abs(metrics.expectedVariableSpend - (3200 * 15) / 31) < 1e-9);
+  assert.equal(metrics.onTrackStatus, "green");
+  assert.equal(calculateDashboardMetricValues({ ...input, variableSpend: 1700 }).onTrackStatus, "yellow");
+  assert.equal(calculateDashboardMetricValues({ ...input, variableSpend: 1900 }).onTrackStatus, "red");
+});
+
+test("ports Flask net-worth aggregation", () => {
+  assert.deepEqual(
+    calculateNetWorthSummary(
+      [
+        { balance: 10000, isLiability: false },
+        { balance: 2000, isLiability: true },
+      ],
+      [
+        { principalBalance: 100000, collateralValue: 150000 },
+        { principalBalance: 5000, collateralValue: 0 },
+      ],
+      [3000],
+    ),
+    {
+      assets: 60000,
+      liabilities: 110000,
+      loanBalances: 105000,
+      collateralAssets: 50000,
+      collateralValue: 150000,
+      securedLoanEquity: 50000,
+      securedNegativeEquity: 0,
+      securedLoanBalances: 100000,
+      unsecuredLoanBalances: 5000,
+      debtGoals: 3000,
+      netWorth: -50000,
+    },
+  );
+});
+
+test("ports analytics snapshot totals and chart maxima", () => {
+  assert.deepEqual(
+    summarizeAnalyticsSnapshots([
+      {
+        plannedIncome: 6000,
+        plannedFixedExpenses: 1500,
+        plannedVariableExpenses: 700,
+        expectedCashFlow: 3750,
+        actualIncome: 6000,
+        actualTotalExpenses: 1000,
+        netCashFlow: 5000,
+      },
+      {
+        plannedIncome: 6000,
+        plannedFixedExpenses: 1500,
+        plannedVariableExpenses: 700,
+        expectedCashFlow: 3750,
+        actualIncome: 0,
+        actualTotalExpenses: 1000,
+        netCashFlow: -1000,
+      },
+    ]),
+    {
+      totalIncome: 6000,
+      totalSpending: 2000,
+      totalExpectedCashFlow: 7500,
+      totalNetCashFlow: 4000,
+      averageIncome: 3000,
+      averageSpending: 1000,
+      averageNetCashFlow: 2000,
+      maxIncome: 6000,
+      maxSpending: 2200,
+      maxCashFlow: 5000,
+    },
+  );
 });
 
 test("ports Flask amortization and linked debt progress", () => {
