@@ -6,6 +6,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from app.schemas.goals import GoalResponse
 from app.schemas.plaid import AccountResponse
+from app.schemas.planner import PlannerDashboardFocusResponse
 from app.schemas.planning import CategorySpendRowResponse, PlanRowResponse
 from app.schemas.transactions import TransactionResponse
 
@@ -75,6 +76,7 @@ class DashboardResponse(BaseModel):
     budget_remaining: float
     expected_cash_flow: float
     insights: list[DashboardInsightResponse] = Field(default_factory=list)
+    dashboard_focus: PlannerDashboardFocusResponse | None = None
 
 
 class AnalyticsQuery(BaseModel):

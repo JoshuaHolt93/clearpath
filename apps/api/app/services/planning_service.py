@@ -72,8 +72,8 @@ from app.services.transaction_service import (
 # Faithful port of the planning foundations from Flask services.py at 9b5dff0:
 # timezone/date helpers, income normalization, retirement and loan-extra
 # contributions, savings targets, and the 2026 tax estimation engine. The
-# worksheet occurrence engine, monthly plan sync, and snapshots build on these
-# in the next part of Phase 3.
+# worksheet occurrence engine, monthly plan sync, snapshots, and API services
+# build on these foundations.
 
 
 def app_timezone() -> ZoneInfo:
@@ -3430,8 +3430,6 @@ def recurring_template_monthly_amount(template: RecurringForecastTemplate) -> fl
 def recorded_month_income(db: Session, user: User, target_date: date | None = None) -> float:
     # The monthly-plan page's metrics.month_income: recorded income for the
     # month, falling back to the planned income when nothing is recorded yet.
-    # PHASE 3 (dashboard): full calculate_dashboard_metrics ports with the
-    # dashboard sub-part.
     return _month_income_total(db, user, target_date or app_today())
 
 

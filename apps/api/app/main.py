@@ -9,8 +9,9 @@ from app.api.v1.goals import router as goals_router
 from app.api.v1.health import router as health_router
 from app.api.v1.loan_plans import router as loan_plans_router
 from app.api.v1.plaid import router as plaid_router
-from app.api.v1.retirement import router as retirement_router
+from app.api.v1.planner import router as planner_router
 from app.api.v1.planning import router as planning_router
+from app.api.v1.retirement import router as retirement_router
 from app.api.v1.subscriptions import router as subscriptions_router
 from app.api.v1.transactions import router as transactions_router
 
@@ -23,6 +24,7 @@ def create_app() -> FastAPI:
     app.include_router(dashboard_router, prefix="/v1")
     app.include_router(goals_router, prefix="/v1")
     app.include_router(loan_plans_router, prefix="/v1")
+    app.include_router(planner_router, prefix="/v1")
     app.include_router(transactions_router, prefix="/v1")
     app.include_router(planning_router, prefix="/v1")
     app.include_router(plaid_router, prefix="/v1")

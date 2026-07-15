@@ -1,25 +1,30 @@
 from __future__ import annotations
 
+from collections import Counter, defaultdict
 from dataclasses import dataclass
 from datetime import date
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
+from app.core.ai_policy import guardrail_ai_guidance_items
 from app.core.plaid_policy import assert_plaid_data_purpose
-from app.core.planning_constants import ANALYTICS_RANGE_OPTIONS
+from app.core.planning_constants import ANALYTICS_RANGE_OPTIONS, DEFAULT_CATEGORY_TARGETS
 from app.models import Account, Goal, LoanPlan, MonthlyBudgetSnapshot, User
+from app.services.loan_service import debt_to_income_ratio
 from app.services.planning_service import (
     _expense_transactions_between,
     _fixed_plan_claimed_transaction_ids,
     _income_transactions_between,
     account_is_liability,
     analytics_months,
+    app_today,
     calculate_tax_estimate,
     get_or_create_monthly_plan,
     month_bounds,
     retirement_cash_flow_contribution,
     selected_loan_extra_payment_total,
+    spending_by_category,
     spending_by_category_between,
     sync_monthly_budget_snapshots_for_range,
     transaction_category_allocations_for_period,
@@ -178,6 +183,174 @@ def net_worth_summary(db: Session, user: User, *, purpose: str = "dashboard") ->
         "debt_goals": unlinked_debt_goals,
         "net_worth": account_assets - total_liabilities,
     }
+
+
+def recurring_charge_candidates(
+    db: Session,
+    user: User,
+    target_date: date | None = None,
+    *,
+    purpose: str = "dashboard",
+) -> list[tuple[str, int, float]]:
+    assert_plaid_data_purpose(purpose)
+    target_date = target_date or app_today()
+    start = date(target_date.year, max(target_date.month - 2, 1), 1)
+    counts: Counter[str] = Counter()
+    totals: defaultdict[str, float] = defaultdict(float)
+    for transaction in _expense_transactions_between(db, user, start, target_date):
+        key = normalize_text(transaction.description)
+        counts[key] += 1
+        totals[key] += abs(transaction.amount)
+    candidates = [
+        (key.title(), count, round(totals[key] / count, 2))
+        for key, count in counts.items()
+        if count >= 3
+    ]
+    return sorted(candidates, key=lambda item: item[2], reverse=True)[:3]
+
+
+def generate_insights(
+    db: Session,
+    user: User,
+    target_date: date | None = None,
+    *,
+    purpose: str = "dashboard",
+    metrics: DashboardMetrics | None = None,
+    category_spend: list[dict] | None = None,
+) -> list[dict]:
+    assert_plaid_data_purpose(purpose)
+    metrics = metrics or calculate_dashboard_metrics(
+        db,
+        user,
+        target_date or app_today(),
+        purpose=purpose,
+    )
+    category_spend = (
+        category_spend
+        if category_spend is not None
+        else spending_by_category(db, user, target_date, purpose=purpose)
+    )
+    profile = user.profile
+    insights: list[dict] = []
+
+    if metrics.on_track_status == "red":
+        insights.append(
+            {
+                "title": "Spending pace is too high",
+                "body": "At your current pace, you may run short before month-end unless you trim flexible spending.",
+                "level": "alert",
+                "type": "cash_flow_risk",
+            }
+        )
+    elif metrics.on_track_status == "yellow":
+        insights.append(
+            {
+                "title": "You are slightly ahead of plan",
+                "body": "Variable spending is running a bit above your usual pace, so this is a good week to stay intentional.",
+                "level": "warning",
+                "type": "overspending_warning",
+            }
+        )
+
+    dining = sum(
+        item["amount"]
+        for item in category_spend
+        if item["category"] in {"Dining", "Dining/Eating Out"}
+    )
+    dining_target = DEFAULT_CATEGORY_TARGETS["Dining/Eating Out"]
+    if dining > dining_target * 1.2:
+        over_by = round(dining - dining_target, 2)
+        insights.append(
+            {
+                "title": "Dining spend is trending high",
+                "body": f"You are trending ${over_by:,.0f} over your usual dining spend this month.",
+                "level": "warning",
+                "type": "category_overspend",
+            }
+        )
+
+    if metrics.safe_to_spend > 250:
+        insights.append(
+            {
+                "title": "You have room to move money with purpose",
+                "body": (
+                    f"You can safely move about ${min(metrics.safe_to_spend, 500):,.0f} "
+                    "to savings or extra debt paydown this month."
+                ),
+                "level": "good",
+                "type": "surplus_opportunity",
+            }
+        )
+
+    dti = debt_to_income_ratio(db, user)
+    if dti >= 0.43:
+        insights.append(
+            {
+                "title": "Debt payments are taking a lot of income",
+                "body": (
+                    f"Your debt payments are about {dti * 100:.0f}% of monthly income. "
+                    "Consider focusing extra dollars on high-interest loans or refinancing options "
+                    "before adding new debt."
+                ),
+                "level": "alert",
+                "type": "debt_to_income_warning",
+            }
+        )
+    elif dti >= 0.36:
+        insights.append(
+            {
+                "title": "Debt-to-income is worth watching",
+                "body": (
+                    f"Your debt payments are about {dti * 100:.0f}% of monthly income. "
+                    "A steady paydown plan can help keep cash flow more flexible."
+                ),
+                "level": "warning",
+                "type": "debt_to_income_watch",
+            }
+        )
+
+    recurring = recurring_charge_candidates(db, user, target_date, purpose=purpose)
+    if recurring:
+        name, count, amount = recurring[0]
+        insights.append(
+            {
+                "title": "Recurring charges are worth a quick review",
+                "body": (
+                    f"{name} appeared {count} times recently at about ${amount:,.0f} each. "
+                    "This could be subscription creep."
+                ),
+                "level": "info",
+                "type": "subscription_warning",
+            }
+        )
+
+    if profile and profile.planned_debt_payment > 0 and metrics.safe_to_spend > profile.planned_debt_payment:
+        insights.append(
+            {
+                "title": "Extra debt payment is possible",
+                "body": "Reducing one flexible category this week could improve your debt paydown timeline.",
+                "level": "good",
+                "type": "debt_opportunity",
+            }
+        )
+
+    guarded_insights = guardrail_ai_guidance_items(insights[:4])
+    for index, guarded in enumerate(guarded_insights):
+        if guarded.get("guardrail_violations"):
+            original = insights[index] if index < len(insights) else {}
+            guarded.update(
+                {
+                    "title": "Review this spending pattern",
+                    "body": (
+                        "A repeat or high-impact transaction pattern needs review. Open Transactions "
+                        "to check the category, budget impact, and whether it should become a categorization rule."
+                    ),
+                    "level": original.get("level") or "info",
+                    "type": original.get("type") or "dashboard_pattern_review",
+                }
+            )
+            guarded.pop("guardrail_violations", None)
+    return guarded_insights
 
 
 def analytics_summary_for_user(

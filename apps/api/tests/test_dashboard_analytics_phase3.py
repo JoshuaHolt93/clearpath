@@ -5,6 +5,7 @@ from unittest.mock import patch
 
 import pytest
 
+from app.core.ai_policy import AI_GUIDANCE_DISCLAIMER
 from app.core.security import decode_token
 from app.models import (
     Account,
@@ -19,6 +20,7 @@ from app.models import (
     User,
 )
 from app.services.planning_service import app_today
+from app.services.dashboard_service import DashboardMetrics, generate_insights
 from conftest import TestingSessionLocal
 
 VALID_PASSWORD = "CorrectHorse1!"
@@ -232,7 +234,61 @@ def test_dashboard_metrics_net_worth_context_and_read_only_plaid_behavior(client
     assert next(row for row in body["plan_rows"] if row["label"] == "Expenses")["actual"] == 2000.0
     assert body["budget_remaining"] == 400.0
     assert body["expected_cash_flow"] == 2600.0
-    assert body["insights"] == []
+    assert [insight["type"] for insight in body["insights"]] == [
+        "surplus_opportunity",
+        "debt_to_income_watch",
+    ]
+    assert body["insights"][0]["disclaimer"] == AI_GUIDANCE_DISCLAIMER
+
+
+def test_dashboard_insight_order_cap_and_guardrail_collision(client):
+    token, user_id = onboarded_token(client, "dashboard-insights@example.com")
+    metrics = DashboardMetrics(
+        month_income=5000,
+        fixed_expenses=0,
+        variable_spend=1000,
+        safe_to_spend=500,
+        safe_to_spend_target=1000,
+        net_cash_flow=4000,
+        on_track_status="red",
+        expected_variable_spend=400,
+    )
+    with TestingSessionLocal() as db:
+        user = db.get(User, user_id)
+        with patch(
+            "app.services.dashboard_service.recurring_charge_candidates",
+            return_value=[("Streaming Plus", 3, 25)],
+        ):
+            insights = generate_insights(
+                db,
+                user,
+                app_today(),
+                metrics=metrics,
+                category_spend=[{"category": "Dining/Eating Out", "amount": 500}],
+            )
+        assert [insight["type"] for insight in insights] == [
+            "cash_flow_risk",
+            "category_overspend",
+            "surplus_opportunity",
+            "subscription_warning",
+        ]
+        assert all(insight["disclaimer"] == AI_GUIDANCE_DISCLAIMER for insight in insights)
+
+        safe_metrics = DashboardMetrics(**{**metrics.__dict__, "safe_to_spend": 0, "on_track_status": "green"})
+        with patch(
+            "app.services.dashboard_service.recurring_charge_candidates",
+            return_value=[("Buy $TSLA now", 3, 12)],
+        ):
+            guarded = generate_insights(
+                db,
+                user,
+                app_today(),
+                metrics=safe_metrics,
+                category_spend=[],
+            )
+    assert guarded[0]["title"] == "Review this spending pattern"
+    assert guarded[0]["type"] == "subscription_warning"
+    assert "converted" not in guarded[0]["body"]
 
 
 def seed_analytics_fixture(user_id: int) -> None:

@@ -96,6 +96,26 @@ class SubscriptionUpdateRequest(BaseModel):
     cancel_url: str | None = None
 
 
+class SubscriptionLinkHelpRequest(BaseModel):
+    pass
+
+
+class SubscriptionLinkCandidateResponse(BaseModel):
+    title: str
+    url: str
+    reason: str
+    confidence: str
+
+
+class SubscriptionLinkHelpResponse(BaseModel):
+    source: str
+    provider: str
+    model: str
+    status: str
+    candidates: list[SubscriptionLinkCandidateResponse] = Field(default_factory=list)
+    message: str
+
+
 class SubscriptionImportRequest(BaseModel):
     csv_text: str | None = None
     csv_base64: str | None = None

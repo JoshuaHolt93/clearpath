@@ -37,10 +37,12 @@ from app.schemas.transactions import TransactionResponse
 from app.services.dashboard_service import (
     analytics_summary_for_user,
     calculate_dashboard_metrics,
+    generate_insights,
     net_worth_summary,
 )
 from app.services.goal_service import build_goal_rows
 from app.services.loan_service import debt_to_income_ratio
+from app.services.planner_service import dashboard_focus_from_guidance
 from app.services.planning_service import app_today, current_month_name, parse_month_input, spending_by_category
 from app.services.transaction_service import require_onboarding_complete
 
@@ -160,8 +162,15 @@ def get_dashboard(
         plan_rows=plan_context.plan_rows,
         budget_remaining=plan_context.budget_remaining,
         expected_cash_flow=plan_context.expected_cash_flow,
-        # PHASE 3: generated Flask insights land in the next sub-part.
-        insights=[],
+        insights=generate_insights(
+            db,
+            user,
+            today,
+            purpose="dashboard",
+            metrics=metrics,
+            category_spend=category_totals,
+        ),
+        dashboard_focus=dashboard_focus_from_guidance(user),
     )
 
 

@@ -34,6 +34,26 @@ class Settings(BaseSettings):
     plaid_auto_refresh_min_interval_minutes: int = Field(default=15, alias="PLAID_AUTO_REFRESH_MIN_INTERVAL_MINUTES")
     validation_pricing_mode: bool = Field(default=False, alias="VALIDATION_PRICING_MODE")
     openai_api_key: str | None = Field(default=None, alias="OPENAI_API_KEY")
+    anthropic_api_key: str | None = Field(default=None, alias="ANTHROPIC_API_KEY")
+    google_ai_api_key: str | None = Field(default=None, alias="GOOGLE_AI_API_KEY")
+    ai_planner_request_timeout_seconds: int = Field(default=45, alias="AI_PLANNER_REQUEST_TIMEOUT_SECONDS")
+    ai_subscription_link_search_timeout_seconds: int = Field(
+        default=45,
+        alias="AI_SUBSCRIPTION_LINK_SEARCH_TIMEOUT_SECONDS",
+    )
+    ai_planner_daily_request_limit: int = Field(default=50, alias="AI_PLANNER_DAILY_REQUEST_LIMIT")
+    ai_planner_monthly_request_limit: int = Field(default=300, alias="AI_PLANNER_MONTHLY_REQUEST_LIMIT")
+    ai_planner_burst_request_limit: int = Field(default=8, alias="AI_PLANNER_BURST_REQUEST_LIMIT")
+    ai_planner_burst_window_minutes: int = Field(default=10, alias="AI_PLANNER_BURST_WINDOW_MINUTES")
+    ai_planner_monthly_cost_limit_cents: int = Field(default=250, alias="AI_PLANNER_MONTHLY_COST_LIMIT_CENTS")
+    ai_planner_default_input_cents_per_million: int = Field(
+        default=100,
+        alias="AI_PLANNER_DEFAULT_INPUT_CENTS_PER_MILLION",
+    )
+    ai_planner_default_output_cents_per_million: int = Field(
+        default=500,
+        alias="AI_PLANNER_DEFAULT_OUTPUT_CENTS_PER_MILLION",
+    )
     app_timezone: str | None = Field(default=None, alias="APP_TIMEZONE")
 
     @property

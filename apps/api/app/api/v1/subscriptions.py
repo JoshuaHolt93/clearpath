@@ -21,12 +21,15 @@ from app.schemas.subscriptions import (
     SubscriptionImportRequest,
     SubscriptionImportResponse,
     SubscriptionListResponse,
+    SubscriptionLinkHelpRequest,
+    SubscriptionLinkHelpResponse,
     SubscriptionOpportunity,
     SubscriptionResponse,
     SubscriptionScanResponse,
     SubscriptionSummary,
     SubscriptionUpdateRequest,
 )
+from app.services.planner_service import find_subscription_manage_links
 from app.services.subscription_service import (
     KNOWN_SERVICES,
     SUBSCRIPTION_CATEGORY,
@@ -43,7 +46,7 @@ from app.services.subscription_service import (
     subscription_summary,
     upcoming_subscriptions,
 )
-from app.services.planning_service import sync_monthly_plan
+from app.services.planning_service import app_today, sync_monthly_plan
 from app.services.transaction_service import (
     build_import_hash,
     decode_csv_payload,
@@ -294,29 +297,25 @@ def ignore_subscription_evidence(
     return _subscription_response(subscription)
 
 
-@router.post("/subscriptions/{subscription_id}/link-help")
+@router.post(
+    "/subscriptions/{subscription_id}/link-help",
+    response_model=SubscriptionLinkHelpResponse,
+)
 def subscription_link_help(
     subscription_id: int,
+    _payload: SubscriptionLinkHelpRequest,
     principal: Annotated[Principal, Depends(editor_access)],
     db: Annotated[Session, Depends(get_db)],
-) -> dict:
+) -> SubscriptionLinkHelpResponse:
     _require_subscription_feature(principal)
     if not user_has_feature(principal.user, "ai_coach"):
         if feature_is_temporarily_hidden("ai_coach"):
             raise HTTPException(status_code=403, detail="AI link help is not available during the current ClearPath validation period.")
         raise HTTPException(status_code=403, detail="AI link help requires ClearPath Premier.")
     subscription = _get_owned_subscription(db, principal, subscription_id)
-    # PHASE 3 (AI planner port): the OpenAI web-search flow in
-    # ai_planner_service.find_subscription_manage_links lands with the planner.
-    # Until then this returns Flask's exact no-API-key fallback payload.
-    return {
-        "source": "ClearPath link finder",
-        "provider": "openai",
-        "model": principal.user.ai_model or "gpt-5.5",
-        "status": "fallback",
-        "candidates": [],
-        "message": "Subscription link search requires the OpenAI API key with web search enabled.",
-    }
+    return SubscriptionLinkHelpResponse.model_validate(
+        find_subscription_manage_links(db, principal.user, subscription)
+    )
 
 
 @router.post("/subscription-imports", response_model=SubscriptionImportResponse)
@@ -406,9 +405,7 @@ def export_subscriptions_csv(
                 "manual" if subscription.is_manual else "detected",
             ]
         )
-    # PHASE 3: Flask names the file with the user-timezone app_today(); the
-    # timezone helpers port with the planning phase.
-    filename = f"clearpath-subscriptions-{utc_now().date().isoformat()}.csv"
+    filename = f"clearpath-subscriptions-{app_today().isoformat()}.csv"
     return Response(
         content=output.getvalue(),
         media_type="text/csv",
