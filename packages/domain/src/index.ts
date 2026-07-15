@@ -13,11 +13,32 @@ export interface LoanMathInput {
   termMonths: number;
 }
 
+export interface LoanPlanMathInput extends LoanMathInput {
+  extraPaymentOne: number;
+  extraPaymentTwo: number;
+}
+
 export interface AmortizationSummary {
   months: number;
   years: number;
   interestPaid: number;
   payoffPossible: boolean;
+}
+
+export interface AmortizationScheduleRow {
+  month: number;
+  paymentDate: string;
+  beginningBalance: number;
+  payment: number;
+  principal: number;
+  interest: number;
+  endingBalance: number;
+}
+
+export interface LoanPlanScenario extends AmortizationSummary {
+  key: "base" | "extra_one" | "extra_two";
+  label: string;
+  extraPayment: number;
 }
 
 export interface GoalProgress {
@@ -138,6 +159,74 @@ export function amortizationSummary(
     months += 1;
   }
   return { months, years: months / 12, interestPaid, payoffPossible: balance <= 0.01 };
+}
+
+function addCalendarMonths(value: string, months: number): string {
+  const start = calendarDateParts(value);
+  const monthIndex = start.month - 1 + months;
+  const year = start.year + Math.floor(monthIndex / 12);
+  const month = ((monthIndex % 12) + 12) % 12 + 1;
+  const lastDay = new Date(Date.UTC(year, month, 0)).getUTCDate();
+  const day = Math.min(start.day, lastDay);
+  return `${year.toString().padStart(4, "0")}-${month.toString().padStart(2, "0")}-${day.toString().padStart(2, "0")}`;
+}
+
+export function amortizationSchedule(
+  principal: number,
+  annualRate: number,
+  payment: number,
+  extraPayment = 0,
+  maxMonths = 360,
+  startMonth: string,
+): AmortizationScheduleRow[] {
+  principal = Math.max(principal || 0, 0);
+  const monthlyRate = Math.max(annualRate || 0, 0) / 100 / 12;
+  // Flask derives the baseline from the term whenever maxMonths is present.
+  const baselinePayment = maxMonths ? scheduledPaymentForTerm(principal, annualRate, maxMonths) : payment || 0;
+  const monthlyPayment = Math.max(baselinePayment + (extraPayment || 0), 0);
+  if (principal <= 0 || monthlyPayment <= 0) return [];
+
+  let balance = principal;
+  const rows: AmortizationScheduleRow[] = [];
+  const limit = Math.max(maxMonths, 1) + 600;
+  for (let monthNumber = 1; monthNumber <= limit; monthNumber += 1) {
+    const interest = balance * monthlyRate;
+    const principalPaid = Math.min(monthlyPayment - interest, balance);
+    if (principalPaid <= 0) break;
+    const endingBalance = Math.max(balance - principalPaid, 0);
+    rows.push({
+      month: monthNumber,
+      paymentDate: addCalendarMonths(startMonth, monthNumber - 1),
+      beginningBalance: balance,
+      payment: principalPaid + interest,
+      principal: principalPaid,
+      interest,
+      endingBalance,
+    });
+    balance = endingBalance;
+    if (balance <= 0.01) break;
+  }
+  return rows;
+}
+
+export function loanPlanScenarios(plan: LoanPlanMathInput): LoanPlanScenario[] {
+  const scenarios = [
+    ["base", "Current Payment", 0],
+    ["extra_one", "Extra Payment Scenario 1", plan.extraPaymentOne || 0],
+    ["extra_two", "Extra Payment Scenario 2", plan.extraPaymentTwo || 0],
+  ] as const;
+  return scenarios.map(([key, label, extraPayment]) => ({
+    key,
+    label,
+    extraPayment,
+    ...amortizationSummary(
+      plan.principalBalance,
+      plan.annualInterestRate,
+      plan.regularPayment,
+      extraPayment,
+      plan.termMonths || 360,
+    ),
+  }));
 }
 
 export function requiredExtraPaymentForDebtGoal(

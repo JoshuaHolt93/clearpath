@@ -315,6 +315,70 @@ def amortization_summary(
     return {"months": months, "years": months / 12, "interest_paid": interest_paid, "payoff_possible": balance <= 0.01}
 
 
+def amortization_schedule(
+    principal: float,
+    annual_rate: float,
+    payment: float,
+    extra_payment: float = 0.0,
+    max_months: int = 360,
+    start_month: date | None = None,
+) -> list[dict]:
+    principal = max(principal or 0, 0)
+    monthly_rate = max(annual_rate or 0, 0) / 100 / 12
+    # Flask intentionally derives the baseline from the term whenever one is
+    # present, even when regular_payment differs.
+    baseline_payment = scheduled_payment_for_term(principal, annual_rate, max_months) if max_months else (payment or 0)
+    monthly_payment = max(baseline_payment + (extra_payment or 0), 0)
+    if principal <= 0 or monthly_payment <= 0:
+        return []
+
+    balance = principal
+    rows = []
+    start_month = (start_month or app_today()).replace(day=1)
+    limit = max(max_months, 1) + 600
+    for month_number in range(1, limit + 1):
+        payment_date = add_months(start_month, month_number - 1)
+        interest = balance * monthly_rate
+        principal_paid = min(monthly_payment - interest, balance)
+        if principal_paid <= 0:
+            break
+        ending_balance = max(balance - principal_paid, 0)
+        rows.append(
+            {
+                "month": month_number,
+                "payment_date": payment_date,
+                "beginning_balance": balance,
+                "payment": principal_paid + interest,
+                "principal": principal_paid,
+                "interest": interest,
+                "ending_balance": ending_balance,
+            }
+        )
+        balance = ending_balance
+        if balance <= 0.01:
+            break
+    return rows
+
+
+def loan_plan_scenarios(plan: LoanPlan) -> list[dict]:
+    scenarios = [
+        ("base", "Current Payment", 0.0),
+        ("extra_one", "Extra Payment Scenario 1", plan.extra_payment_one or 0.0),
+        ("extra_two", "Extra Payment Scenario 2", plan.extra_payment_two or 0.0),
+    ]
+    rows = []
+    for key, label, extra in scenarios:
+        result = amortization_summary(
+            plan.principal_balance or 0,
+            plan.annual_interest_rate or 0,
+            plan.regular_payment or 0,
+            extra,
+            plan.term_months or 360,
+        )
+        rows.append({"key": key, "label": label, "extra_payment": extra, **result})
+    return rows
+
+
 def selected_loan_extra_payment_total(db: Session, user: User) -> float:
     total = 0.0
     for plan in db.scalars(select(LoanPlan).where(LoanPlan.user_id == user.id)).all():

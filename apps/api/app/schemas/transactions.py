@@ -71,6 +71,13 @@ class TransactionBudgetActionResponse(BaseModel):
     hint: str
 
 
+class AmortizationActionResponse(BaseModel):
+    action: str
+    fixed_expense_item_id: int | None = None
+    label: str
+    hint: str | None = None
+
+
 class DuplicateSuggestionResponse(BaseModel):
     plaid_transaction_id: int
     manual_transaction_id: int
@@ -87,6 +94,7 @@ class TransactionListResponse(BaseModel):
     accounts: list[AccountResponse]
     duplicate_suggestions: list[DuplicateSuggestionResponse]
     budget_actions: dict[int, TransactionBudgetActionResponse] = Field(default_factory=dict)
+    amortization_actions: dict[int, AmortizationActionResponse] = Field(default_factory=dict)
     # Flask 0ddefb0: page rows already linked to a recurring template.
     recurring_transaction_ids: list[int] = Field(default_factory=list)
 
@@ -128,6 +136,7 @@ class TransactionCategoryUpdateResponse(BaseModel):
     rule_created: bool = False
     created_budget_target: float | None = None
     budget_action: TransactionBudgetActionResponse | None = None
+    amortization_action: AmortizationActionResponse | None = None
     recurring_message: str | None = None
     recurring_success: bool | None = None
 

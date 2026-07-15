@@ -30,6 +30,7 @@ from app.models import (
     Category,
     FixedExpenseItem,
     ForecastItem,
+    LoanPlan,
     RecurringForecastTemplate,
     Transaction,
     User,
@@ -61,6 +62,8 @@ from app.schemas.planning import (
     MonthlyPlanBaselineUpdateRequest,
     MonthlyPlanRecordResponse,
     MonthlyPlanResponse,
+    LoanPlanRecordResponse,
+    LoanPlanScenarioResponse,
     PayPeriodResponse,
     PlanRowResponse,
     QuickWorksheetRowResponse,
@@ -88,6 +91,7 @@ from app.services.planning_service import (
     clean_selected_weekdays,
     fixed_expense_timing_from_values,
     loan_category_for_item,
+    loan_plan_scenarios,
     planning_item_occurrence_multiplier,
     sync_loan_fixed_expense_budget,
     sync_planning_item_budget_target,
@@ -129,6 +133,7 @@ from app.services.planning_service import (
     variable_expense_plan_total,
     variable_plan_detail_rows,
 )
+from app.services.loan_service import budget_amortization_action
 from app.services.transaction_service import (
     categories_for_user,
     category_can_manage,
@@ -945,9 +950,7 @@ def delete_recurring_template(
 # Faithful port of Flask monthly_plan() (main.py at cb7d969, incl. the
 # 64b5ed5/83ca1b6 handler changes). Web-URL plumbing (budget_url/review_url/
 # edit-modal fields) is replaced by ids + anchor ids per route-map decision 17.
-# Deferred seams, populated by their own sub-parts:
-#   PHASE 3 (loans/retirement): loan plans/scenarios, retirement accounts,
-#     and budget_amortization_action rows.
+# Deferred seam, populated by the retirement sub-part: retirement accounts.
 
 BUDGET_SUGGESTION_FLASK_PARITY_KINDS = {"expense", "income", "cleanup"}
 
@@ -1335,8 +1338,7 @@ def build_monthly_plan_response(
                     and category_can_manage(db, category, user)
                     and category.name.strip().lower() != "other"
                 ),
-                # PHASE 3 (loans): budget_amortization_action (fc97040).
-                "amortization_action": None,
+                "amortization_action": budget_amortization_action(db, category, user),
                 "actual_label": actual_label,
                 "planned_label": "planned",
                 **transaction_meta,
@@ -1659,6 +1661,15 @@ def build_monthly_plan_response(
             )
     reverse_quick_sort = quick_sort in {"amount_desc", "name_desc", "timing_desc", "category_za"}
     quick_worksheet_rows = sorted(quick_worksheet_rows, key=quick_row_sort_key, reverse=reverse_quick_sort)
+    loan_items = [item for item in fixed_items if loan_category_for_item(item)]
+    loan_plans = {
+        plan.fixed_expense_item_id: plan
+        for plan in db.scalars(select(LoanPlan).where(LoanPlan.user_id == user.id)).all()
+    }
+    loan_scenarios = {
+        item_id: loan_plan_scenarios(plan)
+        for item_id, plan in loan_plans.items()
+    }
 
     profile_response = BaselineProfileResponse.model_validate(profile) if profile else BaselineProfileResponse()
     profile_response.household_name = user.household_name
@@ -1709,6 +1720,12 @@ def build_monthly_plan_response(
         category_spend=[CategorySpendRowResponse(**row) for row in category_spend],
         forecast_months=forecast_months,
         fixed_items=[fixed_item_response(item) for item in fixed_items],
+        loan_items=[fixed_item_response(item) for item in loan_items],
+        loan_plans={item_id: LoanPlanRecordResponse.model_validate(plan) for item_id, plan in loan_plans.items()},
+        loan_scenarios={
+            item_id: [LoanPlanScenarioResponse.model_validate(row) for row in rows]
+            for item_id, rows in loan_scenarios.items()
+        },
         variable_items=[variable_item_response(row) for row in variable_item_rows],
         fixed_expense_rows=[expense_source_row(row) for row in fixed_expense_rows],
         variable_expense_rows=[expense_source_row(row) for row in variable_expense_rows],

@@ -91,6 +91,49 @@ def sync_savings_goal_budget_targets(db: Session, user: User) -> int:
     return updated
 
 
+def sync_loan_paydown_goal(
+    db: Session,
+    plan: LoanPlan | None,
+    item: FixedExpenseItem,
+    user: User,
+) -> Goal | None:
+    if not plan:
+        return None
+    selected_extra = max(selected_extra_payment_for_loan_plan(plan), 0)
+    auto_name = f"{item.name} Paydown Plan"
+    auto_key = normalize_text(auto_name)
+    linked_goals = db.scalars(
+        select(Goal)
+        .where(
+            Goal.user_id == user.id,
+            Goal.goal_type == "debt",
+            Goal.fixed_expense_item_id == item.id,
+        )
+        .order_by(Goal.created_at.asc())
+    ).all()
+    auto_goal = next((goal for goal in linked_goals if normalize_text(goal.name) == auto_key), None)
+    if selected_extra <= 0:
+        if auto_goal:
+            db.delete(auto_goal)
+        return None
+
+    goal = auto_goal or (linked_goals[0] if linked_goals else None)
+    if not goal:
+        goal = Goal(
+            user_id=user.id,
+            name=auto_name,
+            goal_type="debt",
+            fixed_expense_item_id=item.id,
+            target_amount=0,
+        )
+        db.add(goal)
+    goal.target_amount = max(plan.principal_balance or goal.target_amount or 0, 0)
+    goal.current_amount = 0
+    goal.monthly_contribution = round(selected_extra, 2)
+    goal.fixed_expense_item_id = item.id
+    return goal
+
+
 def required_extra_payment_for_debt_goal(db: Session, goal: Goal) -> float:
     if goal.goal_type != "debt" or not goal.fixed_expense_item_id or not goal.target_date:
         return 0.0

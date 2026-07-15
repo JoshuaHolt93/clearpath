@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, datetime
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -9,7 +9,7 @@ from app.schemas.cash_projections import (
     CashProjectionPeriodResponse,
     ThreeMonthForecastResponse,
 )
-from app.schemas.transactions import CategoryResponse
+from app.schemas.transactions import AmortizationActionResponse, CategoryResponse
 
 
 class BudgetResponse(BaseModel):
@@ -77,6 +77,36 @@ class FixedExpenseItemResponse(BaseModel):
     monthly_amount: float | None = None
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class LoanPlanRecordResponse(BaseModel):
+    id: int
+    fixed_expense_item_id: int
+    loan_type: str
+    principal_balance: float
+    collateral_value: float
+    annual_interest_rate: float
+    term_months: int
+    term_unit_preference: str
+    regular_payment: float
+    extra_payment_one: float
+    extra_payment_two: float
+    selected_scenario: str
+    notes: str | None = None
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class LoanPlanScenarioResponse(BaseModel):
+    key: str
+    label: str
+    extra_payment: float
+    months: int
+    years: float
+    interest_paid: float
+    payoff_possible: bool
 
 
 class VariableExpenseItemResponse(BaseModel):
@@ -246,9 +276,7 @@ class BudgetRowResponse(BaseModel):
     suggestion_match_count: int = 0
     sort_order: int | None = None
     can_remove_budget: bool = False
-    # PHASE 3 (loans): Flask HEAD emits budget_amortization_action here
-    # (fc97040); it ports with the loan-plan endpoints.
-    amortization_action: dict | None = None
+    amortization_action: AmortizationActionResponse | None = None
     actual_label: str = "spent"
     planned_label: str = "planned"
     adjust_label: str = ""
@@ -312,6 +340,9 @@ class MonthlyPlanResponse(BaseModel):
     category_spend: list[CategorySpendRowResponse]
     forecast_months: list[ThreeMonthForecastResponse] = Field(default_factory=list)
     fixed_items: list[FixedExpenseItemResponse]
+    loan_items: list[FixedExpenseItemResponse] = Field(default_factory=list)
+    loan_plans: dict[int, LoanPlanRecordResponse] = Field(default_factory=dict)
+    loan_scenarios: dict[int, list[LoanPlanScenarioResponse]] = Field(default_factory=dict)
     variable_items: list[VariableExpenseItemResponse]
     fixed_expense_rows: list[ExpenseSourceRowResponse]
     variable_expense_rows: list[ExpenseSourceRowResponse]

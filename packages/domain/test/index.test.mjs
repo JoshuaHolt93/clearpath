@@ -2,9 +2,11 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  amortizationSchedule,
   amortizationSummary,
   calculateGoalProgress,
   estimateGoalTimeline,
+  loanPlanScenarios,
   monthsUntil,
   requiredExtraPaymentForDebtGoal,
   requiredMonthlyForGoal,
@@ -65,5 +67,42 @@ test("ports Flask amortization and linked debt progress", () => {
     remaining: 1200,
     currentAmount: 0,
     targetAmount: 1200,
+  });
+});
+
+test("ports Flask loan scenarios and full amortization schedule", () => {
+  const scenarios = loanPlanScenarios({
+    principalBalance: 1200,
+    annualInterestRate: 0,
+    regularPayment: 500,
+    termMonths: 12,
+    extraPaymentOne: 100,
+    extraPaymentTwo: 200,
+  });
+  assert.deepEqual(scenarios.map(({ key, months }) => ({ key, months })), [
+    { key: "base", months: 12 },
+    { key: "extra_one", months: 6 },
+    { key: "extra_two", months: 4 },
+  ]);
+
+  const schedule = amortizationSchedule(1200, 0, 500, 100, 12, "2026-07-01");
+  assert.equal(schedule.length, 6);
+  assert.deepEqual(schedule[0], {
+    month: 1,
+    paymentDate: "2026-07-01",
+    beginningBalance: 1200,
+    payment: 200,
+    principal: 200,
+    interest: 0,
+    endingBalance: 1000,
+  });
+  assert.deepEqual(schedule.at(-1), {
+    month: 6,
+    paymentDate: "2026-12-01",
+    beginningBalance: 200,
+    payment: 200,
+    principal: 200,
+    interest: 0,
+    endingBalance: 0,
   });
 });

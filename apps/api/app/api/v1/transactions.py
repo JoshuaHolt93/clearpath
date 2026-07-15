@@ -14,6 +14,7 @@ from app.models import Account, Category, CategoryRule, Transaction, Transaction
 from app.schemas.planning import TransactionBudgetActivateResponse
 from app.schemas.transactions import (
     AccountResponse,
+    AmortizationActionResponse,
     CategoryCreateRequest,
     CategoryDeleteRequest,
     CategoryDeleteResponse,
@@ -39,6 +40,7 @@ from app.schemas.transactions import (
     TransactionResponse,
     TransactionSplitsUpdateRequest,
 )
+from app.services.loan_service import transaction_amortization_action
 from app.services.planning_service import (
     activate_transaction_budget_category,
     active_budget_categories_by_key,
@@ -213,6 +215,13 @@ def list_transactions(
         for action in [transaction_budget_action(db, transaction, user, active_budget_keys=active_budget_keys)]
         if action
     }
+    amortization_actions = {
+        transaction.id: AmortizationActionResponse(**action)
+        for transaction in items
+        if transaction.id
+        for action in [transaction_amortization_action(db, transaction, user)]
+        if action
+    }
     return TransactionListResponse(
         items=[transaction_response(transaction) for transaction in items],
         total=total,
@@ -222,6 +231,7 @@ def list_transactions(
         accounts=[account_response(account) for account in accounts],
         duplicate_suggestions=transaction_duplicate_suggestions_for_user(db, user),
         budget_actions=budget_actions,
+        amortization_actions=amortization_actions,
         recurring_transaction_ids=sorted(recurring_transaction_ids_for_page(db, user, items)),
     )
 
@@ -410,8 +420,7 @@ def update_transaction_category(
     db.expire_all()
     transaction = get_owned_transaction(db, principal.user, transaction.id)
     budget_action = transaction_budget_action(db, transaction, principal.user)
-    # PHASE 3 (loans): Flask HEAD also returns amortization_action (fc97040);
-    # it ports with the loan-plan endpoints.
+    amortization_action = transaction_amortization_action(db, transaction, principal.user)
     return TransactionCategoryUpdateResponse(
         transaction=transaction_response(transaction),
         updated_transaction_ids=updated_transaction_ids,
@@ -419,6 +428,7 @@ def update_transaction_category(
         rule_created=rule_created,
         created_budget_target=created_budget_target,
         budget_action=TransactionBudgetActionResponse(**budget_action) if budget_action else None,
+        amortization_action=AmortizationActionResponse(**amortization_action) if amortization_action else None,
         recurring_message=recurring_message,
         recurring_success=recurring_success,
     )
