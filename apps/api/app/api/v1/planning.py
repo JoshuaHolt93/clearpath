@@ -134,6 +134,7 @@ from app.services.planning_service import (
     variable_plan_detail_rows,
 )
 from app.services.loan_service import budget_amortization_action
+from app.services.retirement_service import retirement_accounts_for_user
 from app.services.transaction_service import (
     categories_for_user,
     category_can_manage,
@@ -1670,6 +1671,7 @@ def build_monthly_plan_response(
         item_id: loan_plan_scenarios(plan)
         for item_id, plan in loan_plans.items()
     }
+    retirement_accounts = retirement_accounts_for_user(db, user)
 
     profile_response = BaselineProfileResponse.model_validate(profile) if profile else BaselineProfileResponse()
     profile_response.household_name = user.household_name
@@ -1726,6 +1728,7 @@ def build_monthly_plan_response(
             item_id: [LoanPlanScenarioResponse.model_validate(row) for row in rows]
             for item_id, rows in loan_scenarios.items()
         },
+        retirement_accounts=retirement_accounts,
         variable_items=[variable_item_response(row) for row in variable_item_rows],
         fixed_expense_rows=[expense_source_row(row) for row in fixed_expense_rows],
         variable_expense_rows=[expense_source_row(row) for row in variable_expense_rows],

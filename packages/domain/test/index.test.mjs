@@ -10,6 +10,8 @@ import {
   monthsUntil,
   requiredExtraPaymentForDebtGoal,
   requiredMonthlyForGoal,
+  retirementCashFlowContribution,
+  retirementTaxableIncomeAdjustment,
   savingsGoalBudgetLabel,
 } from "../src/index.ts";
 
@@ -43,6 +45,24 @@ test("ports savings category rules", () => {
   assert.equal(savingsGoalBudgetLabel("Roth IRA"), "Retirement (401k, IRA)");
   assert.equal(savingsGoalBudgetLabel("Brokerage Investing"), "Investments");
   assert.equal(savingsGoalBudgetLabel("Rainy Day"), "Emergency Fund");
+});
+
+test("ports retirement cash-flow and taxable-income adjustments", () => {
+  const grossProfile = {
+    retirementEnabled: true,
+    retirementHasEmployerPlan: true,
+    retirementEmployerWithheld: true,
+    retirementMonthlyContribution: 500,
+    retirementPersonalMonthlyContribution: 200,
+    incomeBasis: "gross",
+  };
+  assert.equal(retirementCashFlowContribution(grossProfile), 700);
+  assert.equal(retirementTaxableIncomeAdjustment(grossProfile), 6000);
+
+  assert.equal(retirementCashFlowContribution({ ...grossProfile, incomeBasis: "take_home" }), 200);
+  assert.equal(retirementTaxableIncomeAdjustment({ ...grossProfile, retirementHasEmployerPlan: false }), 0);
+  assert.equal(retirementCashFlowContribution({ ...grossProfile, retirementEnabled: false }), 0);
+  assert.equal(retirementCashFlowContribution({ ...grossProfile, retirementMonthlyContribution: -50 }), 200);
 });
 
 test("ports Flask amortization and linked debt progress", () => {

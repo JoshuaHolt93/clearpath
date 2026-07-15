@@ -18,6 +18,15 @@ export interface LoanPlanMathInput extends LoanMathInput {
   extraPaymentTwo: number;
 }
 
+export interface RetirementMathInput {
+  retirementEnabled: boolean;
+  retirementHasEmployerPlan: boolean;
+  retirementEmployerWithheld: boolean;
+  retirementMonthlyContribution: number;
+  retirementPersonalMonthlyContribution: number;
+  incomeBasis: string | null | undefined;
+}
+
 export interface AmortizationSummary {
   months: number;
   years: number;
@@ -46,6 +55,22 @@ export interface GoalProgress {
   remaining: number;
   currentAmount: number;
   targetAmount: number;
+}
+
+export function retirementCashFlowContribution(profile: RetirementMathInput | null | undefined): number {
+  if (!profile || !profile.retirementEnabled) return 0;
+  let employerContribution = Math.max(profile.retirementMonthlyContribution || 0, 0);
+  const personalContribution = Math.max(profile.retirementPersonalMonthlyContribution || 0, 0);
+  if (profile.retirementEmployerWithheld && (profile.incomeBasis || "take_home") !== "gross") {
+    employerContribution = 0;
+  }
+  return employerContribution + personalContribution;
+}
+
+export function retirementTaxableIncomeAdjustment(profile: RetirementMathInput | null | undefined): number {
+  if (!profile || !profile.retirementEnabled || !profile.retirementHasEmployerPlan) return 0;
+  if (!profile.retirementEmployerWithheld) return 0;
+  return Math.max(profile.retirementMonthlyContribution || 0, 0) * 12;
 }
 
 interface CalendarDateParts {

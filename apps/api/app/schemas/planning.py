@@ -4,6 +4,8 @@ from datetime import date, datetime
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.schemas.plaid import AccountResponse
+
 from app.schemas.cash_projections import (
     CashProjectionAccountRowResponse,
     CashProjectionPeriodResponse,
@@ -343,6 +345,7 @@ class MonthlyPlanResponse(BaseModel):
     loan_items: list[FixedExpenseItemResponse] = Field(default_factory=list)
     loan_plans: dict[int, LoanPlanRecordResponse] = Field(default_factory=dict)
     loan_scenarios: dict[int, list[LoanPlanScenarioResponse]] = Field(default_factory=dict)
+    retirement_accounts: list[AccountResponse] = Field(default_factory=list)
     variable_items: list[VariableExpenseItemResponse]
     fixed_expense_rows: list[ExpenseSourceRowResponse]
     variable_expense_rows: list[ExpenseSourceRowResponse]
