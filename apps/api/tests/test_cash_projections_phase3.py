@@ -11,6 +11,7 @@ from app.models import (
     Category,
     FixedExpenseItem,
     ForecastItem,
+    HouseholdMember,
     PlaidItem,
     RecurringForecastTemplate,
     Transaction,
@@ -48,6 +49,29 @@ def full_session_token(client, email: str) -> str:
     return completed.json()["access_token"]
 
 
+def shared_session_token(client, owner_id: int, email: str, role: str) -> str:
+    with TestingSessionLocal() as db:
+        member = HouseholdMember(
+            owner_user_id=owner_id,
+            invited_by_user_id=owner_id,
+            email=email,
+            role=role,
+            status="active",
+        )
+        member.set_password(VALID_PASSWORD)
+        db.add(member)
+        db.commit()
+    login = client.post("/v1/auth/login", json={"email": email, "password": VALID_PASSWORD})
+    assert login.status_code == 200
+    completed = client.post(
+        "/v1/auth/mfa/setup",
+        headers=auth_header(login.json()["access_token"]),
+        json={"action": "skip"},
+    )
+    assert completed.status_code == 200
+    return completed.json()["access_token"]
+
+
 def onboard(token: str, *, plan: str = "basic") -> int:
     payload = decode_token(token)
     with TestingSessionLocal() as db:
@@ -57,6 +81,14 @@ def onboard(token: str, *, plan: str = "basic") -> int:
         user.selected_plan = plan
         db.commit()
         return user.id
+
+
+def test_cash_projection_preference_openapi_contract(client):
+    operation = client.get("/openapi.json").json()["paths"]["/v1/cash-projections/preferences"]["patch"]
+    request_schema = operation["requestBody"]["content"]["application/json"]["schema"]
+    response_schema = operation["responses"]["200"]["content"]["application/json"]["schema"]
+    assert request_schema["$ref"].endswith("/CashProjectionPreferenceUpdateRequest")
+    assert response_schema["$ref"].endswith("/CashProjectionPreferencesResponse")
 
 
 def test_monthly_plan_three_month_forecast_matches_flask_math(client):
@@ -165,6 +197,43 @@ def test_cash_projection_get_is_read_only_and_uses_operating_cash(client, monkey
     assert refresh_calls == []
     with TestingSessionLocal() as db:
         assert db.get(User, user_id).cash_projection_default_horizon == "1m"
+
+
+def test_cash_projection_preference_is_explicit_validated_and_editor_only(client):
+    token = full_session_token(client, "cash-preference@example.com")
+    user_id = onboard(token)
+
+    updated = client.patch(
+        "/v1/cash-projections/preferences",
+        headers=auth_header(token),
+        json={"default_horizon": "3m"},
+    )
+
+    assert updated.status_code == 200
+    assert updated.json() == {"default_horizon": "3m"}
+    with TestingSessionLocal() as db:
+        assert db.get(User, user_id).cash_projection_default_horizon == "3m"
+
+    projection = client.get("/v1/cash-projections", headers=auth_header(token))
+    assert projection.status_code == 200
+    assert projection.json()["horizon"] == "3m"
+
+    rejected = client.patch(
+        "/v1/cash-projections/preferences",
+        headers=auth_header(token),
+        json={"default_horizon": "custom"},
+    )
+    assert rejected.status_code == 422
+
+    viewer_token = shared_session_token(client, user_id, "cash-preference-viewer@example.com", "viewer")
+    forbidden = client.patch(
+        "/v1/cash-projections/preferences",
+        headers=auth_header(viewer_token),
+        json={"default_horizon": "6m"},
+    )
+    assert forbidden.status_code == 403
+    with TestingSessionLocal() as db:
+        assert db.get(User, user_id).cash_projection_default_horizon == "3m"
 
 
 def test_cash_projection_explicit_refresh_returns_result(client, monkeypatch):

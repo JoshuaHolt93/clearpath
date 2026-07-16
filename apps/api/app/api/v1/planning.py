@@ -1070,12 +1070,6 @@ def build_monthly_plan_response(
         plan_savings_total = period_savings
         plan_debt_total = period_debt_payment
         plan_retirement_total = period_retirement
-        # FLASK BUG (flagged 2026-07-14, pending Flask fix): Flask never
-        # assigns actual_income_total in the pay-period branch, so the income
-        # budget row raises UnboundLocalError (main.py:5147 at cb7d969) on
-        # view=pay_period. No Flask test covers that path. Provisional
-        # behavior: use the period's recorded income; reconcile when Flask
-        # lands its fix.
         actual_income_total = period_income_actual
         actual_debt_paydown = credit_card_debt_paydown_between(db, user, period_start, period_end)
         actual_savings = max(period_income_actual - actual_fixed_total - period_variable_actual - actual_debt_paydown, 0)

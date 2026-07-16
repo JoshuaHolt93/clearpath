@@ -22,6 +22,8 @@ from app.schemas.cash_projections import (
     CashProjectionCalendarFeedResponse,
     CashProjectionCalendarFeedUpdateRequest,
     CashProjectionPeriodResponse,
+    CashProjectionPreferencesResponse,
+    CashProjectionPreferenceUpdateRequest,
     CashProjectionRangeResponse,
     CashProjectionRefreshRequest,
     CashProjectionRefreshResultResponse,
@@ -259,6 +261,19 @@ def get_cash_projection(
         start_date=start_date,
         end_date=end_date,
     )
+
+
+@router.patch("/cash-projections/preferences", response_model=CashProjectionPreferencesResponse)
+def update_cash_projection_preferences(
+    payload: CashProjectionPreferenceUpdateRequest,
+    principal: Annotated[Principal, Depends(require_household_access("editor"))],
+    db: Annotated[Session, Depends(get_db)],
+) -> CashProjectionPreferencesResponse:
+    user = principal.user
+    _require_cash_projection_access(user)
+    user.cash_projection_default_horizon = payload.default_horizon
+    db.commit()
+    return CashProjectionPreferencesResponse(default_horizon=user.cash_projection_default_horizon)
 
 
 @router.post("/cash-projections/refresh", response_model=CashProjectionResponse)

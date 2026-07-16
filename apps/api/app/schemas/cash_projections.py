@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import date, datetime
+from typing import Literal
 
 from pydantic import BaseModel, Field
 
@@ -214,6 +215,14 @@ class CashProjectionRefreshRequest(BaseModel):
     view: str = "calendar"
     start_date: str | None = None
     end_date: str | None = None
+
+
+class CashProjectionPreferenceUpdateRequest(BaseModel):
+    default_horizon: Literal["week", "1m", "3m", "6m"]
+
+
+class CashProjectionPreferencesResponse(BaseModel):
+    default_horizon: Literal["week", "1m", "3m", "6m"]
 
 
 class CashProjectionAutoRecurringRequest(CashProjectionRefreshRequest):
