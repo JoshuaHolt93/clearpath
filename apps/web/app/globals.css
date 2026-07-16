@@ -370,3 +370,145 @@ a:hover {
     padding: 18px 16px;
   }
 }
+
+.pending-auth-page {
+  min-height: 100vh;
+  background: var(--cp-background);
+}
+
+.pending-auth-header {
+  display: flex;
+  min-height: 72px;
+  align-items: center;
+  border-bottom: 1px solid var(--cp-border);
+  background: var(--cp-surface);
+}
+
+.pending-brand {
+  display: flex;
+  width: min(100% - 48px, 1120px);
+  align-items: center;
+  gap: 10px;
+  margin: 0 auto;
+  color: var(--cp-text);
+}
+
+.pending-brand:hover {
+  color: var(--cp-text);
+  text-decoration: none;
+}
+
+.pending-brand .logo-mark {
+  width: 38px;
+  height: 38px;
+  flex-basis: 38px;
+  font-size: 20px;
+}
+
+.pending-auth-main {
+  width: min(100% - 48px, 720px);
+  margin: 0 auto;
+  padding: 42px 0 56px;
+}
+
+.pending-auth-heading {
+  margin-bottom: 24px;
+}
+
+.pending-auth-heading h1 {
+  margin: 0;
+  font-size: 28px;
+  font-weight: 800;
+  line-height: 1.25;
+}
+
+.pending-auth-heading p {
+  margin: 7px 0 0;
+  color: var(--cp-text-secondary);
+  font-size: 15px;
+}
+
+.pending-auth-panel {
+  width: min(100%, 520px);
+  border: 1px solid var(--cp-border);
+  border-radius: var(--cp-radius-sm);
+  background: var(--cp-surface);
+  box-shadow: var(--cp-shadow-sm);
+}
+
+.pending-auth-panel-header {
+  min-height: 52px;
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--cp-border);
+}
+
+.pending-auth-panel-header h2 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 800;
+  line-height: 1.4;
+}
+
+.pending-auth-panel-body {
+  padding: 24px 20px;
+}
+
+.pending-auth-panel-body .form-group {
+  margin-bottom: 20px;
+}
+
+.alert-warning {
+  border-color: #fde68a;
+  color: #92400e;
+  background: #fffbeb;
+}
+
+.panel-intro {
+  margin: 0 0 18px;
+  color: var(--cp-text-secondary);
+  font-size: 14px;
+}
+
+.panel-intro strong {
+  color: var(--cp-text);
+}
+
+.panel-footnote {
+  margin: 18px 0 0;
+  color: var(--cp-text-secondary);
+  font-size: 14px;
+}
+
+.pending-status {
+  min-height: 48px;
+  margin: 0;
+  color: var(--cp-text-secondary);
+  font-size: 14px;
+}
+
+.code-input {
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 640px) {
+  .pending-auth-header {
+    min-height: 64px;
+  }
+
+  .pending-brand {
+    width: calc(100% - 32px);
+  }
+
+  .pending-auth-main {
+    width: calc(100% - 32px);
+    padding: 30px 0 40px;
+  }
+
+  .pending-auth-heading h1 {
+    font-size: 24px;
+  }
+
+  .pending-auth-panel-body {
+    padding: 22px 18px;
+  }
+}
