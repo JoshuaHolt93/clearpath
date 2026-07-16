@@ -20,6 +20,22 @@ class Settings(BaseSettings):
     expose_dev_tokens: bool = Field(default=False, alias="EXPOSE_DEV_TOKENS")
     password_hash_method: str = Field(default="scrypt:32768:8:1", alias="PASSWORD_HASH_METHOD")
 
+    mfa_push_provider: str = Field(default="none", alias="MFA_PUSH_PROVIDER")
+    duo_client_id: str | None = Field(default=None, alias="DUO_CLIENT_ID")
+    duo_client_secret: str | None = Field(default=None, alias="DUO_CLIENT_SECRET")
+    duo_api_hostname: str | None = Field(default=None, alias="DUO_API_HOSTNAME")
+    duo_redirect_uri: str | None = Field(default=None, alias="DUO_REDIRECT_URI")
+
+    resend_api_key: str | None = Field(default=None, alias="RESEND_API_KEY")
+    transactional_email_from: str | None = Field(default=None, alias="TRANSACTIONAL_EMAIL_FROM")
+    mail_server: str | None = Field(default=None, alias="MAIL_SERVER")
+    mail_port: int = Field(default=587, alias="MAIL_PORT")
+    mail_username: str | None = Field(default=None, alias="MAIL_USERNAME")
+    mail_password: str | None = Field(default=None, alias="MAIL_PASSWORD")
+    mail_use_tls: bool = Field(default=True, alias="MAIL_USE_TLS")
+    mail_use_ssl: bool = Field(default=False, alias="MAIL_USE_SSL")
+    mail_default_sender: str | None = Field(default=None, alias="MAIL_DEFAULT_SENDER")
+
     plaid_token_encryption_key: str | None = Field(default=None, alias="PLAID_TOKEN_ENCRYPTION_KEY")
     customer_data_encryption_key: str | None = Field(default=None, alias="CUSTOMER_DATA_ENCRYPTION_KEY")
     plaid_webhook_secret: str | None = Field(default=None, alias="PLAID_WEBHOOK_SECRET")

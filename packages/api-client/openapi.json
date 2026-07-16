@@ -5089,6 +5089,17 @@
             "title": "Email Challenge Sent",
             "type": "boolean"
           },
+          "email_challenge_token": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email Challenge Token"
+          },
           "preferred_method": {
             "title": "Preferred Method",
             "type": "string"
@@ -5131,6 +5142,17 @@
       },
       "MfaEmailCodeSendResponse": {
         "properties": {
+          "challenge_token": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Challenge Token"
+          },
           "reason": {
             "anyOf": [
               {
@@ -5300,6 +5322,17 @@
             ],
             "title": "Code"
           },
+          "email_challenge_token": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email Challenge Token"
+          },
           "email_code": {
             "anyOf": [
               {
@@ -5366,6 +5399,16 @@
             "title": "Push Available",
             "type": "boolean"
           },
+          "push_configured": {
+            "default": false,
+            "title": "Push Configured",
+            "type": "boolean"
+          },
+          "push_provider": {
+            "default": "none",
+            "title": "Push Provider",
+            "type": "string"
+          },
           "recovery_codes": {
             "anyOf": [
               {
@@ -5379,6 +5422,22 @@
               }
             ],
             "title": "Recovery Codes"
+          },
+          "setup_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Setup Key"
+          },
+          "shared_access_totp_only": {
+            "default": false,
+            "title": "Shared Access Totp Only",
+            "type": "boolean"
           },
           "subject_id": {
             "title": "Subject Id",
@@ -5411,6 +5470,17 @@
               }
             ],
             "title": "Code"
+          },
+          "email_challenge_token": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email Challenge Token"
           },
           "email_code": {
             "anyOf": [
@@ -10937,6 +11007,24 @@
     "/v1/auth/mfa/challenge": {
       "get": {
         "operationId": "mfa_challenge_v1_auth_mfa_challenge_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "email_challenge_token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Email Challenge Token"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "content": {
@@ -10947,6 +11035,16 @@
               }
             },
             "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
           }
         },
         "security": [
@@ -10963,16 +11061,60 @@
     "/v1/auth/mfa/push/callback": {
       "get": {
         "operationId": "mfa_push_callback_v1_auth_mfa_push_callback_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "state",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "State"
+            }
+          },
+          {
+            "in": "query",
+            "name": "duo_code",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Duo Code"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/MfaPushStartResponse"
+                  "$ref": "#/components/schemas/AuthSessionResponse"
                 }
               }
             },
             "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
           }
         },
         "security": [

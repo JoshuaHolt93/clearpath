@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import hmac
 import logging
 import secrets
 from datetime import timedelta
@@ -22,12 +23,15 @@ from app.core.security import (
 from app.dependencies import Principal
 from app.models import HouseholdInvite, HouseholdMember, LoginAttempt, OnboardingProfile, User, utc_now
 from app.schemas.auth import AuthSessionResponse, SessionPrincipal, UserSummary
+from app.services.email_service import email_delivery_configured, send_transactional_email
+from app.services.mfa_push_service import push_mfa_available, push_mfa_status
 
 ETHICS_POLICY_VERSION = "2026-01"
 HOUSEHOLD_ROLE_EDITOR = "editor"
 HOUSEHOLD_ROLE_VIEWER = "viewer"
 LOGIN_WINDOW = timedelta(minutes=15)
 MAX_LOGIN_ATTEMPTS = 5
+MFA_EMAIL_CODE_TTL_MINUTES = 10
 
 logger = logging.getLogger(__name__)
 
@@ -260,20 +264,145 @@ def should_mark_mfa_verified(subject: User | HouseholdMember, settings: Settings
     return (not settings.mfa_required) or mfa_setup_is_skipped(subject)
 
 
+def _mfa_subject_type(subject: User | HouseholdMember) -> str:
+    return "household_member" if isinstance(subject, HouseholdMember) else "user"
+
+
+def _mfa_subject_key(subject: User | HouseholdMember) -> str:
+    return f"{_mfa_subject_type(subject)}:{int(subject.id)}"
+
+
+def _mfa_secret_fingerprint(secret: str | None) -> str:
+    return hashlib.sha256((secret or "").encode("utf-8")).hexdigest()
+
+
+def _mfa_email_code_hash(subject: User | HouseholdMember, purpose: str, code: str) -> str:
+    payload = f"{_mfa_subject_key(subject)}:{purpose}:{(code or '').strip()}".encode("utf-8")
+    secret = get_settings().secret_key.encode("utf-8")
+    return hmac.new(secret, payload, hashlib.sha256).hexdigest()
+
+
+def mfa_subject_allows_push(subject: User | HouseholdMember) -> bool:
+    return not isinstance(subject, HouseholdMember)
+
+
+def mfa_push_status_for_subject(subject: User | HouseholdMember) -> dict:
+    provider_status = push_mfa_status()
+    if mfa_subject_allows_push(subject):
+        return {**provider_status, "shared_access_totp_only": False}
+    return {
+        **provider_status,
+        "available": False,
+        "configured": False,
+        "shared_access_totp_only": True,
+    }
+
+
+def send_mfa_email_code(subject: User | HouseholdMember, purpose: str) -> tuple[bool, str | None, str | None]:
+    if purpose not in {"setup", "verify"}:
+        raise ValueError("Unsupported MFA email-code purpose.")
+    if not email_delivery_configured():
+        return False, "email_mfa_not_configured", None
+
+    code = f"{secrets.randbelow(1_000_000):06d}"
+    result = send_transactional_email(
+        to_email=subject.email,
+        subject="Your ClearPath Finance verification code",
+        text_body=(
+            f"Your ClearPath Finance verification code is {code}.\n\n"
+            "This code expires in 10 minutes. If you did not request this code, sign in and change your password."
+        ),
+    )
+    if not result.sent:
+        logger.error(
+            "Email MFA code could not be sent. subject_type=%s subject_id=%s reason=%s",
+            _mfa_subject_type(subject),
+            int(subject.id),
+            result.reason,
+        )
+        return False, result.reason or "email_delivery_failed", None
+
+    challenge_token = create_purpose_token(
+        purpose="mfa_email_challenge",
+        subject=_mfa_subject_key(subject),
+        minutes=MFA_EMAIL_CODE_TTL_MINUTES,
+        extra={
+            "challenge_purpose": purpose,
+            "code_hash": _mfa_email_code_hash(subject, purpose, code),
+        },
+    )
+    return True, None, challenge_token
+
+
+def verify_mfa_email_code(
+    subject: User | HouseholdMember,
+    *,
+    purpose: str,
+    code: str | None,
+    challenge_token: str | None,
+) -> bool:
+    challenge = mfa_email_challenge_for(subject, purpose=purpose, challenge_token=challenge_token)
+    if not challenge:
+        return False
+    expected = str(challenge.get("code_hash") or "")
+    actual = _mfa_email_code_hash(subject, purpose, code or "")
+    return bool(expected and hmac.compare_digest(expected, actual))
+
+
+def mfa_email_challenge_for(
+    subject: User | HouseholdMember,
+    *,
+    purpose: str,
+    challenge_token: str | None,
+) -> dict | None:
+    if not challenge_token:
+        return None
+    try:
+        challenge = decode_purpose_token(challenge_token, purpose="mfa_email_challenge")
+    except Exception:
+        return None
+    if challenge.get("sub") != _mfa_subject_key(subject) or challenge.get("challenge_purpose") != purpose:
+        return None
+    return challenge
+
+
+def _ensure_mfa_attempt_allowed(db: Session, subject: User | HouseholdMember, source_addr: str | None) -> None:
+    if too_many_login_attempts(db, subject.email, "mfa", source_addr):
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Too many failed MFA attempts. Please wait a few minutes and try again.",
+        )
+
+
+def _record_invalid_mfa_attempt(db: Session, subject: User | HouseholdMember, source_addr: str | None) -> None:
+    record_failed_login(db, subject.email, "mfa", source_addr)
+
+
+def _clear_mfa_attempts(db: Session, subject: User | HouseholdMember, source_addr: str | None) -> None:
+    clear_failed_logins(db, subject.email, "mfa", source_addr)
+
+
 def setup_response_for_pending(principal: Principal, db: Session) -> dict:
     subject = principal.subject
+    if subject.mfa_enabled:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="MFA is already enabled; verification is required.")
     secret = subject.ensure_mfa_secret()
     db.commit()
+    push_status = mfa_push_status_for_subject(subject)
     return {
         "subject_type": principal.subject_type,
         "subject_id": principal.subject_id,
         "email": subject.email,
         "mfa_enabled": bool(subject.mfa_enabled),
         "preferred_method": subject.mfa_preferred_method or "totp",
-        "provisioning_uri": None if subject.mfa_enabled else totp_provisioning_uri(email=subject.email, secret=secret),
+        "setup_key": secret,
+        "provisioning_uri": totp_provisioning_uri(email=subject.email, secret=secret),
         "mobile_setup_token": create_mfa_setup_token(principal),
-        "push_available": False,
-        "email_available": False,
+        "push_available": bool(push_status["available"]),
+        "push_provider": str(push_status["provider"]),
+        "push_configured": bool(push_status["configured"]),
+        "shared_access_totp_only": bool(push_status["shared_access_totp_only"]),
+        "email_available": email_delivery_configured(),
         "recovery_codes": None,
     }
 
@@ -283,7 +412,11 @@ def create_mfa_setup_token(principal: Principal) -> str:
         purpose="mfa_setup",
         subject=f"{principal.subject_type}:{principal.subject_id}",
         minutes=15,
-        extra={"subject_type": principal.subject_type, "subject_id": principal.subject_id},
+        extra={
+            "subject_type": principal.subject_type,
+            "subject_id": principal.subject_id,
+            "secret_fingerprint": _mfa_secret_fingerprint(principal.subject.mfa_secret),
+        },
     )
 
 
@@ -293,26 +426,73 @@ def resolve_mfa_setup_token(db: Session, token: str) -> User | HouseholdMember |
     except Exception:
         return None
     subject_type = payload.get("subject_type")
-    subject_id = int(payload.get("subject_id") or 0)
+    try:
+        subject_id = int(payload.get("subject_id") or 0)
+    except (TypeError, ValueError):
+        return None
     if subject_type == "household_member":
-        return db.get(HouseholdMember, subject_id)
-    if subject_type == "user":
-        return db.get(User, subject_id)
-    return None
+        subject = db.get(HouseholdMember, subject_id)
+    elif subject_type == "user":
+        subject = db.get(User, subject_id)
+    else:
+        return None
+    if not subject or subject.mfa_enabled:
+        return None
+    if payload.get("secret_fingerprint") != _mfa_secret_fingerprint(subject.mfa_secret):
+        return None
+    return subject
 
 
-def confirm_totp_setup(principal: Principal, db: Session, *, code: str | None, push_opt_in: bool) -> tuple[list[str], bool]:
+def confirm_totp_setup(
+    principal: Principal,
+    db: Session,
+    *,
+    code: str | None,
+    push_opt_in: bool,
+    source_addr: str | None,
+) -> tuple[list[str], bool]:
     subject = principal.subject
+    _ensure_mfa_attempt_allowed(db, subject, source_addr)
     secret = subject.ensure_mfa_secret()
     if not verify_totp_code(secret, code):
+        _record_invalid_mfa_attempt(db, subject, source_addr)
         raise HTTPException(status_code=422, detail="Invalid authentication code.")
     recovery_codes = subject.generate_mfa_recovery_codes()
     subject.mfa_enabled = True
     subject.mfa_confirmed_at = utc_now()
-    subject.mfa_push_enabled = False
-    subject.mfa_preferred_method = "totp"
+    subject.mfa_push_enabled = bool(push_opt_in and mfa_subject_allows_push(subject) and push_mfa_available())
+    subject.mfa_preferred_method = "push" if subject.mfa_push_enabled else "totp"
     db.commit()
+    _clear_mfa_attempts(db, subject, source_addr)
     return recovery_codes, True
+
+
+def confirm_email_setup(
+    principal: Principal,
+    db: Session,
+    *,
+    code: str | None,
+    challenge_token: str | None,
+    source_addr: str | None,
+) -> list[str]:
+    subject = principal.subject
+    _ensure_mfa_attempt_allowed(db, subject, source_addr)
+    if not verify_mfa_email_code(
+        subject,
+        purpose="setup",
+        code=code,
+        challenge_token=challenge_token,
+    ):
+        _record_invalid_mfa_attempt(db, subject, source_addr)
+        raise HTTPException(status_code=422, detail="Invalid or expired email code.")
+    recovery_codes = subject.generate_mfa_recovery_codes()
+    subject.mfa_enabled = True
+    subject.mfa_confirmed_at = utc_now()
+    subject.mfa_push_enabled = False
+    subject.mfa_preferred_method = "email"
+    db.commit()
+    _clear_mfa_attempts(db, subject, source_addr)
+    return recovery_codes
 
 
 def skip_mfa_setup(principal: Principal, db: Session) -> None:
@@ -322,22 +502,50 @@ def skip_mfa_setup(principal: Principal, db: Session) -> None:
     db.commit()
 
 
-def verify_mfa(principal: Principal, db: Session, *, code: str | None) -> None:
+def verify_mfa(principal: Principal, db: Session, *, code: str | None, source_addr: str | None) -> None:
     subject = principal.subject
     if not subject.mfa_enabled:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="MFA setup is required.")
+    _ensure_mfa_attempt_allowed(db, subject, source_addr)
     if not verify_totp_code(subject.mfa_secret, code):
+        _record_invalid_mfa_attempt(db, subject, source_addr)
         raise HTTPException(status_code=422, detail="Invalid authentication code.")
-    db.commit()
+    _clear_mfa_attempts(db, subject, source_addr)
 
 
-def verify_recovery_code(principal: Principal, db: Session, *, code: str | None) -> None:
+def verify_email_mfa(
+    principal: Principal,
+    db: Session,
+    *,
+    code: str | None,
+    challenge_token: str | None,
+    source_addr: str | None,
+) -> None:
     subject = principal.subject
     if not subject.mfa_enabled:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="MFA setup is required.")
+    _ensure_mfa_attempt_allowed(db, subject, source_addr)
+    if not verify_mfa_email_code(
+        subject,
+        purpose="verify",
+        code=code,
+        challenge_token=challenge_token,
+    ):
+        _record_invalid_mfa_attempt(db, subject, source_addr)
+        raise HTTPException(status_code=422, detail="Invalid or expired email code.")
+    _clear_mfa_attempts(db, subject, source_addr)
+
+
+def verify_recovery_code(principal: Principal, db: Session, *, code: str | None, source_addr: str | None) -> None:
+    subject = principal.subject
+    if not subject.mfa_enabled:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="MFA setup is required.")
+    _ensure_mfa_attempt_allowed(db, subject, source_addr)
     if not subject.verify_mfa_recovery_code(code):
+        _record_invalid_mfa_attempt(db, subject, source_addr)
         raise HTTPException(status_code=422, detail="Invalid recovery code.")
     db.commit()
+    _clear_mfa_attempts(db, subject, source_addr)
 
 
 def password_reset_token_for(user: User) -> str:
@@ -412,8 +620,6 @@ def create_invite(owner: User, email: str, role: str, *, db: Session) -> tuple[H
     db.commit()
     db.refresh(invite)
     return invite, token
-
-
 
 
 

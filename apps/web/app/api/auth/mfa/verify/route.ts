@@ -6,6 +6,9 @@ import {
   clearPathApiClient,
   forwardedSessionHeaders,
   jsonWithSessionCookie,
+  MFA_EMAIL_CHALLENGE_COOKIE,
+  requestCookieValue,
+  setMfaEmailChallengeCookie,
 } from "@/lib/server-api";
 
 export const runtime = "nodejs";
@@ -30,7 +33,13 @@ export async function POST(request: Request) {
   const client = clearPathApiClient();
   try {
     const { data, error, response } = await client.POST("/v1/auth/mfa/verify", {
-      body: parsed.data,
+      body: {
+        ...parsed.data,
+        email_challenge_token:
+          parsed.data.method === "email"
+            ? requestCookieValue(request, MFA_EMAIL_CHALLENGE_COOKIE)
+            : undefined,
+      },
       headers: forwardedSessionHeaders(request),
     });
     if (!response.ok || !data) {
@@ -47,7 +56,9 @@ export async function POST(request: Request) {
         { status: 502 },
       );
     }
-    return jsonWithSessionCookie(result.data, response);
+    const webResponse = jsonWithSessionCookie(result.data, response);
+    setMfaEmailChallengeCookie(webResponse, null);
+    return webResponse;
   } catch {
     return NextResponse.json(
       { message: "ClearPath is temporarily unavailable. Please try again." },

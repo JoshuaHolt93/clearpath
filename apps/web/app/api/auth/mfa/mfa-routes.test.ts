@@ -49,6 +49,7 @@ describe("MFA API proxies", () => {
     });
     expect(apiGet).toHaveBeenCalledWith("/v1/auth/mfa/challenge", {
       headers: { cookie: "clearpath_session=pending-token" },
+      params: { query: { email_challenge_token: undefined } },
     });
   });
 
@@ -79,8 +80,62 @@ describe("MFA API proxies", () => {
     expect(await response.json()).toEqual({ nextStep: "dashboard" });
     expect(response.headers.get("set-cookie")).toContain("full-session-token");
     expect(apiPost).toHaveBeenCalledWith("/v1/auth/mfa/verify", {
-      body: { method: "totp", code: "123456" },
+      body: { method: "totp", code: "123456", email_challenge_token: undefined },
       headers: { cookie: "clearpath_session=pending-token" },
+    });
+  });
+
+  it("keeps the email challenge in an httpOnly cookie and forwards it for verification", async () => {
+    apiGet.mockResolvedValue({
+      data: {
+        subject_type: "user",
+        subject_id: 3,
+        email: "person@example.com",
+        preferred_method: "email",
+        push_available: false,
+        email_available: true,
+        email_challenge_sent: true,
+        email_challenge_token: "signed-email-challenge",
+      },
+      error: undefined,
+      response: new Response(null, { status: 200 }),
+    });
+    const challengeResponse = await getChallenge(
+      new Request("http://localhost/api/auth/mfa/challenge", {
+        headers: { cookie: "clearpath_session=pending-token" },
+      }),
+    );
+    expect(await challengeResponse.json()).not.toHaveProperty("emailChallengeToken");
+    expect(challengeResponse.headers.get("set-cookie")).toContain("HttpOnly");
+    expect(challengeResponse.headers.get("set-cookie")).toContain("signed-email-challenge");
+
+    apiPost.mockResolvedValue({
+      data: { access_token: "full-session-token", next_step: "dashboard" },
+      error: undefined,
+      response: new Response(null, {
+        status: 200,
+        headers: { "set-cookie": "clearpath_session=full-session-token; HttpOnly" },
+      }),
+    });
+    await postVerify(
+      new Request("http://localhost/api/auth/mfa/verify", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          cookie: "clearpath_session=pending-token; clearpath_mfa_email_challenge=signed-email-challenge",
+        },
+        body: JSON.stringify({ method: "email", email_code: "654321" }),
+      }),
+    );
+    expect(apiPost).toHaveBeenLastCalledWith("/v1/auth/mfa/verify", {
+      body: {
+        method: "email",
+        email_code: "654321",
+        email_challenge_token: "signed-email-challenge",
+      },
+      headers: {
+        cookie: "clearpath_session=pending-token; clearpath_mfa_email_challenge=signed-email-challenge",
+      },
     });
   });
 

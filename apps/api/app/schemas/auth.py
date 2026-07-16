@@ -80,9 +80,13 @@ class MfaSetupResponse(BaseModel):
     email: str
     mfa_enabled: bool
     preferred_method: str
+    setup_key: str | None = None
     provisioning_uri: str | None = None
     mobile_setup_token: str | None = None
     push_available: bool = False
+    push_provider: str = "none"
+    push_configured: bool = False
+    shared_access_totp_only: bool = False
     email_available: bool = False
     recovery_codes: list[str] | None = None
 
@@ -91,6 +95,7 @@ class MfaSetupConfirmRequest(BaseModel):
     action: str = Field(default="verify_totp", pattern="^(verify_totp|skip|confirm_email_code)$")
     code: str | None = None
     email_code: str | None = None
+    email_challenge_token: str | None = None
     mfa_push_opt_in: bool = False
 
 
@@ -101,6 +106,7 @@ class MfaEmailCodeSendRequest(BaseModel):
 class MfaEmailCodeSendResponse(BaseModel):
     sent: bool
     reason: str | None = None
+    challenge_token: str | None = None
 
 
 class MfaChallengeResponse(BaseModel):
@@ -111,12 +117,14 @@ class MfaChallengeResponse(BaseModel):
     push_available: bool
     email_available: bool
     email_challenge_sent: bool = False
+    email_challenge_token: str | None = None
 
 
 class MfaVerifyRequest(BaseModel):
     method: str = Field(default="totp", pattern="^(totp|email|push)$")
     code: str | None = None
     email_code: str | None = None
+    email_challenge_token: str | None = None
 
 
 class MfaRecoveryChallengeResponse(BaseModel):

@@ -3,6 +3,8 @@
 import {
   loginResultSchema,
   mfaChallengeSchema,
+  mfaEmailCodeResultSchema,
+  mfaPushStartSchema,
   mfaVerifyRequestSchema,
   type MfaChallenge,
 } from "@clearpath/validation";
@@ -27,7 +29,10 @@ export function MfaVerifyPanel() {
   const [challenge, setChallenge] = useState<MfaChallenge | null>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [startingPush, setStartingPush] = useState(false);
+  const [sendingEmail, setSendingEmail] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -106,6 +111,54 @@ export function MfaVerifyPanel() {
     }
   }
 
+  async function startPushApproval() {
+    setStartingPush(true);
+    setError(null);
+    setNotice(null);
+    try {
+      const response = await fetch("/api/auth/mfa/push/start", { method: "POST" });
+      const payload: unknown = await response.json();
+      if (!response.ok) {
+        setError(messageFrom(payload, "Push approval could not be started."));
+        return;
+      }
+      const result = mfaPushStartSchema.safeParse(payload);
+      if (!result.success || !result.data.pushAvailable || !result.data.authorizationUrl) {
+        setError("Push approval is temporarily unavailable. Use your authenticator code to continue.");
+        return;
+      }
+      window.location.assign(result.data.authorizationUrl);
+    } catch {
+      setError("ClearPath is temporarily unavailable. Please try again.");
+    } finally {
+      setStartingPush(false);
+    }
+  }
+
+  async function sendNewEmailCode() {
+    setSendingEmail(true);
+    setError(null);
+    setNotice(null);
+    try {
+      const response = await fetch("/api/auth/mfa/email-code", { method: "POST" });
+      const payload: unknown = await response.json();
+      if (!response.ok) {
+        setError(messageFrom(payload, "A new email verification code could not be sent."));
+        return;
+      }
+      const result = mfaEmailCodeResultSchema.safeParse(payload);
+      if (!result.success || !result.data.sent) {
+        setError("Email code could not be sent right now. Use a recovery code or try again.");
+        return;
+      }
+      setNotice(`A new verification code was sent to ${challenge?.email ?? "your email"}.`);
+    } catch {
+      setError("ClearPath is temporarily unavailable. Please try again.");
+    } finally {
+      setSendingEmail(false);
+    }
+  }
+
   if (loading) {
     return <p className="pending-status" role="status">Loading verification options...</p>;
   }
@@ -126,11 +179,17 @@ export function MfaVerifyPanel() {
   return (
     <>
       {error ? <div className="alert alert-error" role="alert">{error}</div> : null}
-      {pushMethod ? (
+      {notice ? <div className="alert alert-info" role="status">{notice}</div> : null}
+      {pushMethod && challenge.pushAvailable ? (
+        <div className="push-approval-block">
+          <button type="button" className="btn btn-primary" onClick={startPushApproval} disabled={startingPush}>
+            {startingPush ? "Starting Push..." : "Send Push Approval"}
+          </button>
+          <p>Approve the Duo prompt on your mobile device, or use an authenticator code below.</p>
+        </div>
+      ) : pushMethod ? (
         <div className="alert alert-warning">
-          {challenge.pushAvailable
-            ? "Approve the push prompt on your mobile device, or use an authenticator code below."
-            : "Push approval is temporarily unavailable. Use your authenticator code to continue."}
+          Push approval is temporarily unavailable. Use your authenticator code to continue.
         </div>
       ) : null}
       {methodUnavailable ? (
@@ -141,7 +200,7 @@ export function MfaVerifyPanel() {
         <>
           {emailMethod ? (
             <p className="panel-intro">
-              We sent a short-lived code to <strong>{challenge.email}</strong>. Enter it below to finish signing in.
+              {challenge.emailChallengeSent ? "We sent" : "Enter"} a short-lived code for <strong>{challenge.email}</strong> to finish signing in.
             </p>
           ) : null}
           <form onSubmit={handleSubmit} noValidate>
@@ -164,6 +223,16 @@ export function MfaVerifyPanel() {
               {submitting ? "Verifying..." : "Verify And Continue"}
             </button>
           </form>
+          {emailMethod ? (
+            <button
+              type="button"
+              className="btn btn-secondary resend-code-button"
+              onClick={sendNewEmailCode}
+              disabled={sendingEmail || submitting}
+            >
+              {sendingEmail ? "Sending Code..." : "Send A New Code"}
+            </button>
+          ) : null}
         </>
       )}
       <p className="panel-footnote">

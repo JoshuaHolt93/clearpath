@@ -41,28 +41,40 @@ from app.schemas.auth import (
 from app.services.auth_service import (
     accept_household_invite,
     authenticate_principal,
+    clear_failed_logins,
+    confirm_email_setup,
     confirm_totp_setup,
     invite_from_token,
     invite_is_usable,
     issue_auth_response,
+    mfa_email_challenge_for,
+    mfa_push_status_for_subject,
     password_reset_token_for,
     record_failed_login,
     register_user,
     resolve_mfa_setup_token,
     setup_response_for_pending,
+    send_mfa_email_code,
     should_mark_mfa_verified,
     skip_mfa_setup,
     too_many_login_attempts,
     user_from_password_reset_token,
     verify_mfa,
+    verify_email_mfa,
     verify_recovery_code,
 )
+from app.services.email_service import email_delivery_configured
+from app.services.mfa_push_service import PushMFAError, complete_push_mfa, start_push_mfa
 
 router = APIRouter(tags=["auth"])
 
 
 def _source_addr(request: Request) -> str | None:
     return request.client.host if request.client else None
+
+
+def _duo_redirect_uri(request: Request) -> str:
+    return get_settings().duo_redirect_uri or str(request.url_for("mfa_push_callback"))
 
 
 @router.post("/auth/register", response_model=AuthSessionResponse, status_code=status.HTTP_201_CREATED)
@@ -114,6 +126,7 @@ def mfa_setup(principal: Annotated[Principal, Depends(require_pending_auth)], db
 @router.post("/auth/mfa/setup", response_model=AuthSessionResponse)
 def mfa_setup_confirm(
     payload: MfaSetupConfirmRequest,
+    request: Request,
     response: Response,
     principal: Annotated[Principal, Depends(require_pending_auth)],
     db: Annotated[Session, Depends(get_db)],
@@ -122,9 +135,23 @@ def mfa_setup_confirm(
     if payload.action == "skip":
         skip_mfa_setup(principal, db)
     elif payload.action == "verify_totp":
-        recovery_codes, _ = confirm_totp_setup(principal, db, code=payload.code, push_opt_in=payload.mfa_push_opt_in)
+        recovery_codes, _ = confirm_totp_setup(
+            principal,
+            db,
+            code=payload.code,
+            push_opt_in=payload.mfa_push_opt_in,
+            source_addr=_source_addr(request),
+        )
+    elif payload.action == "confirm_email_code":
+        recovery_codes = confirm_email_setup(
+            principal,
+            db,
+            code=payload.email_code,
+            challenge_token=payload.email_challenge_token,
+            source_addr=_source_addr(request),
+        )
     else:
-        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Email code MFA is not configured in Phase 1.")
+        raise HTTPException(status_code=422, detail="Unsupported MFA setup action.")
     return issue_auth_response(
         user=principal.user,
         household_member=principal.household_member,
@@ -140,7 +167,12 @@ def mfa_setup_email_code(
     payload: MfaEmailCodeSendRequest,
     principal: Annotated[Principal, Depends(require_pending_auth)],
 ) -> MfaEmailCodeSendResponse:
-    return MfaEmailCodeSendResponse(sent=False, reason="email_mfa_not_configured")
+    if principal.subject.mfa_enabled and payload.purpose == "setup":
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="MFA is already enabled; verification is required.")
+    if not principal.subject.mfa_enabled and payload.purpose == "verify":
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="MFA setup is required.")
+    sent, reason, challenge_token = send_mfa_email_code(principal.subject, payload.purpose)
+    return MfaEmailCodeSendResponse(sent=sent, reason=reason, challenge_token=challenge_token)
 
 
 @router.get("/auth/mfa/setup/mobile/{token}", response_model=MfaMobileSetupResponse)
@@ -160,31 +192,63 @@ def mfa_mobile_setup(token: str, db: Annotated[Session, Depends(get_db)]) -> Mfa
 
 
 @router.get("/auth/mfa/challenge", response_model=MfaChallengeResponse)
-def mfa_challenge(principal: Annotated[Principal, Depends(require_pending_auth)]) -> MfaChallengeResponse:
+def mfa_challenge(
+    principal: Annotated[Principal, Depends(require_pending_auth)],
+    email_challenge_token: str | None = None,
+) -> MfaChallengeResponse:
     subject = principal.subject
     if not subject.mfa_enabled:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="MFA setup is required.")
+    preferred_method = (subject.mfa_preferred_method or "totp").lower()
+    email_challenge_sent = False
+    active_email_challenge_token = None
+    if preferred_method == "email":
+        if mfa_email_challenge_for(
+            subject,
+            purpose="verify",
+            challenge_token=email_challenge_token,
+        ):
+            email_challenge_sent = True
+            active_email_challenge_token = email_challenge_token
+        else:
+            email_challenge_sent, _, active_email_challenge_token = send_mfa_email_code(subject, "verify")
+    push_status = mfa_push_status_for_subject(subject)
     return MfaChallengeResponse(
         subject_type=principal.subject_type,
         subject_id=principal.subject_id,
         email=subject.email,
-        preferred_method=subject.mfa_preferred_method or "totp",
-        push_available=False,
-        email_available=False,
-        email_challenge_sent=False,
+        preferred_method=preferred_method,
+        push_available=bool(
+            subject.mfa_push_enabled
+            and preferred_method == "push"
+            and push_status["available"]
+        ),
+        email_available=email_delivery_configured(),
+        email_challenge_sent=email_challenge_sent,
+        email_challenge_token=active_email_challenge_token,
     )
 
 
 @router.post("/auth/mfa/verify", response_model=AuthSessionResponse)
 def mfa_verify(
     payload: MfaVerifyRequest,
+    request: Request,
     response: Response,
     principal: Annotated[Principal, Depends(require_pending_auth)],
     db: Annotated[Session, Depends(get_db)],
 ) -> AuthSessionResponse:
-    if payload.method != "totp":
-        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Only authenticator-code MFA is available in Phase 1.")
-    verify_mfa(principal, db, code=payload.code)
+    if payload.method == "totp":
+        verify_mfa(principal, db, code=payload.code, source_addr=_source_addr(request))
+    elif payload.method == "email":
+        verify_email_mfa(
+            principal,
+            db,
+            code=payload.email_code,
+            challenge_token=payload.email_challenge_token,
+            source_addr=_source_addr(request),
+        )
+    else:
+        raise HTTPException(status_code=422, detail="Use the push callback endpoint to complete push MFA.")
     return issue_auth_response(
         user=principal.user,
         household_member=principal.household_member,
@@ -197,29 +261,71 @@ def mfa_verify(
 @router.post("/auth/mfa/push/start", response_model=MfaPushStartResponse)
 def mfa_push_start(
     payload: MfaPushStartRequest,
+    request: Request,
     principal: Annotated[Principal, Depends(require_pending_auth)],
 ) -> MfaPushStartResponse:
-    return MfaPushStartResponse(push_available=False, fallback="totp", reason="push_mfa_not_configured")
+    subject = principal.subject
+    push_status = mfa_push_status_for_subject(subject)
+    if not subject.mfa_enabled:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="MFA setup is required.")
+    if not subject.mfa_push_enabled or (subject.mfa_preferred_method or "").lower() != "push":
+        return MfaPushStartResponse(push_available=False, fallback="totp", reason="push_mfa_not_enabled")
+    if not push_status["available"]:
+        return MfaPushStartResponse(push_available=False, fallback="totp", reason="push_mfa_not_configured")
+    try:
+        authorization_url = start_push_mfa(subject, redirect_uri=_duo_redirect_uri(request))
+    except PushMFAError:
+        return MfaPushStartResponse(push_available=False, fallback="totp", reason="push_mfa_start_failed")
+    return MfaPushStartResponse(push_available=True, authorization_url=authorization_url)
 
 
-@router.get("/auth/mfa/push/callback", response_model=MfaPushStartResponse)
-def mfa_push_callback(principal: Annotated[Principal, Depends(require_pending_auth)]) -> MfaPushStartResponse:
-    return MfaPushStartResponse(push_available=False, fallback="totp", reason="push_mfa_not_configured")
+@router.get("/auth/mfa/push/callback", response_model=AuthSessionResponse)
+def mfa_push_callback(
+    request: Request,
+    response: Response,
+    principal: Annotated[Principal, Depends(require_pending_auth)],
+    db: Annotated[Session, Depends(get_db)],
+    state: str | None = None,
+    duo_code: str | None = None,
+) -> AuthSessionResponse:
+    subject = principal.subject
+    if not subject.mfa_enabled:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="MFA setup is required.")
+    try:
+        complete_push_mfa(
+            subject,
+            state=state,
+            code=duo_code,
+            redirect_uri=_duo_redirect_uri(request),
+        )
+    except PushMFAError as exc:
+        raise HTTPException(status_code=422, detail="Push approval was not completed. Use your authenticator code to continue.") from exc
+    clear_failed_logins(db, subject.email, "mfa", _source_addr(request))
+    return issue_auth_response(
+        user=principal.user,
+        household_member=principal.household_member,
+        mfa_verified=True,
+        stay_signed_in=principal.stay_signed_in,
+        response=response,
+    )
 
 
 @router.get("/auth/mfa/recovery/challenge", response_model=MfaRecoveryChallengeResponse)
 def mfa_recovery_challenge(principal: Annotated[Principal, Depends(require_pending_auth)]) -> MfaRecoveryChallengeResponse:
+    if not principal.subject.mfa_enabled:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="MFA setup is required.")
     return MfaRecoveryChallengeResponse(available=True)
 
 
 @router.post("/auth/mfa/recovery", response_model=AuthSessionResponse)
 def mfa_recovery(
     payload: MfaRecoveryVerifyRequest,
+    request: Request,
     response: Response,
     principal: Annotated[Principal, Depends(require_pending_auth)],
     db: Annotated[Session, Depends(get_db)],
 ) -> AuthSessionResponse:
-    verify_recovery_code(principal, db, code=payload.recovery_code)
+    verify_recovery_code(principal, db, code=payload.recovery_code, source_addr=_source_addr(request))
     return issue_auth_response(
         user=principal.user,
         household_member=principal.household_member,

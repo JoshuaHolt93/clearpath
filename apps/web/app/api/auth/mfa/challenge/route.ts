@@ -5,6 +5,9 @@ import {
   apiErrorMessage,
   clearPathApiClient,
   forwardedSessionHeaders,
+  MFA_EMAIL_CHALLENGE_COOKIE,
+  requestCookieValue,
+  setMfaEmailChallengeCookie,
 } from "@/lib/server-api";
 
 export const runtime = "nodejs";
@@ -12,10 +15,16 @@ export const dynamic = "force-dynamic";
 
 export async function GET(request: Request) {
   const client = clearPathApiClient();
+  const emailChallengeToken = requestCookieValue(request, MFA_EMAIL_CHALLENGE_COOKIE);
 
   try {
     const { data, error, response } = await client.GET("/v1/auth/mfa/challenge", {
       headers: forwardedSessionHeaders(request),
+      params: {
+        query: {
+          email_challenge_token: emailChallengeToken ?? undefined,
+        },
+      },
     });
     if (!response.ok || !data) {
       return NextResponse.json(
@@ -41,6 +50,7 @@ export async function GET(request: Request) {
 
     const webResponse = NextResponse.json(challenge.data);
     webResponse.headers.set("cache-control", "no-store");
+    setMfaEmailChallengeCookie(webResponse, data.email_challenge_token);
     return webResponse;
   } catch {
     return NextResponse.json(

@@ -3228,6 +3228,8 @@ export interface components {
              * @default false
              */
             email_challenge_sent: boolean;
+            /** Email Challenge Token */
+            email_challenge_token?: string | null;
             /** Preferred Method */
             preferred_method: string;
             /** Push Available */
@@ -3247,6 +3249,8 @@ export interface components {
         };
         /** MfaEmailCodeSendResponse */
         MfaEmailCodeSendResponse: {
+            /** Challenge Token */
+            challenge_token?: string | null;
             /** Reason */
             reason?: string | null;
             /** Sent */
@@ -3307,6 +3311,8 @@ export interface components {
             action: string;
             /** Code */
             code?: string | null;
+            /** Email Challenge Token */
+            email_challenge_token?: string | null;
             /** Email Code */
             email_code?: string | null;
             /**
@@ -3337,8 +3343,25 @@ export interface components {
              * @default false
              */
             push_available: boolean;
+            /**
+             * Push Configured
+             * @default false
+             */
+            push_configured: boolean;
+            /**
+             * Push Provider
+             * @default none
+             */
+            push_provider: string;
             /** Recovery Codes */
             recovery_codes?: string[] | null;
+            /** Setup Key */
+            setup_key?: string | null;
+            /**
+             * Shared Access Totp Only
+             * @default false
+             */
+            shared_access_totp_only: boolean;
             /** Subject Id */
             subject_id: number;
             /** Subject Type */
@@ -3348,6 +3371,8 @@ export interface components {
         MfaVerifyRequest: {
             /** Code */
             code?: string | null;
+            /** Email Challenge Token */
+            email_challenge_token?: string | null;
             /** Email Code */
             email_code?: string | null;
             /**
@@ -5309,7 +5334,9 @@ export interface operations {
     };
     mfa_challenge_v1_auth_mfa_challenge_get: {
         parameters: {
-            query?: never;
+            query?: {
+                email_challenge_token?: string | null;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -5325,11 +5352,23 @@ export interface operations {
                     "application/json": components["schemas"]["MfaChallengeResponse"];
                 };
             };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
         };
     };
     mfa_push_callback_v1_auth_mfa_push_callback_get: {
         parameters: {
-            query?: never;
+            query?: {
+                state?: string | null;
+                duo_code?: string | null;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -5342,7 +5381,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["MfaPushStartResponse"];
+                    "application/json": components["schemas"]["AuthSessionResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
