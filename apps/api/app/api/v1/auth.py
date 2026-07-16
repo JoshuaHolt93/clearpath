@@ -86,7 +86,13 @@ def login(payload: LoginRequest, request: Request, response: Response, db: Annot
     user, household_member = authenticate_principal(db, email=payload.email, password=payload.password, source_addr=_source_addr(request))
     subject = household_member or user
     mfa_verified = should_mark_mfa_verified(subject)
-    return issue_auth_response(user=user, household_member=household_member, mfa_verified=mfa_verified, response=response)
+    return issue_auth_response(
+        user=user,
+        household_member=household_member,
+        mfa_verified=mfa_verified,
+        stay_signed_in=payload.stay_signed_in,
+        response=response,
+    )
 
 
 @router.delete("/auth/session", response_model=LogoutResponse)
@@ -123,6 +129,7 @@ def mfa_setup_confirm(
         user=principal.user,
         household_member=principal.household_member,
         mfa_verified=True,
+        stay_signed_in=principal.stay_signed_in,
         response=response,
         recovery_codes=recovery_codes,
     )
@@ -178,7 +185,13 @@ def mfa_verify(
     if payload.method != "totp":
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Only authenticator-code MFA is available in Phase 1.")
     verify_mfa(principal, db, code=payload.code)
-    return issue_auth_response(user=principal.user, household_member=principal.household_member, mfa_verified=True, response=response)
+    return issue_auth_response(
+        user=principal.user,
+        household_member=principal.household_member,
+        mfa_verified=True,
+        stay_signed_in=principal.stay_signed_in,
+        response=response,
+    )
 
 
 @router.post("/auth/mfa/push/start", response_model=MfaPushStartResponse)
@@ -207,7 +220,13 @@ def mfa_recovery(
     db: Annotated[Session, Depends(get_db)],
 ) -> AuthSessionResponse:
     verify_recovery_code(principal, db, code=payload.recovery_code)
-    return issue_auth_response(user=principal.user, household_member=principal.household_member, mfa_verified=True, response=response)
+    return issue_auth_response(
+        user=principal.user,
+        household_member=principal.household_member,
+        mfa_verified=True,
+        stay_signed_in=principal.stay_signed_in,
+        response=response,
+    )
 
 
 @router.post("/auth/password-reset/request", response_model=PasswordResetRequestResponse)

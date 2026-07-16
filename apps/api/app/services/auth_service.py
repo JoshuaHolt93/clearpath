@@ -114,6 +114,7 @@ def issue_auth_response(
     user: User,
     household_member: HouseholdMember | None = None,
     mfa_verified: bool,
+    stay_signed_in: bool = False,
     response: Response | None = None,
     recovery_codes: list[str] | None = None,
 ) -> AuthSessionResponse:
@@ -125,16 +126,23 @@ def issue_auth_response(
         household_member_id=household_member.id if household_member else None,
         household_role=household_member.role if household_member else None,
         mfa_verified=mfa_verified,
+        stay_signed_in=stay_signed_in,
     )
     if response is not None:
         settings = get_settings()
+        if not mfa_verified:
+            cookie_max_age = settings.pending_session_minutes * 60
+        elif stay_signed_in:
+            cookie_max_age = settings.stay_signed_in_days * 24 * 60 * 60
+        else:
+            cookie_max_age = None
         response.set_cookie(
             settings.session_cookie_name,
             token,
             httponly=True,
             secure=settings.is_production,
             samesite="lax",
-            max_age=(settings.session_minutes if mfa_verified else settings.pending_session_minutes) * 60,
+            max_age=cookie_max_age,
         )
     principal = SessionPrincipal(
         user_id=user.id,
@@ -143,6 +151,7 @@ def issue_auth_response(
         household_member_id=household_member.id if household_member else None,
         household_role=household_member.role if household_member else None,
         mfa_verified=mfa_verified,
+        stay_signed_in=stay_signed_in,
     )
     return AuthSessionResponse(
         access_token=token,

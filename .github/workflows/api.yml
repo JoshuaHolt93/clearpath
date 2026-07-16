@@ -28,6 +28,41 @@ jobs:
       - name: Test shared domain
         run: pnpm --filter @clearpath/domain test
 
+  web:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Node.js 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
+      - name: Enable pnpm
+        run: corepack enable
+
+      - name: Install workspace dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Type-check shared web packages
+        run: |
+          pnpm --filter @clearpath/api-client typecheck
+          pnpm --filter @clearpath/validation typecheck
+          pnpm --filter @clearpath/design-tokens typecheck
+
+      - name: Type-check web
+        run: pnpm --filter @clearpath/web typecheck
+
+      - name: Lint web
+        run: pnpm --filter @clearpath/web lint
+
+      - name: Test web
+        run: pnpm --filter @clearpath/web test
+
+      - name: Build web
+        run: pnpm --filter @clearpath/web build
+
   test:
     runs-on: ubuntu-latest
 

@@ -25,6 +25,7 @@ class Principal:
     household_member: HouseholdMember | None
     household_role: str | None
     mfa_verified: bool
+    stay_signed_in: bool
 
     @property
     def is_shared_session(self) -> bool:
@@ -76,6 +77,7 @@ def get_principal(
         household_member=household_member,
         household_role=payload.get("household_role"),
         mfa_verified=bool(payload.get("mfa_verified")),
+        stay_signed_in=bool(payload.get("stay_signed_in")),
     )
 
 

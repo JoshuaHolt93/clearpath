@@ -2,7 +2,7 @@
 
 from urllib.parse import parse_qs, urlparse
 
-from app.core.security import totp_code
+from app.core.security import decode_token, totp_code
 from app.models import HouseholdMember, OnboardingProfile, User
 
 VALID_PASSWORD = "CorrectHorse1!"
@@ -56,6 +56,64 @@ def test_register_returns_pending_token_and_mfa_verify_mints_full_session(client
     me = client.get("/v1/me", headers=auth_header(full["access_token"]))
     assert me.status_code == 200
     assert me.json()["email"] == "user@example.com"
+
+
+def test_stay_signed_in_survives_pending_mfa_and_controls_full_cookie_lifetime(client):
+    registered = client.post("/v1/auth/register", json=register_payload("persistent@example.com"))
+    pending = registered.json()
+    setup = client.get("/v1/auth/mfa/setup", headers=auth_header(pending["access_token"])).json()
+    secret = parse_qs(urlparse(setup["provisioning_uri"]).query)["secret"][0]
+    completed = client.post(
+        "/v1/auth/mfa/setup",
+        headers=auth_header(pending["access_token"]),
+        json={"action": "verify_totp", "code": totp_code(secret)},
+    )
+    assert completed.status_code == 200
+
+    persistent = client.post(
+        "/v1/auth/login",
+        json={"email": "persistent@example.com", "password": VALID_PASSWORD, "stay_signed_in": True},
+    )
+    assert persistent.status_code == 200
+    pending_body = persistent.json()
+    assert pending_body["principal"]["stay_signed_in"] is True
+    pending_claim = decode_token(pending_body["access_token"])
+    assert pending_claim["stay_signed_in"] is True
+    assert pending_claim["mfa_verified"] is False
+    assert pending_claim["exp"] - pending_claim["iat"] == 15 * 60
+    assert "max-age=900" in persistent.headers["set-cookie"].lower()
+
+    verified = client.post(
+        "/v1/auth/mfa/verify",
+        headers=auth_header(pending_body["access_token"]),
+        json={"method": "totp", "code": totp_code(secret)},
+    )
+    assert verified.status_code == 200
+    full_body = verified.json()
+    full_claim = decode_token(full_body["access_token"])
+    assert full_body["principal"]["stay_signed_in"] is True
+    assert full_claim["stay_signed_in"] is True
+    assert full_claim["exp"] - full_claim["iat"] == 30 * 24 * 60 * 60
+    assert "max-age=2592000" in verified.headers["set-cookie"].lower()
+
+    browser_session = client.post(
+        "/v1/auth/login",
+        json={"email": "persistent@example.com", "password": VALID_PASSWORD, "stay_signed_in": False},
+    )
+    assert browser_session.status_code == 200
+    browser_pending = browser_session.json()
+    browser_verified = client.post(
+        "/v1/auth/mfa/verify",
+        headers=auth_header(browser_pending["access_token"]),
+        json={"method": "totp", "code": totp_code(secret)},
+    )
+    assert browser_verified.status_code == 200
+    browser_full = browser_verified.json()
+    browser_claim = decode_token(browser_full["access_token"])
+    assert browser_full["principal"]["stay_signed_in"] is False
+    assert browser_claim["stay_signed_in"] is False
+    assert browser_claim["exp"] - browser_claim["iat"] == 14 * 24 * 60 * 60
+    assert "max-age" not in browser_verified.headers["set-cookie"].lower()
 
 
 def test_shared_household_login_uses_member_as_pending_mfa_subject(client, db):

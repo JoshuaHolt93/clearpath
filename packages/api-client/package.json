@@ -1,4 +1,4 @@
-﻿{
+{
   "name": "@clearpath/api-client",
   "version": "0.0.0",
   "private": true,
@@ -7,11 +7,16 @@
   "types": "src/index.ts",
   "scripts": {
     "build": "tsc --noEmit",
+    "generate": "openapi-typescript openapi.json -o src/schema.ts",
     "test": "echo \"No tests yet for @clearpath/api-client\"",
     "typecheck": "tsc --noEmit",
     "lint": "echo \"No lint configured yet for @clearpath/api-client\""
   },
   "devDependencies": {
+    "openapi-typescript": "^7.13.0",
     "typescript": "^5.8.0"
+  },
+  "dependencies": {
+    "openapi-fetch": "^0.17.0"
   }
 }

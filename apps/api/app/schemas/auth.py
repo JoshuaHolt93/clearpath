@@ -52,6 +52,7 @@ class SessionPrincipal(BaseModel):
     household_member_id: int | None = None
     household_role: str | None = None
     mfa_verified: bool
+    stay_signed_in: bool
 
 
 class AuthSessionResponse(BaseModel):

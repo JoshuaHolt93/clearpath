@@ -1,0 +1,19 @@
+:root {
+  --cp-brand: #2563eb;
+  --cp-brand-dark: #1d4ed8;
+  --cp-brand-light: #eff6ff;
+  --cp-text: #111827;
+  --cp-text-secondary: #6b7280;
+  --cp-text-muted: #9ca3af;
+  --cp-border: #e5e7eb;
+  --cp-border-light: #f3f4f6;
+  --cp-background: #f8fafc;
+  --cp-surface: #ffffff;
+  --cp-danger: #dc2626;
+  --cp-danger-background: #fef2f2;
+  --cp-danger-border: #fecaca;
+  --cp-radius-sm: 8px;
+  --cp-radius-md: 12px;
+  --cp-shadow-sm: 0 1px 3px rgb(15 23 42 / 0.08);
+  --cp-shadow-md: 0 8px 24px rgb(15 23 42 / 0.1);
+}

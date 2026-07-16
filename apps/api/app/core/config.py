@@ -15,6 +15,7 @@ class Settings(BaseSettings):
     session_cookie_name: str = Field(default="clearpath_session", alias="SESSION_COOKIE_NAME")
     session_minutes: int = Field(default=60 * 24 * 14, alias="SESSION_MINUTES")
     pending_session_minutes: int = Field(default=15, alias="PENDING_SESSION_MINUTES")
+    stay_signed_in_days: int = Field(default=30, alias="STAY_SIGNED_IN_DAYS")
     mfa_required: bool = Field(default=True, alias="MFA_REQUIRED")
     expose_dev_tokens: bool = Field(default=False, alias="EXPOSE_DEV_TOKENS")
     password_hash_method: str = Field(default="scrypt:32768:8:1", alias="PASSWORD_HASH_METHOD")

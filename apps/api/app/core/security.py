@@ -115,11 +115,17 @@ def create_session_token(
     subject_type: SessionSubjectType,
     subject_id: int,
     mfa_verified: bool,
+    stay_signed_in: bool = False,
     household_member_id: int | None = None,
     household_role: str | None = None,
 ) -> str:
     settings = get_settings()
-    minutes = settings.session_minutes if mfa_verified else settings.pending_session_minutes
+    if not mfa_verified:
+        minutes = settings.pending_session_minutes
+    elif stay_signed_in:
+        minutes = settings.stay_signed_in_days * 24 * 60
+    else:
+        minutes = settings.session_minutes
     payload: dict[str, Any] = {
         "iss": "clearpath-api",
         "type": "session",
@@ -130,6 +136,7 @@ def create_session_token(
         "household_member_id": household_member_id,
         "household_role": household_role,
         "mfa_verified": bool(mfa_verified),
+        "stay_signed_in": bool(stay_signed_in),
         "exp": _utc_timestamp(minutes),
         "iat": datetime.now(UTC),
     }
