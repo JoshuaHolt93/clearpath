@@ -4,6 +4,7 @@ from urllib.parse import parse_qs, urlparse
 
 from app.core.security import decode_token, totp_code
 from app.models import HouseholdMember, OnboardingProfile, User
+from app.services.email_service import EmailDeliveryResult
 
 VALID_PASSWORD = "CorrectHorse1!"
 
@@ -195,3 +196,70 @@ def test_password_reset_requests_throttle_and_stop_issuing_tokens(client):
     assert throttled.status_code == 200
     assert throttled.json()["reset_token"] is None
     assert "If an account exists" in throttled.json()["message"]
+
+
+def test_password_reset_email_token_and_login_ledger_match_flask(client, monkeypatch):
+    client.post("/v1/auth/register", json=register_payload("reset-parity@example.com"))
+    sent: dict[str, str] = {}
+
+    def fake_send_password_reset_email(*, to_email: str, reset_url: str) -> EmailDeliveryResult:
+        sent.update(to_email=to_email, reset_url=reset_url)
+        return EmailDeliveryResult(sent=True)
+
+    monkeypatch.setattr("app.api.v1.auth.send_password_reset_email", fake_send_password_reset_email)
+    requested = client.post("/v1/auth/password-reset/request", json={"email": "RESET-PARITY@example.com"})
+    assert requested.status_code == 200
+    token = requested.json()["reset_token"]
+    assert token
+    assert sent == {
+        "to_email": "reset-parity@example.com",
+        "reset_url": f"http://127.0.0.1:3000/reset-password/{token}",
+    }
+    claim = decode_token(token)
+    assert claim["exp"] - claim["iat"] == 30 * 60
+    assert claim["password_hash"]
+    assert client.get(f"/v1/auth/password-reset/{token}").json() == {
+        "valid": True,
+        "email": "reset-parity@example.com",
+    }
+
+    for _ in range(5):
+        assert client.post(
+            "/v1/auth/login",
+            json={"email": "reset-parity@example.com", "password": "wrong"},
+        ).status_code == 401
+    assert client.post(
+        "/v1/auth/login",
+        json={"email": "reset-parity@example.com", "password": VALID_PASSWORD},
+    ).status_code == 429
+
+    completed = client.post(
+        f"/v1/auth/password-reset/{token}",
+        json={"password": "NewCorrectHorse2!", "confirm_password": "NewCorrectHorse2!"},
+    )
+    assert completed.status_code == 200
+    assert completed.json() == {"ok": True}
+    assert "clearpath_session=" in completed.headers["set-cookie"]
+    assert "max-age=0" in completed.headers["set-cookie"].lower()
+    assert client.get(f"/v1/auth/password-reset/{token}").json() == {"valid": False, "email": None}
+    assert client.post(
+        "/v1/auth/login",
+        json={"email": "reset-parity@example.com", "password": VALID_PASSWORD},
+    ).status_code == 401
+    assert client.post(
+        "/v1/auth/login",
+        json={"email": "reset-parity@example.com", "password": "NewCorrectHorse2!"},
+    ).status_code == 200
+
+
+def test_password_reset_request_keeps_unknown_account_indistinguishable(client, monkeypatch):
+    monkeypatch.setattr(
+        "app.api.v1.auth.send_password_reset_email",
+        lambda **_kwargs: (_ for _ in ()).throw(AssertionError("email must not be sent")),
+    )
+    response = client.post("/v1/auth/password-reset/request", json={"email": "missing@example.com"})
+    assert response.status_code == 200
+    assert response.json() == {
+        "message": "If an account exists for that email, a password reset link has been sent.",
+        "reset_token": None,
+    }

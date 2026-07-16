@@ -19,6 +19,8 @@ class Settings(BaseSettings):
     mfa_required: bool = Field(default=True, alias="MFA_REQUIRED")
     expose_dev_tokens: bool = Field(default=False, alias="EXPOSE_DEV_TOKENS")
     password_hash_method: str = Field(default="scrypt:32768:8:1", alias="PASSWORD_HASH_METHOD")
+    password_reset_token_max_age_seconds: int = Field(default=1800, alias="PASSWORD_RESET_TOKEN_MAX_AGE_SECONDS")
+    web_app_url: str | None = Field(default=None, alias="WEB_APP_URL")
 
     mfa_push_provider: str = Field(default="none", alias="MFA_PUSH_PROVIDER")
     duo_client_id: str | None = Field(default=None, alias="DUO_CLIENT_ID")

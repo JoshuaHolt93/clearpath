@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import logging
 from typing import Annotated
+from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from sqlalchemy import select
@@ -63,10 +65,11 @@ from app.services.auth_service import (
     verify_email_mfa,
     verify_recovery_code,
 )
-from app.services.email_service import email_delivery_configured
+from app.services.email_service import email_delivery_configured, send_password_reset_email
 from app.services.mfa_push_service import PushMFAError, complete_push_mfa, start_push_mfa
 
 router = APIRouter(tags=["auth"])
+logger = logging.getLogger(__name__)
 
 
 def _source_addr(request: Request) -> str | None:
@@ -346,9 +349,21 @@ def password_reset_request(payload: PasswordResetRequest, request: Request, db: 
         record_failed_login(db, payload.email, "reset", source_addr)
     user = db.scalar(select(User).where(User.email == payload.email)) if payload.email and not throttled else None
     token = password_reset_token_for(user) if user else None
+    settings = get_settings()
+    web_app_url = settings.web_app_url or (None if settings.is_production else "http://127.0.0.1:3000")
+    if user and token and web_app_url:
+        reset_url = f"{web_app_url.rstrip('/')}/reset-password/{quote(token, safe='')}"
+        delivery = send_password_reset_email(to_email=user.email, reset_url=reset_url)
+        if not delivery.sent:
+            if not settings.is_production or settings.is_testing:
+                logger.info("Password reset link for %s: %s", user.email, reset_url)
+            else:
+                logger.error("Password reset email is not configured or failed: %s", delivery.reason)
+    elif user and token:
+        logger.error("Password reset email was not sent because WEB_APP_URL is not configured.")
     return PasswordResetRequestResponse(
         message="If an account exists for that email, a password reset link has been sent.",
-        reset_token=token if (token and get_settings().expose_dev_tokens) else None,
+        reset_token=token if (token and settings.expose_dev_tokens) else None,
     )
 
 
@@ -359,7 +374,13 @@ def password_reset_token(token: str, db: Annotated[Session, Depends(get_db)]) ->
 
 
 @router.post("/auth/password-reset/{token}", response_model=PasswordResetConfirmResponse)
-def password_reset_confirm(token: str, payload: PasswordResetConfirmRequest, db: Annotated[Session, Depends(get_db)]) -> PasswordResetConfirmResponse:
+def password_reset_confirm(
+    token: str,
+    payload: PasswordResetConfirmRequest,
+    request: Request,
+    response: Response,
+    db: Annotated[Session, Depends(get_db)],
+) -> PasswordResetConfirmResponse:
     user = user_from_password_reset_token(db, token)
     if not user:
         raise HTTPException(status_code=status.HTTP_410_GONE, detail="That password reset link is invalid or expired.")
@@ -370,6 +391,8 @@ def password_reset_confirm(token: str, payload: PasswordResetConfirmRequest, db:
         raise HTTPException(status_code=422, detail=" ".join(errors))
     user.set_password(payload.password)
     db.commit()
+    clear_failed_logins(db, user.email, "login", _source_addr(request))
+    response.delete_cookie(get_settings().session_cookie_name)
     return PasswordResetConfirmResponse(ok=True)
 
 

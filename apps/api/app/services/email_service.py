@@ -61,6 +61,19 @@ def send_transactional_email(
     return EmailDeliveryResult(False, "missing_provider")
 
 
+def send_password_reset_email(*, to_email: str, reset_url: str) -> EmailDeliveryResult:
+    return send_transactional_email(
+        to_email=to_email,
+        subject="Reset your ClearPath Finance password",
+        text_body=(
+            "Use this link to reset your ClearPath Finance password. "
+            "The link expires in 30 minutes and can only be used once.\n\n"
+            f"{reset_url}\n\n"
+            "If you did not request this, you can ignore this email."
+        ),
+    )
+
+
 def _send_resend_email(
     *,
     sender: str,

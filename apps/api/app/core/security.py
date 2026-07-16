@@ -105,7 +105,7 @@ def normalize_recovery_code(code: str | None) -> str:
     return "".join(character for character in str(code or "").upper() if character.isalnum())
 
 
-def _utc_timestamp(minutes: int) -> datetime:
+def _utc_timestamp(minutes: float) -> datetime:
     return datetime.now(UTC) + timedelta(minutes=minutes)
 
 
@@ -147,7 +147,7 @@ def decode_token(token: str) -> dict[str, Any]:
     return jwt.decode(token, get_settings().secret_key, algorithms=[ALGORITHM], issuer="clearpath-api")
 
 
-def create_purpose_token(*, purpose: str, subject: str, minutes: int = 15, extra: dict[str, Any] | None = None) -> str:
+def create_purpose_token(*, purpose: str, subject: str, minutes: float = 15, extra: dict[str, Any] | None = None) -> str:
     payload: dict[str, Any] = {
         "iss": "clearpath-api",
         "type": purpose,

@@ -549,7 +549,13 @@ def verify_recovery_code(principal: Principal, db: Session, *, code: str | None,
 
 
 def password_reset_token_for(user: User) -> str:
-    return create_purpose_token(purpose="password_reset", subject=str(user.id), minutes=60)
+    settings = get_settings()
+    return create_purpose_token(
+        purpose="password_reset",
+        subject=str(user.id),
+        minutes=settings.password_reset_token_max_age_seconds / 60,
+        extra={"password_hash": user.password_hash},
+    )
 
 
 def user_from_password_reset_token(db: Session, token: str) -> User | None:
@@ -557,7 +563,10 @@ def user_from_password_reset_token(db: Session, token: str) -> User | None:
         payload = decode_purpose_token(token, purpose="password_reset")
     except Exception:
         return None
-    return db.get(User, int(payload["sub"]))
+    user = db.get(User, int(payload["sub"]))
+    if not user or not hmac.compare_digest(user.password_hash or "", str(payload.get("password_hash") or "")):
+        return None
+    return user
 
 
 def invite_from_token(db: Session, token: str | None) -> HouseholdInvite | None:
@@ -620,6 +629,5 @@ def create_invite(owner: User, email: str, role: str, *, db: Session) -> tuple[H
     db.commit()
     db.refresh(invite)
     return invite, token
-
 
 

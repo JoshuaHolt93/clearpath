@@ -12,6 +12,54 @@ export const loginResultSchema = z.object({
   nextStep: z.enum(["mfa_verify", "mfa_setup", "select_plan", "onboarding", "dashboard"]),
 });
 
+export const registerRequestSchema = z.object({
+  display_name: z.string().trim().min(1, "Your name is required."),
+  household_name: z.string().trim().transform((value) => value || null),
+  email: z.string().trim().email("Enter a valid email address.").transform((value) => value.toLowerCase()),
+  password: z.string().min(12, "Password must be at least 12 characters long."),
+  policy_acknowledgement: z.boolean().refine((accepted) => accepted, {
+    message: "Please review and accept the ClearPath policies to create an account.",
+  }),
+});
+
+export type RegisterRequest = z.infer<typeof registerRequestSchema>;
+export const registerResultSchema = loginResultSchema;
+
+export const passwordResetRequestSchema = z.object({
+  email: z.string().trim().email("Enter a valid email address.").transform((value) => value.toLowerCase()),
+});
+
+export type PasswordResetRequest = z.infer<typeof passwordResetRequestSchema>;
+
+export const passwordResetRequestResultSchema = z.object({
+  message: z.string().min(1),
+  resetUrl: z.string().min(1).nullable(),
+});
+
+export const passwordResetTokenResultSchema = z.object({
+  valid: z.boolean(),
+  email: z.string().email().nullable(),
+});
+
+export const passwordResetConfirmRequestSchema = z
+  .object({
+    password: z.string().min(12, "Password must be at least 12 characters long."),
+    confirm_password: z.string().min(1, "Confirm your new password."),
+  })
+  .superRefine((value, context) => {
+    if (value.password !== value.confirm_password) {
+      context.addIssue({
+        code: "custom",
+        path: ["confirm_password"],
+        message: "New password and confirmation did not match.",
+      });
+    }
+  });
+
+export type PasswordResetConfirmRequest = z.infer<typeof passwordResetConfirmRequestSchema>;
+
+export const passwordResetConfirmResultSchema = z.object({ ok: z.literal(true) });
+
 export const mfaChallengeSchema = z.object({
   subjectType: z.enum(["user", "household_member"]),
   email: z.string().email(),
