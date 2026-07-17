@@ -1,0 +1,117 @@
+.page { min-height: 100vh; color: #172033; background: #f4f7f9; }
+.pageHeader { display: flex; min-height: 104px; align-items: center; justify-content: space-between; gap: 24px; border-bottom: 1px solid #dbe3ea; background: #fff; padding: 22px clamp(20px, 4vw, 54px); }
+.pageHeader > div { min-width: 0; }
+.pageHeader h1 { margin: 0; color: #142033; font-size: 24px; line-height: 1.2; letter-spacing: 0; }
+.pageHeader p { max-width: 780px; margin: 6px 0 0; color: #607086; font-size: 13px; line-height: 1.55; }
+.pageHeader > span { display: inline-flex; flex: 0 0 auto; align-items: center; gap: 7px; border: 1px solid #b8d4c3; border-radius: 999px; color: #17633c; background: #eff9f3; padding: 7px 11px; font-size: 11px; font-weight: 800; }
+.content { display: grid; width: min(1180px, calc(100% - 40px)); margin: 0 auto; gap: 16px; padding: 24px 0 48px; }
+.warning, .error, .notice, .viewerBand { display: flex; align-items: center; gap: 9px; border: 1px solid; border-radius: 6px; padding: 10px 12px; font-size: 12px; font-weight: 700; }
+.warning { border-color: #e7c36c; color: #6f4c08; background: #fff8e6; }
+.error { border-color: #efb4b4; color: #9c2020; background: #fff1f1; }
+.notice { border-color: #a9d6ba; color: #17633c; background: #edf9f1; }
+.viewerBand { border-color: #b9c9da; color: #38506c; background: #edf3f8; }
+.intro { border-left: 4px solid #2f7a58; border-radius: 4px; background: #edf7f1; padding: 15px 18px; }
+.intro strong { color: #19553c; font-size: 13px; }
+.intro p { margin: 5px 0 0; color: #48695a; font-size: 12px; line-height: 1.55; }
+.currentPanel, .futurePanel { min-width: 0; border: 1px solid #d9e2e9; border-radius: 8px; background: #fff; overflow: hidden; }
+.currentPanel > summary, .sectionTitle { display: flex; min-height: 72px; align-items: center; justify-content: space-between; gap: 18px; padding: 16px 18px; }
+.currentPanel > summary { cursor: pointer; list-style: none; }
+.currentPanel > summary::-webkit-details-marker { display: none; }
+.currentPanel > summary h2, .sectionTitle h2, .sectionTitle h3 { margin: 0; font-size: 15px; line-height: 1.25; letter-spacing: 0; }
+.currentPanel > summary p, .sectionTitle p { margin: 4px 0 0; color: #67778b; font-size: 11px; line-height: 1.5; }
+.currentPanel > summary > span, .sectionTitle > span { flex: 0 0 auto; color: #245f91; font-size: 11px; font-weight: 800; }
+.currentPanel[open] > summary, .sectionTitle { border-bottom: 1px solid #e3e9ee; }
+.panelBody { padding: 18px; }
+.formStack { display: grid; gap: 14px; }
+.formStack fieldset { display: grid; min-width: 0; margin: 0; gap: 14px; border: 0; padding: 0; }
+.formStack label { display: grid; min-width: 0; gap: 5px; color: #526377; font-size: 10px; font-weight: 800; }
+.formStack input, .formStack select { width: 100%; min-width: 0; min-height: 38px; border: 1px solid #cbd6df; border-radius: 6px; color: #1f2c3d; background: #fff; padding: 7px 9px; font: inherit; }
+.formStack input:focus, .formStack select:focus { border-color: #3079b8; outline: 2px solid #d9ebfa; }
+.formStack input:disabled { color: #516274; background: #f3f6f8; }
+.formStack small { color: #7b8999; font-size: 9px; font-weight: 500; line-height: 1.4; }
+.formGrid, .scheduleGrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.formGridFour { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.choiceField { display: grid; min-width: 0; gap: 7px; color: #526377; font-size: 10px; font-weight: 800; }
+.choiceGrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(52px, 1fr)); gap: 6px; }
+.choiceGrid label { position: relative; display: block; }
+.choiceGrid input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.choiceGrid span { display: grid; min-height: 34px; place-items: center; border: 1px solid #cbd6df; border-radius: 5px; color: #526377; background: #fff; cursor: pointer; }
+.choiceGrid input:checked + span { border-color: #2c6e9e; color: #174d73; background: #eaf4fb; }
+.toggleLabel { grid-template-columns: auto minmax(0, 1fr); align-self: end; align-items: center; min-height: 38px; }
+.toggleLabel input { width: 18px; min-height: 18px; }
+.formActions { display: flex; flex-wrap: wrap; gap: 8px; }
+.formStack button, .templateRow button, .modalHeader button, .loadError button { display: inline-flex; min-height: 35px; align-items: center; justify-content: center; gap: 6px; border: 1px solid #276ba4; border-radius: 6px; color: #fff; background: #276ba4; padding: 7px 11px; font-size: 11px; font-weight: 800; cursor: pointer; }
+.formStack button:disabled { cursor: default; opacity: .55; }
+.formStack .secondaryButton { border-color: #b8c9d8; color: #315a7d; background: #fff; }
+.formStack .dangerButton { border-color: #e1aaaa; color: #a12424; background: #fff; }
+.viewerNote { margin: 0; color: #62758b; font-size: 11px; }
+.templateList { min-width: 0; }
+.templateRow { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 16px; border-top: 1px solid #e6ebef; padding: 13px 18px; }
+.templateRow:first-child { border-top: 0; }
+.templateRow > div { display: grid; min-width: 0; gap: 4px; }
+.templateRow > div:last-child { grid-auto-flow: column; align-items: center; gap: 10px; }
+.templateRow strong { color: #25364b; font-size: 12px; }
+.templateRow span { min-width: 0; color: #6c7b8e; font-size: 10px; line-height: 1.5; overflow-wrap: anywhere; }
+.templateRow > div:last-child > strong { color: #17633c; font-size: 13px; white-space: nowrap; }
+.templateRow button { min-height: 30px; border-color: #b8c9d8; color: #315a7d; background: #fff; padding: 4px 8px; }
+.empty { color: #758498; padding: 24px 18px; font-size: 11px; line-height: 1.55; text-align: center; }
+.footerLinks { display: flex; justify-content: flex-end; gap: 16px; padding: 4px 2px; }
+.footerLinks a, .sectionTitle a { color: #245f91; font-size: 11px; font-weight: 800; }
+.modalShell { position: fixed; z-index: 80; inset: 0; display: grid; place-items: center; background: rgb(15 23 42 / .58); padding: 22px; }
+.modalPanel { width: min(760px, 100%); max-height: calc(100vh - 44px); overflow: auto; border: 1px solid #cbd6df; border-radius: 8px; background: #fff; box-shadow: 0 24px 70px rgb(15 23 42 / .24); }
+.modalWide { width: min(1080px, 100%); }
+.modalHeader { position: sticky; z-index: 2; top: 0; display: flex; align-items: center; justify-content: space-between; gap: 14px; border-bottom: 1px solid #e1e7ec; background: #fff; padding: 14px 18px; }
+.modalHeader h2 { margin: 0; font-size: 15px; letter-spacing: 0; }
+.modalHeader p { margin: 3px 0 0; color: #6d7c8f; font-size: 11px; }
+.modalHeader button { width: 34px; min-width: 34px; padding: 0; border-color: #c9d3dc; color: #526377; background: #fff; }
+.modalBody { display: grid; gap: 18px; padding: 18px; }
+.taxStats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border: 1px solid #dbe3e9; border-radius: 7px; overflow: hidden; }
+.taxStats > div { display: grid; gap: 4px; border-left: 1px solid #e2e8ed; padding: 14px; }
+.taxStats > div:first-child { border-left: 0; }
+.taxStats span { color: #6a788b; font-size: 9px; font-weight: 900; text-transform: uppercase; }
+.taxStats strong { color: #1d5d42; font-size: 20px; letter-spacing: 0; }
+.taxStats small { color: #7a8899; font-size: 9px; }
+.taxColumns { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.taxColumns > section, .taxSection { min-width: 0; border: 1px solid #dbe3e9; border-radius: 7px; padding: 15px; }
+.taxColumns h3, .taxSection h3 { margin: 0 0 10px; font-size: 13px; letter-spacing: 0; }
+.taxColumns dl { display: grid; margin: 0; gap: 0; }
+.taxColumns dl div { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; border-top: 1px solid #e7ecef; padding: 9px 0; }
+.taxColumns dl div:first-child { border-top: 0; }
+.taxColumns dt { color: #607086; font-size: 10px; }
+.taxColumns dd { margin: 0; color: #25364b; font-size: 10px; font-weight: 800; text-align: right; }
+.taxSection > .sectionTitle { min-height: 0; margin: -15px -15px 15px; padding: 13px 15px; }
+.taxSection > .sectionTitle h3 { margin: 0; }
+.callout { margin: 10px 0 0; border-left: 3px solid #c7a542; color: #6f5b22; background: #fff9e9; padding: 9px 11px; font-size: 10px; line-height: 1.5; }
+.tableWrap { max-width: 100%; overflow-x: auto; }
+.tableWrap table { width: 100%; border-collapse: collapse; font-size: 10px; }
+.tableWrap th, .tableWrap td { border-bottom: 1px solid #e1e7ec; padding: 8px 9px; text-align: right; white-space: nowrap; }
+.tableWrap th:first-child, .tableWrap td:first-child { text-align: left; }
+.tableWrap th { color: #66768a; background: #f5f7f9; font-size: 9px; text-transform: uppercase; }
+.loadingPage { display: grid; min-height: 100vh; place-content: center; justify-items: center; gap: 12px; color: #44566c; background: #f4f7f9; }
+.loadError { display: grid; width: min(420px, calc(100vw - 40px)); justify-items: center; gap: 12px; border: 1px solid #e0b0b0; border-radius: 8px; color: #922525; background: #fff; padding: 24px; text-align: center; }
+.loadError p { margin: 0; font-size: 12px; line-height: 1.55; }
+
+@media (max-width: 980px) {
+  .formGridFour { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .taxColumns { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 720px) {
+  .pageHeader { min-height: 0; align-items: flex-start; padding: 18px 16px; }
+  .pageHeader h1 { font-size: 20px; }
+  .pageHeader > span { display: none; }
+  .content { width: calc(100% - 24px); padding-top: 14px; }
+  .currentPanel > summary, .sectionTitle { align-items: flex-start; flex-direction: column; }
+  .panelBody { padding: 14px; }
+  .formGrid, .formGridFour, .scheduleGrid, .taxStats { grid-template-columns: 1fr; }
+  .taxStats > div { border-top: 1px solid #e2e8ed; border-left: 0; }
+  .taxStats > div:first-child { border-top: 0; }
+  .templateRow { grid-template-columns: 1fr; }
+  .templateRow > div:last-child { grid-auto-flow: column; justify-content: space-between; }
+  .formActions { display: grid; grid-template-columns: 1fr; }
+  .formActions button { width: 100%; }
+  .modalShell { align-items: end; padding: 0; }
+  .modalPanel { width: 100%; max-height: 90vh; border-radius: 8px 8px 0 0; }
+  .modalBody { padding: 14px; }
+  .footerLinks { justify-content: center; flex-wrap: wrap; }
+}

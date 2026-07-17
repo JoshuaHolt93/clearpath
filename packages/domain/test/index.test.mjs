@@ -10,6 +10,8 @@ import {
   estimateGoalTimeline,
   forecastBufferStatus,
   loanPlanScenarios,
+  monthlyIncomeEstimate,
+  monthlyizeIncomeAmount,
   monthsUntil,
   requiredExtraPaymentForDebtGoal,
   requiredMonthlyForGoal,
@@ -99,6 +101,40 @@ test("ports Flask three-month forecast buffer thresholds", () => {
   assert.deepEqual(forecastBufferStatus(0), { key: "watch", label: "Watch" });
   assert.deepEqual(forecastBufferStatus(299.99), { key: "watch", label: "Watch" });
   assert.deepEqual(forecastBufferStatus(300), { key: "healthy", label: "Healthy" });
+});
+
+test("ports Flask Income Planning monthly estimates", () => {
+  assert.equal(monthlyizeIncomeAmount(1200, "annual"), 100);
+  assert.equal(monthlyizeIncomeAmount(300, "quarterly"), 100);
+  assert.equal(monthlyizeIncomeAmount(2000, "semimonthly"), 4000);
+  assert.ok(Math.abs(monthlyizeIncomeAmount(2000, "biweekly") - (2000 * 26) / 12) < 1e-9);
+  assert.equal(monthlyizeIncomeAmount(25, "hourly", 40), (25 * 40 * 52) / 12);
+  assert.equal(monthlyizeIncomeAmount(500, "irregular"), 500);
+
+  assert.equal(monthlyIncomeEstimate({
+    incomeAmount: 90000,
+    incomeType: "salary",
+    paycheckCadence: "semimonthly",
+    hourlyHoursPerWeek: 40,
+    additionalIncomeAmount: 1200,
+    additionalIncomeFrequency: "annual",
+  }), 7600);
+  assert.equal(monthlyIncomeEstimate({
+    incomeAmount: 30,
+    incomeType: "hourly",
+    paycheckCadence: "weekly",
+    hourlyHoursPerWeek: 35,
+    additionalIncomeAmount: 0,
+    additionalIncomeFrequency: "annual",
+  }), (30 * 35 * 52) / 12);
+  assert.equal(monthlyIncomeEstimate({
+    incomeAmount: 2500,
+    incomeType: "bonus",
+    paycheckCadence: "quarterly",
+    hourlyHoursPerWeek: 40,
+    additionalIncomeAmount: 0,
+    additionalIncomeFrequency: "annual",
+  }), (2500 * 4) / 12);
 });
 
 test("ports Flask net-worth aggregation", () => {

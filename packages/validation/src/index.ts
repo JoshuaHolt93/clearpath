@@ -631,6 +631,63 @@ export const monthlyForecastViewSchema = z.object({
 
 export type MonthlyForecastView = z.infer<typeof monthlyForecastViewSchema>;
 
+const incomePlanningProfileSchema = planningProfileSchema.extend({
+  taxAdditionalLabel: z.string().nullable(),
+  taxAdditionalType: z.enum(["amount", "percent"]).nullable(),
+  taxAdditionalRate: z.number().nullable(),
+  taxAdditionalMonthlyAmount: z.number().nullable(),
+});
+
+const taxEstimateSchema = z.object({
+  annualGrossIncome: z.number(),
+  taxableIncome: z.number(),
+  federalIncomeTax: z.number(),
+  stateIncomeTax: z.number(),
+  socialSecurityTax: z.number(),
+  medicareTax: z.number(),
+  additionalMedicareTax: z.number(),
+  additionalTaxLabel: z.string(),
+  additionalTaxType: z.enum(["amount", "percent"]),
+  additionalTaxRate: z.number(),
+  additionalTaxAnnual: z.number(),
+  additionalTaxMonthly: z.number(),
+  annualTotal: z.number(),
+  monthlyTotal: z.number(),
+  filingStatus: z.string(),
+  state: z.string().nullable(),
+  stateRate: z.number(),
+  stateMethod: z.string(),
+  stateTaxableIncome: z.number(),
+  stateStandardDeduction: z.number(),
+  statePersonalExemption: z.number(),
+  stateCredit: z.number(),
+  stateBrackets: z.array(z.array(z.number().nullable())),
+  stateNote: z.string(),
+  stateSourceUrl: z.string().nullable(),
+  federalBrackets: z.array(z.array(z.number().nullable())),
+  standardDeduction: z.number(),
+});
+
+export const monthlyIncomePlanningViewSchema = z.object({
+  session: signedInSessionSchema,
+  today: z.string(),
+  profile: incomePlanningProfileSchema,
+  planIncome: z.number(),
+  futureIncomeTemplates: z.array(recurringTemplateSchema),
+  taxEstimate: taxEstimateSchema,
+  taxesEnabled: z.boolean(),
+  incomeTypeOptions: z.record(z.string(), z.string()),
+  incomeBasisOptions: z.record(z.string(), z.string()),
+  paycheckCadenceOptions: z.record(z.string(), z.string()),
+  taxFilingStatusOptions: z.record(z.string(), z.string()),
+  stateOptions: z.record(z.string(), z.string()),
+  recurringFrequencyOptions: z.record(z.string(), z.string()),
+  weekdayOptions: z.record(z.string(), z.string()),
+  monthlyWeekOptions: z.record(z.string(), z.string()),
+});
+
+export type MonthlyIncomePlanningView = z.infer<typeof monthlyIncomePlanningViewSchema>;
+
 export const planningAmountInputSchema = z.object({
   monthlyTarget: z.number().positive("Enter a positive planned cash amount."),
 });
@@ -682,6 +739,18 @@ export const recurringTemplateInputSchema = z.object({
   categoryLabel: z.string().trim().nullable().optional(),
   notes: z.string().trim().nullable().optional(),
   incomeAdjustment: z.boolean().default(false),
+  incomeReplacement: z.boolean().optional(),
+  incomeBasis: z.string().optional(),
+  incomeType: z.string().optional(),
+  paycheckCadence: z.string().optional(),
+  incomeNextPayDate: z.string().nullable().optional(),
+  incomeAmount: z.number().positive().optional(),
+  hourlyHoursPerWeek: z.number().min(0).nullable().optional(),
+  additionalIncomeAmount: z.number().min(0).nullable().optional(),
+  additionalIncomeFrequency: z.string().optional(),
+  taxState: z.string().nullable().optional(),
+  taxFilingStatus: z.string().optional(),
+  includePayrollTaxes: z.boolean().optional(),
 });
 
 export const planningDeleteInputSchema = z.object({ confirm: z.literal(true) });
@@ -691,7 +760,7 @@ export const cashProjectionRoleInputSchema = z.object({
 });
 
 export const monthlyPlanBaselineInputSchema = z.object({
-  baselineScope: z.literal("core").default("core"),
+  baselineScope: z.literal("core").nullable().optional(),
   householdName: z.string().trim().nullable().optional(),
   incomeAmount: z.number().min(0).nullable().optional(),
   incomeBasis: z.string().nullable().optional(),
@@ -707,10 +776,14 @@ export const monthlyPlanBaselineInputSchema = z.object({
   additionalIncomeFrequency: z.string().nullable().optional(),
   taxState: z.string().nullable().optional(),
   taxFilingStatus: z.string().nullable().optional(),
+  taxAdditionalLabel: z.string().trim().nullable().optional(),
+  taxAdditionalType: z.enum(["amount", "percent"]).nullable().optional(),
+  taxAdditionalRate: z.number().min(0).nullable().optional(),
+  taxAdditionalMonthlyAmount: z.number().min(0).nullable().optional(),
   includePayrollTaxes: z.boolean().nullable().optional(),
   notes: z.string().trim().nullable().optional(),
   view: z.literal("month").default("month"),
-  section: z.literal("tools").default("tools"),
+  section: z.enum(["tools", "baseline"]).default("tools"),
 });
 
 export const budgetCreateInputSchema = z.object({

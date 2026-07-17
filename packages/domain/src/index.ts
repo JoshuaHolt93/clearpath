@@ -55,6 +55,15 @@ export interface ForecastBufferStatus {
   label: "Tight" | "Watch" | "Healthy";
 }
 
+export interface MonthlyIncomeEstimateInput {
+  incomeAmount: number;
+  incomeType: string;
+  paycheckCadence: string;
+  hourlyHoursPerWeek: number;
+  additionalIncomeAmount: number;
+  additionalIncomeFrequency: string;
+}
+
 export interface NetWorthAccountMathInput {
   balance: number;
   isLiability: boolean;
@@ -172,6 +181,31 @@ export function forecastBufferStatus(plannedBuffer: number): ForecastBufferStatu
   if (plannedBuffer < 0) return { key: "tight", label: "Tight" };
   if (plannedBuffer < 300) return { key: "watch", label: "Watch" };
   return { key: "healthy", label: "Healthy" };
+}
+
+export function monthlyizeIncomeAmount(value: number, frequency: string, weeklyHours = 40): number {
+  if (frequency === "annual") return value / 12;
+  if (frequency === "quarterly") return (value * 4) / 12;
+  if (frequency === "semimonthly") return (value * 24) / 12;
+  if (frequency === "biweekly") return (value * 26) / 12;
+  if (frequency === "weekly") return (value * 52) / 12;
+  if (frequency === "hourly") return (value * weeklyHours * 52) / 12;
+  return value;
+}
+
+export function monthlyIncomeEstimate(input: MonthlyIncomeEstimateInput): number {
+  const weeklyHours = input.hourlyHoursPerWeek || 40;
+  const additionalMonthly = monthlyizeIncomeAmount(
+    input.additionalIncomeAmount,
+    input.additionalIncomeFrequency || "annual",
+    weeklyHours,
+  );
+  const baseMonthly = input.incomeType === "hourly"
+    ? monthlyizeIncomeAmount(input.incomeAmount, "hourly", weeklyHours)
+    : input.incomeType === "bonus"
+      ? monthlyizeIncomeAmount(input.incomeAmount, input.paycheckCadence || "monthly", weeklyHours)
+      : input.incomeAmount / 12;
+  return baseMonthly + additionalMonthly;
 }
 
 export function calculateNetWorthSummary(

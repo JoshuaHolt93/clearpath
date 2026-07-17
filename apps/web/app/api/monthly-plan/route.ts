@@ -1,5 +1,5 @@
 import type { components } from "@clearpath/api-client";
-import { monthlyBudgetsViewSchema, monthlyForecastViewSchema, monthlyQuickPlanningViewSchema } from "@clearpath/validation";
+import { monthlyBudgetsViewSchema, monthlyForecastViewSchema, monthlyIncomePlanningViewSchema, monthlyQuickPlanningViewSchema } from "@clearpath/validation";
 import { NextResponse } from "next/server";
 
 import { apiErrorMessage, clearPathApiClient, forwardedSessionHeaders } from "@/lib/server-api";
@@ -284,11 +284,87 @@ function mapForecastPlan(data: ApiPlan, me: ApiMe) {
   });
 }
 
+function mapIncomePlan(data: ApiPlan, me: ApiMe) {
+  const profile = data.profile;
+  const tax = data.tax_estimate;
+  return monthlyIncomePlanningViewSchema.safeParse({
+    session: mapSession(me),
+    today: data.today,
+    profile: {
+      householdName: profile.household_name ?? null,
+      incomeAmount: profile.income_amount ?? null,
+      incomeAmountDisplay: profile.income_amount_display ?? null,
+      monthlyIncome: profile.monthly_income ?? null,
+      incomeBasis: profile.income_basis ?? null,
+      incomeType: profile.income_type ?? null,
+      incomeFrequency: profile.income_frequency ?? null,
+      paycheckCadence: profile.paycheck_cadence ?? null,
+      nextPayDate: profile.next_pay_date ?? null,
+      paycheckSecondDate: profile.paycheck_second_date ?? null,
+      paycheckDaysOfWeek: profile.paycheck_days_of_week ?? null,
+      paycheckSecondDayOfMonth: profile.paycheck_second_day_of_month ?? null,
+      paycheckMonthlyWeekNumbers: profile.paycheck_monthly_week_numbers ?? null,
+      paycheckMonthlyWeekday: profile.paycheck_monthly_weekday ?? null,
+      hourlyHoursPerWeek: profile.hourly_hours_per_week ?? null,
+      additionalIncomeAmount: profile.additional_income_amount ?? null,
+      additionalIncomeFrequency: profile.additional_income_frequency ?? null,
+      taxState: profile.tax_state ?? null,
+      taxFilingStatus: profile.tax_filing_status ?? null,
+      taxAdditionalLabel: profile.tax_additional_label ?? null,
+      taxAdditionalType: profile.tax_additional_type ?? null,
+      taxAdditionalRate: profile.tax_additional_rate ?? null,
+      taxAdditionalMonthlyAmount: profile.tax_additional_monthly_amount ?? null,
+      includePayrollTaxes: profile.include_payroll_taxes ?? null,
+      notes: profile.notes ?? null,
+    },
+    planIncome: data.plan.income,
+    futureIncomeTemplates: (data.future_income_templates ?? []).map(mapRecurringTemplate),
+    taxEstimate: {
+      annualGrossIncome: tax.annual_gross_income,
+      taxableIncome: tax.taxable_income,
+      federalIncomeTax: tax.federal_income_tax,
+      stateIncomeTax: tax.state_income_tax,
+      socialSecurityTax: tax.social_security_tax,
+      medicareTax: tax.medicare_tax,
+      additionalMedicareTax: tax.additional_medicare_tax,
+      additionalTaxLabel: tax.additional_tax_label,
+      additionalTaxType: tax.additional_tax_type,
+      additionalTaxRate: tax.additional_tax_rate,
+      additionalTaxAnnual: tax.additional_tax_annual,
+      additionalTaxMonthly: tax.additional_tax_monthly,
+      annualTotal: tax.annual_total,
+      monthlyTotal: tax.monthly_total,
+      filingStatus: tax.filing_status,
+      state: tax.state ?? null,
+      stateRate: tax.state_rate,
+      stateMethod: tax.state_method,
+      stateTaxableIncome: tax.state_taxable_income,
+      stateStandardDeduction: tax.state_standard_deduction,
+      statePersonalExemption: tax.state_personal_exemption,
+      stateCredit: tax.state_credit,
+      stateBrackets: tax.state_brackets ?? [],
+      stateNote: tax.state_note,
+      stateSourceUrl: tax.state_source_url ?? null,
+      federalBrackets: tax.federal_brackets ?? [],
+      standardDeduction: tax.standard_deduction,
+    },
+    taxesEnabled: data.taxes_enabled,
+    incomeTypeOptions: data.income_type_options ?? {},
+    incomeBasisOptions: data.income_basis_options ?? {},
+    paycheckCadenceOptions: data.paycheck_cadence_options ?? {},
+    taxFilingStatusOptions: data.tax_filing_status_options ?? {},
+    stateOptions: data.state_options ?? {},
+    recurringFrequencyOptions: data.recurring_frequency_options ?? {},
+    weekdayOptions: data.weekday_options ?? {},
+    monthlyWeekOptions: data.monthly_week_options ?? {},
+  });
+}
+
 export async function GET(request: Request) {
   const url = new URL(request.url);
   const requestedSection = url.searchParams.get("section");
-  const section = requestedSection === "tools" || requestedSection === "forecast" ? requestedSection : "budgets";
-  const resourceLabel = section === "budgets" ? "budgets" : section === "forecast" ? "forecast" : "planning details";
+  const section = requestedSection === "tools" || requestedSection === "forecast" || requestedSection === "baseline" ? requestedSection : "budgets";
+  const resourceLabel = section === "budgets" ? "budgets" : section === "forecast" ? "forecast" : section === "baseline" ? "income plan" : "planning details";
   const budgetView = url.searchParams.get("budget_view") === "grouped" ? "grouped" : "list";
   const requestedSort = url.searchParams.get("budget_sort") ?? "custom";
   const budgetSort = budgetSorts.has(requestedSort) ? requestedSort : "custom";
@@ -314,8 +390,10 @@ export async function GET(request: Request) {
       ? mapQuickPlan(planResult.data, meResult.data)
       : section === "forecast"
         ? mapForecastPlan(planResult.data, meResult.data)
-        : mapBudgetPlan(planResult.data, meResult.data, url.searchParams.get("onboarding") === "complete");
-    const detailLabel = section === "budgets" ? "budget" : section === "forecast" ? "forecast" : "planning";
+        : section === "baseline"
+          ? mapIncomePlan(planResult.data, meResult.data)
+          : mapBudgetPlan(planResult.data, meResult.data, url.searchParams.get("onboarding") === "complete");
+    const detailLabel = section === "budgets" ? "budget" : section === "forecast" ? "forecast" : section === "baseline" ? "income planning" : "planning";
     if (!mapped.success) return NextResponse.json({ message: `ClearPath returned invalid ${detailLabel} details.` }, { status: 502 });
     return NextResponse.json(mapped.data, { headers: { "cache-control": "no-store" } });
   } catch {

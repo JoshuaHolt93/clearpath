@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 
 import { MonthlyBudgetsWorkspace, type MonthlyBudgetQuery } from "./monthly-budgets-workspace";
 import { MonthlyForecastWorkspace } from "./monthly-forecast-workspace";
+import { MonthlyIncomePlanningWorkspace } from "./monthly-income-planning-workspace";
 import { MonthlyQuickPlanningWorkspace, type MonthlyQuickPlanningQuery } from "./monthly-quick-planning-workspace";
 
 export const metadata: Metadata = { title: "Monthly Plan | ClearPath Finance" };
@@ -19,6 +20,7 @@ export default async function MonthlyPlanPage({ searchParams }: { searchParams: 
     return <MonthlyQuickPlanningWorkspace query={query} />;
   }
   if (section === "forecast") return <MonthlyForecastWorkspace />;
+  if (section === "baseline") return <MonthlyIncomePlanningWorkspace />;
   if (section !== "budgets") redirect("/monthly-plan?section=budgets");
   const requestedSort = typeof params.budget_sort === "string" ? params.budget_sort : "custom";
   const query: MonthlyBudgetQuery = {
