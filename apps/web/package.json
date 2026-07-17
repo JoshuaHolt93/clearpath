@@ -13,6 +13,7 @@
   "dependencies": {
     "@clearpath/api-client": "workspace:*",
     "@clearpath/design-tokens": "workspace:*",
+    "@clearpath/domain": "workspace:*",
     "@clearpath/validation": "workspace:*",
     "lucide-react": "^1.24.0",
     "next": "^15.5.20",

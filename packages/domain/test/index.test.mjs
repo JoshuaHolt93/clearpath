@@ -8,6 +8,7 @@ import {
   calculateGoalProgress,
   calculateNetWorthSummary,
   estimateGoalTimeline,
+  forecastBufferStatus,
   loanPlanScenarios,
   monthsUntil,
   requiredExtraPaymentForDebtGoal,
@@ -91,6 +92,13 @@ test("ports dashboard safe-to-spend and on-track thresholds", () => {
   assert.equal(metrics.onTrackStatus, "green");
   assert.equal(calculateDashboardMetricValues({ ...input, variableSpend: 1700 }).onTrackStatus, "yellow");
   assert.equal(calculateDashboardMetricValues({ ...input, variableSpend: 1900 }).onTrackStatus, "red");
+});
+
+test("ports Flask three-month forecast buffer thresholds", () => {
+  assert.deepEqual(forecastBufferStatus(-1), { key: "tight", label: "Tight" });
+  assert.deepEqual(forecastBufferStatus(0), { key: "watch", label: "Watch" });
+  assert.deepEqual(forecastBufferStatus(299.99), { key: "watch", label: "Watch" });
+  assert.deepEqual(forecastBufferStatus(300), { key: "healthy", label: "Healthy" });
 });
 
 test("ports Flask net-worth aggregation", () => {

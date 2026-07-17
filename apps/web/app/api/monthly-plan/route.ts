@@ -1,5 +1,5 @@
 import type { components } from "@clearpath/api-client";
-import { monthlyBudgetsViewSchema, monthlyQuickPlanningViewSchema } from "@clearpath/validation";
+import { monthlyBudgetsViewSchema, monthlyForecastViewSchema, monthlyQuickPlanningViewSchema } from "@clearpath/validation";
 import { NextResponse } from "next/server";
 
 import { apiErrorMessage, clearPathApiClient, forwardedSessionHeaders } from "@/lib/server-api";
@@ -245,9 +245,50 @@ function mapQuickPlan(data: ApiPlan, me: ApiMe) {
   });
 }
 
+function mapForecastPlan(data: ApiPlan, me: ApiMe) {
+  return monthlyForecastViewSchema.safeParse({
+    session: mapSession(me),
+    today: data.today,
+    forecastMonths: (data.forecast_months ?? []).map((month) => ({
+      monthStart: month.month_start,
+      monthName: month.month_name,
+      baselineIncome: month.baseline_income,
+      fixedExpenses: month.fixed_expenses,
+      plannedSavings: month.planned_savings,
+      plannedDebt: month.planned_debt,
+      plannedTaxes: month.planned_taxes,
+      plannedRetirement: month.planned_retirement,
+      plannedVariable: month.planned_variable,
+      plannedIncome: month.planned_income,
+      plannedExpenses: month.planned_expenses,
+      oneTimeIncome: month.one_time_income,
+      oneTimeExpenses: month.one_time_expenses,
+      forecastIncomeTotal: month.forecast_income_total,
+      forecastExpenseTotal: month.forecast_expense_total,
+      plannedBuffer: month.planned_buffer,
+      startingCash: month.starting_cash,
+      endingCash: month.ending_cash,
+      forecastItems: (month.forecast_items ?? []).map((item) => ({
+        date: item.date,
+        description: item.description,
+        amount: item.amount,
+        itemType: item.item_type,
+        source: item.source,
+        sourceId: item.source_id ?? null,
+        categoryLabel: item.category_label ?? null,
+        notes: item.notes ?? null,
+      })),
+    })),
+    forecastItems: (data.forecast_items ?? []).map(mapForecastItem),
+    categoryLabelOptions: data.category_label_options ?? [],
+  });
+}
+
 export async function GET(request: Request) {
   const url = new URL(request.url);
-  const section = url.searchParams.get("section") === "tools" ? "tools" : "budgets";
+  const requestedSection = url.searchParams.get("section");
+  const section = requestedSection === "tools" || requestedSection === "forecast" ? requestedSection : "budgets";
+  const resourceLabel = section === "budgets" ? "budgets" : section === "forecast" ? "forecast" : "planning details";
   const budgetView = url.searchParams.get("budget_view") === "grouped" ? "grouped" : "list";
   const requestedSort = url.searchParams.get("budget_sort") ?? "custom";
   const budgetSort = budgetSorts.has(requestedSort) ? requestedSort : "custom";
@@ -264,15 +305,18 @@ export async function GET(request: Request) {
       clearPathApiClient().GET("/v1/me", { headers }),
     ]);
     if (!planResult.response.ok || !planResult.data) {
-      return NextResponse.json({ message: apiErrorMessage(planResult.error, "We could not load your budgets.") }, { status: planResult.response.status });
+      return NextResponse.json({ message: apiErrorMessage(planResult.error, `We could not load your ${resourceLabel}.`) }, { status: planResult.response.status });
     }
     if (!meResult.response.ok || !meResult.data) {
       return NextResponse.json({ message: apiErrorMessage(meResult.error, "We could not load your account session.") }, { status: meResult.response.status });
     }
     const mapped = section === "tools"
       ? mapQuickPlan(planResult.data, meResult.data)
-      : mapBudgetPlan(planResult.data, meResult.data, url.searchParams.get("onboarding") === "complete");
-    if (!mapped.success) return NextResponse.json({ message: `ClearPath returned invalid ${section === "tools" ? "planning" : "budget"} details.` }, { status: 502 });
+      : section === "forecast"
+        ? mapForecastPlan(planResult.data, meResult.data)
+        : mapBudgetPlan(planResult.data, meResult.data, url.searchParams.get("onboarding") === "complete");
+    const detailLabel = section === "budgets" ? "budget" : section === "forecast" ? "forecast" : "planning";
+    if (!mapped.success) return NextResponse.json({ message: `ClearPath returned invalid ${detailLabel} details.` }, { status: 502 });
     return NextResponse.json(mapped.data, { headers: { "cache-control": "no-store" } });
   } catch {
     return NextResponse.json({ message: "ClearPath is temporarily unavailable. Please try again." }, { status: 503 });

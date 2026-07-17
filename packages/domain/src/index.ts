@@ -50,6 +50,11 @@ export interface DashboardMetricMathResult {
   onTrackStatus: "green" | "yellow" | "red";
 }
 
+export interface ForecastBufferStatus {
+  key: "tight" | "watch" | "healthy";
+  label: "Tight" | "Watch" | "Healthy";
+}
+
 export interface NetWorthAccountMathInput {
   balance: number;
   isLiability: boolean;
@@ -161,6 +166,12 @@ export function calculateDashboardMetricValues(input: DashboardMetricMathInput):
   if (input.variableSpend <= expectedVariableSpend * 1.05) onTrackStatus = "green";
   else if (input.variableSpend <= expectedVariableSpend * 1.2) onTrackStatus = "yellow";
   return { safeToSpend, netCashFlow, expectedVariableSpend, onTrackStatus };
+}
+
+export function forecastBufferStatus(plannedBuffer: number): ForecastBufferStatus {
+  if (plannedBuffer < 0) return { key: "tight", label: "Tight" };
+  if (plannedBuffer < 300) return { key: "watch", label: "Watch" };
+  return { key: "healthy", label: "Healthy" };
 }
 
 export function calculateNetWorthSummary(

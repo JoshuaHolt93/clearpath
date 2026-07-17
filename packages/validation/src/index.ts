@@ -588,6 +588,49 @@ export const monthlyQuickPlanningViewSchema = z.object({
 
 export type MonthlyQuickPlanningView = z.infer<typeof monthlyQuickPlanningViewSchema>;
 
+const forecastMovementSchema = z.object({
+  date: z.string(),
+  description: z.string(),
+  amount: z.number(),
+  itemType: z.enum(["income", "expense"]),
+  source: z.string(),
+  sourceId: z.union([z.number(), z.string()]).nullable(),
+  categoryLabel: z.string().nullable(),
+  notes: z.string().nullable(),
+});
+
+const forecastMonthSchema = z.object({
+  monthStart: z.string(),
+  monthName: z.string(),
+  baselineIncome: z.number(),
+  fixedExpenses: z.number(),
+  plannedSavings: z.number(),
+  plannedDebt: z.number(),
+  plannedTaxes: z.number(),
+  plannedRetirement: z.number(),
+  plannedVariable: z.number(),
+  plannedIncome: z.number(),
+  plannedExpenses: z.number(),
+  oneTimeIncome: z.number(),
+  oneTimeExpenses: z.number(),
+  forecastIncomeTotal: z.number(),
+  forecastExpenseTotal: z.number(),
+  plannedBuffer: z.number(),
+  startingCash: z.number(),
+  endingCash: z.number(),
+  forecastItems: z.array(forecastMovementSchema),
+});
+
+export const monthlyForecastViewSchema = z.object({
+  session: signedInSessionSchema,
+  today: z.string(),
+  forecastMonths: z.array(forecastMonthSchema).length(3),
+  forecastItems: z.array(forecastItemSchema),
+  categoryLabelOptions: z.array(z.string()),
+});
+
+export type MonthlyForecastView = z.infer<typeof monthlyForecastViewSchema>;
+
 export const planningAmountInputSchema = z.object({
   monthlyTarget: z.number().positive("Enter a positive planned cash amount."),
 });
