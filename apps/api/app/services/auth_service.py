@@ -602,6 +602,7 @@ def accept_household_invite(db: Session, *, invite: HouseholdInvite, display_nam
     member.role = normalize_household_role(invite.role)
     member.status = "active"
     member.accepted_at = utc_now()
+    member.last_login_at = utc_now()
     member.policy_version = ETHICS_POLICY_VERSION
     member.set_password(password)
     db.add(member)
@@ -629,5 +630,4 @@ def create_invite(owner: User, email: str, role: str, *, db: Session) -> tuple[H
     db.commit()
     db.refresh(invite)
     return invite, token
-
 

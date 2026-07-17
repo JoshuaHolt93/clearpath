@@ -161,6 +161,11 @@ a:hover {
   opacity: 0.65;
 }
 
+.form-input:read-only {
+  color: var(--cp-text-secondary);
+  background: #f9fafb;
+}
+
 .password-input-wrap {
   position: relative;
 }

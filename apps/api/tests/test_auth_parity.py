@@ -3,7 +3,8 @@
 from urllib.parse import parse_qs, urlparse
 
 from app.core.security import decode_token, totp_code
-from app.models import HouseholdMember, OnboardingProfile, User
+from app.models import HouseholdInvite, HouseholdMember, OnboardingProfile, User
+from app.services.auth_service import create_invite
 from app.services.email_service import EmailDeliveryResult
 
 VALID_PASSWORD = "CorrectHorse1!"
@@ -263,3 +264,99 @@ def test_password_reset_request_keeps_unknown_account_indistinguishable(client, 
         "message": "If an account exists for that email, a password reset link has been sent.",
         "reset_token": None,
     }
+
+
+def test_household_invite_acceptance_creates_shared_pending_session(client, db):
+    owner = User(
+        email="invite-owner@example.com",
+        display_name="Owner",
+        household_name="Invite Household",
+        selected_plan="basic",
+    )
+    owner.set_password(VALID_PASSWORD)
+    db.add(owner)
+    db.flush()
+    db.add(OnboardingProfile(user_id=owner.id, income_amount=5000, monthly_income=5000))
+    db.commit()
+    invite, token = create_invite(owner, "invited-viewer@example.com", "viewer", db=db)
+
+    challenge = client.get(f"/v1/household-invites/{token}")
+    assert challenge.status_code == 200
+    assert challenge.json() == {
+        "valid": True,
+        "email": "invited-viewer@example.com",
+        "household_name": "Invite Household",
+        "role": "viewer",
+    }
+    assert "clearpath_session=" in challenge.headers["set-cookie"]
+    assert "max-age=0" in challenge.headers["set-cookie"].lower()
+
+    accepted = client.post(
+        f"/v1/household-invites/{token}/accept",
+        json={
+            "display_name": "Taylor Viewer",
+            "password": "SharedVault123!",
+            "confirm_password": "SharedVault123!",
+            "policy_acknowledgement": True,
+        },
+    )
+    assert accepted.status_code == 200
+    pending = accepted.json()
+    assert pending["next_step"] == "mfa_setup"
+    assert pending["mfa_verified"] is False
+    assert pending["principal"]["subject_type"] == "household_member"
+    assert pending["principal"]["household_role"] == "viewer"
+    assert "max-age=900" in accepted.headers["set-cookie"].lower()
+
+    db.expire_all()
+    member = db.query(HouseholdMember).filter_by(email="invited-viewer@example.com").one()
+    refreshed_invite = db.get(HouseholdInvite, invite.id)
+    assert member.owner_user_id == owner.id
+    assert member.display_name == "Taylor Viewer"
+    assert member.status == "active"
+    assert member.last_login_at is not None
+    assert refreshed_invite.status == "accepted"
+    assert refreshed_invite.accepted_member_id == member.id
+
+    completed = client.post(
+        "/v1/auth/mfa/setup",
+        headers=auth_header(pending["access_token"]),
+        json={"action": "skip"},
+    )
+    assert completed.status_code == 200
+    assert completed.json()["next_step"] == "dashboard"
+    assert completed.json()["principal"]["household_member_id"] == member.id
+
+    assert client.get(f"/v1/household-invites/{token}").json()["valid"] is False
+    reused = client.post(
+        f"/v1/household-invites/{token}/accept",
+        json={
+            "display_name": "Taylor Viewer",
+            "password": "SharedVault123!",
+            "confirm_password": "SharedVault123!",
+            "policy_acknowledgement": True,
+        },
+    )
+    assert reused.status_code == 410
+
+
+def test_household_invite_acceptance_preserves_flask_validation_order(client, db):
+    owner = User(email="validation-owner@example.com", household_name="Validation Home", selected_plan="basic")
+    owner.set_password(VALID_PASSWORD)
+    db.add(owner)
+    db.commit()
+    invite, token = create_invite(owner, "validation-member@example.com", "editor", db=db)
+
+    missing_name = client.post(
+        f"/v1/household-invites/{token}/accept",
+        json={
+            "display_name": "",
+            "password": "short",
+            "confirm_password": "different",
+            "policy_acknowledgement": False,
+        },
+    )
+    assert missing_name.status_code == 422
+    assert missing_name.json()["detail"] == "Your name is required."
+    db.refresh(invite)
+    assert invite.status == "pending"

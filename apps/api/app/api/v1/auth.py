@@ -397,10 +397,17 @@ def password_reset_confirm(
 
 
 @router.get("/household-invites/{token}", response_model=HouseholdInviteTokenResponse)
-def household_invite(token: str, db: Annotated[Session, Depends(get_db)]) -> HouseholdInviteTokenResponse:
+def household_invite(
+    token: str,
+    response: Response,
+    db: Annotated[Session, Depends(get_db)],
+) -> HouseholdInviteTokenResponse:
     invite = invite_from_token(db, token)
     if not invite_is_usable(invite):
         return HouseholdInviteTokenResponse(valid=False)
+    # Flask logs out any current owner/shared session before rendering a valid
+    # invitation so acceptance always starts from the invited identity.
+    response.delete_cookie(get_settings().session_cookie_name)
     return HouseholdInviteTokenResponse(
         valid=True,
         email=invite.email,

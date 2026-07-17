@@ -60,6 +60,37 @@ export type PasswordResetConfirmRequest = z.infer<typeof passwordResetConfirmReq
 
 export const passwordResetConfirmResultSchema = z.object({ ok: z.literal(true) });
 
+export const householdInviteTokenSchema = z.object({
+  valid: z.boolean(),
+  email: z.string().email().nullable(),
+  householdName: z.string().nullable(),
+  role: z.enum(["editor", "viewer"]).nullable(),
+});
+
+export type HouseholdInviteToken = z.infer<typeof householdInviteTokenSchema>;
+
+export const householdInviteAcceptRequestSchema = z
+  .object({
+    display_name: z.string().trim().min(1, "Your name is required."),
+    password: z.string().min(12, "Password must be at least 12 characters long."),
+    confirm_password: z.string().min(1, "Confirm your password."),
+    policy_acknowledgement: z.boolean().refine((accepted) => accepted, {
+      message: "Please accept the ClearPath Terms, Privacy Policy, and Ethics Policy to use shared access.",
+    }),
+  })
+  .superRefine((value, context) => {
+    if (value.password !== value.confirm_password) {
+      context.addIssue({
+        code: "custom",
+        path: ["confirm_password"],
+        message: "Password and confirmation did not match.",
+      });
+    }
+  });
+
+export type HouseholdInviteAcceptRequest = z.infer<typeof householdInviteAcceptRequestSchema>;
+export const householdInviteAcceptResultSchema = loginResultSchema;
+
 export const mfaChallengeSchema = z.object({
   subjectType: z.enum(["user", "household_member"]),
   email: z.string().email(),
