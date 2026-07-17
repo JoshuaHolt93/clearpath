@@ -3460,6 +3460,34 @@
         "title": "ExpenseSourceRowResponse",
         "type": "object"
       },
+      "FeatureAccessSummary": {
+        "properties": {
+          "enabled": {
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "feature": {
+            "title": "Feature",
+            "type": "string"
+          },
+          "hidden": {
+            "title": "Hidden",
+            "type": "boolean"
+          },
+          "required_plan": {
+            "title": "Required Plan",
+            "type": "string"
+          }
+        },
+        "required": [
+          "feature",
+          "enabled",
+          "hidden",
+          "required_plan"
+        ],
+        "title": "FeatureAccessSummary",
+        "type": "object"
+      },
       "FixedExpenseCreateRequest": {
         "properties": {
           "amount": {
@@ -5072,6 +5100,82 @@
           }
         },
         "title": "LogoutResponse",
+        "type": "object"
+      },
+      "MeResponse": {
+        "properties": {
+          "billing_status": {
+            "title": "Billing Status",
+            "type": "string"
+          },
+          "display_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Display Name"
+          },
+          "email": {
+            "title": "Email",
+            "type": "string"
+          },
+          "feature_access": {
+            "items": {
+              "$ref": "#/components/schemas/FeatureAccessSummary"
+            },
+            "title": "Feature Access",
+            "type": "array"
+          },
+          "household_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Household Name"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "is_admin": {
+            "title": "Is Admin",
+            "type": "boolean"
+          },
+          "plan_display_name": {
+            "title": "Plan Display Name",
+            "type": "string"
+          },
+          "primary_account_holder": {
+            "title": "Primary Account Holder",
+            "type": "boolean"
+          },
+          "selected_plan": {
+            "title": "Selected Plan",
+            "type": "string"
+          },
+          "session_subject": {
+            "$ref": "#/components/schemas/SignedInSubjectSummary"
+          }
+        },
+        "required": [
+          "id",
+          "email",
+          "selected_plan",
+          "billing_status",
+          "is_admin",
+          "session_subject",
+          "primary_account_holder",
+          "plan_display_name"
+        ],
+        "title": "MeResponse",
         "type": "object"
       },
       "MfaChallengeResponse": {
@@ -9042,6 +9146,55 @@
           "stay_signed_in"
         ],
         "title": "SessionPrincipal",
+        "type": "object"
+      },
+      "SignedInSubjectSummary": {
+        "properties": {
+          "avatar_initial": {
+            "title": "Avatar Initial",
+            "type": "string"
+          },
+          "display_name": {
+            "title": "Display Name",
+            "type": "string"
+          },
+          "email": {
+            "title": "Email",
+            "type": "string"
+          },
+          "first_name": {
+            "title": "First Name",
+            "type": "string"
+          },
+          "household_role": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Household Role"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "subject_type": {
+            "title": "Subject Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "subject_type",
+          "email",
+          "display_name",
+          "first_name",
+          "avatar_initial"
+        ],
+        "title": "SignedInSubjectSummary",
         "type": "object"
       },
       "SubscriptionCategoryBreakdownRow": {
@@ -13963,7 +14116,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/UserSummary"
+                  "$ref": "#/components/schemas/MeResponse"
                 }
               }
             },

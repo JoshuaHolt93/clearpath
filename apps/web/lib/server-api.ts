@@ -2,6 +2,7 @@ import { createClearPathClient } from "@clearpath/api-client";
 import { NextResponse } from "next/server";
 
 export const MFA_EMAIL_CHALLENGE_COOKIE = "clearpath_mfa_email_challenge";
+export const TODAY_TUTORIAL_COOKIE = "clearpath_today_tutorial";
 const MFA_EMAIL_CHALLENGE_MAX_AGE_SECONDS = 10 * 60;
 
 export function clearPathApiClient() {
@@ -41,6 +42,21 @@ export function setMfaEmailChallengeCookie(response: NextResponse, token: string
   response.headers.append(
     "set-cookie",
     `${MFA_EMAIL_CHALLENGE_COOKIE}=${encodeURIComponent(token)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${MFA_EMAIL_CHALLENGE_MAX_AGE_SECONDS}${secure}`,
+  );
+}
+
+export function setTodayTutorialCookie(response: NextResponse, visible: boolean) {
+  const secure = process.env.NODE_ENV === "production" ? "; Secure" : "";
+  if (!visible) {
+    response.headers.append(
+      "set-cookie",
+      `${TODAY_TUTORIAL_COOKIE}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0; Expires=Thu, 01 Jan 1970 00:00:00 GMT${secure}`,
+    );
+    return;
+  }
+  response.headers.append(
+    "set-cookie",
+    `${TODAY_TUTORIAL_COOKIE}=1; Path=/; HttpOnly; SameSite=Lax; Max-Age=86400${secure}`,
   );
 }
 

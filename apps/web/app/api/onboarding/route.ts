@@ -9,6 +9,7 @@ import {
   apiErrorMessage,
   clearPathApiClient,
   forwardedSessionHeaders,
+  setTodayTutorialCookie,
 } from "@/lib/server-api";
 
 export const runtime = "nodejs";
@@ -138,7 +139,11 @@ export async function POST(request: Request) {
       body: { confirm: true },
       headers: forwardedSessionHeaders(request),
     });
-    return statusResponse(data, error, response);
+    const webResponse = statusResponse(data, error, response);
+    if (response.ok && data) {
+      setTodayTutorialCookie(webResponse, true);
+    }
+    return webResponse;
   } catch {
     return NextResponse.json({ message: "ClearPath is temporarily unavailable. Please try again." }, { status: 503 });
   }

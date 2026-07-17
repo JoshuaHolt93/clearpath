@@ -10,6 +10,12 @@ from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
 from app.core.database import get_db
+from app.core.feature_access import (
+    feature_is_temporarily_hidden,
+    feature_min_plan_label,
+    plan_display_name,
+    user_has_feature,
+)
 from app.core.security import password_policy_errors, totp_provisioning_uri
 from app.dependencies import Principal, require_full_session, require_pending_auth
 from app.models import HouseholdMember, User
@@ -21,6 +27,7 @@ from app.schemas.auth import (
     LoginRequest,
     LogoutRequest,
     LogoutResponse,
+    MeResponse,
     MfaChallengeResponse,
     MfaEmailCodeSendRequest,
     MfaEmailCodeSendResponse,
@@ -116,9 +123,49 @@ def logout(payload: LogoutRequest, response: Response) -> LogoutResponse:
     return LogoutResponse(ok=True)
 
 
-@router.get("/me", response_model=UserSummary)
-def me(principal: Annotated[Principal, Depends(require_full_session)]) -> UserSummary:
-    return UserSummary.model_validate(principal.user)
+@router.get("/me", response_model=MeResponse)
+def me(principal: Annotated[Principal, Depends(require_full_session)]) -> MeResponse:
+    subject = principal.subject
+    email = (subject.email or "").strip()
+    fallback_name = email.split("@", 1)[0] if email else "User"
+    if principal.household_member:
+        raw_name = principal.household_member.display_name or fallback_name
+    else:
+        raw_name = principal.user.display_name or principal.user.household_name or fallback_name
+    display_name = " ".join(str(raw_name or "").split()) or fallback_name
+    navigation_features = (
+        "income_planning",
+        "cash_projection",
+        "subscriptions",
+        "ai_planner",
+        "ai_coach",
+        "mortgage_loan_planning",
+        "retirement_planning",
+    )
+    user_summary = UserSummary.model_validate(principal.user)
+    return MeResponse(
+        **user_summary.model_dump(),
+        session_subject={
+            "id": principal.subject_id,
+            "subject_type": principal.subject_type,
+            "email": email,
+            "display_name": display_name,
+            "first_name": display_name.split()[0] if display_name else "User",
+            "avatar_initial": (display_name or email or "U")[0].upper(),
+            "household_role": principal.household_role,
+        },
+        primary_account_holder=not principal.is_shared_session,
+        plan_display_name=plan_display_name(principal.user.selected_plan),
+        feature_access=[
+            {
+                "feature": feature,
+                "enabled": user_has_feature(principal.user, feature),
+                "hidden": feature_is_temporarily_hidden(feature),
+                "required_plan": feature_min_plan_label(feature),
+            }
+            for feature in navigation_features
+        ],
+    )
 
 
 @router.get("/auth/mfa/setup", response_model=MfaSetupResponse)

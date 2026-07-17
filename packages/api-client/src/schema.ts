@@ -2716,6 +2716,17 @@ export interface components {
             /** Subscription Count */
             subscription_count?: number | null;
         };
+        /** FeatureAccessSummary */
+        FeatureAccessSummary: {
+            /** Enabled */
+            enabled: boolean;
+            /** Feature */
+            feature: string;
+            /** Hidden */
+            hidden: boolean;
+            /** Required Plan */
+            required_plan: string;
+        };
         /** FixedExpenseCreateRequest */
         FixedExpenseCreateRequest: {
             /** Amount */
@@ -3267,6 +3278,30 @@ export interface components {
              * @default true
              */
             ok: boolean;
+        };
+        /** MeResponse */
+        MeResponse: {
+            /** Billing Status */
+            billing_status: string;
+            /** Display Name */
+            display_name?: string | null;
+            /** Email */
+            email: string;
+            /** Feature Access */
+            feature_access?: components["schemas"]["FeatureAccessSummary"][];
+            /** Household Name */
+            household_name?: string | null;
+            /** Id */
+            id: number;
+            /** Is Admin */
+            is_admin: boolean;
+            /** Plan Display Name */
+            plan_display_name: string;
+            /** Primary Account Holder */
+            primary_account_holder: boolean;
+            /** Selected Plan */
+            selected_plan: string;
+            session_subject: components["schemas"]["SignedInSubjectSummary"];
         };
         /** MfaChallengeResponse */
         MfaChallengeResponse: {
@@ -4692,6 +4727,23 @@ export interface components {
             subject_type: string;
             /** User Id */
             user_id: number;
+        };
+        /** SignedInSubjectSummary */
+        SignedInSubjectSummary: {
+            /** Avatar Initial */
+            avatar_initial: string;
+            /** Display Name */
+            display_name: string;
+            /** Email */
+            email: string;
+            /** First Name */
+            first_name: string;
+            /** Household Role */
+            household_role?: string | null;
+            /** Id */
+            id: number;
+            /** Subject Type */
+            subject_type: string;
         };
         /** SubscriptionCategoryBreakdownRow */
         SubscriptionCategoryBreakdownRow: {
@@ -7202,7 +7254,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["UserSummary"];
+                    "application/json": components["schemas"]["MeResponse"];
                 };
             };
         };

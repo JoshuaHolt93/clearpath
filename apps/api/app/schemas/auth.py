@@ -55,6 +55,30 @@ class SessionPrincipal(BaseModel):
     stay_signed_in: bool
 
 
+class SignedInSubjectSummary(BaseModel):
+    id: int
+    subject_type: str
+    email: str
+    display_name: str
+    first_name: str
+    avatar_initial: str
+    household_role: str | None = None
+
+
+class FeatureAccessSummary(BaseModel):
+    feature: str
+    enabled: bool
+    hidden: bool
+    required_plan: str
+
+
+class MeResponse(UserSummary):
+    session_subject: SignedInSubjectSummary
+    primary_account_holder: bool
+    plan_display_name: str
+    feature_access: list[FeatureAccessSummary] = Field(default_factory=list)
+
+
 class AuthSessionResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"

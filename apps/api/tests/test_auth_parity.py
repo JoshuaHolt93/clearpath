@@ -58,6 +58,26 @@ def test_register_returns_pending_token_and_mfa_verify_mints_full_session(client
     me = client.get("/v1/me", headers=auth_header(full["access_token"]))
     assert me.status_code == 200
     assert me.json()["email"] == "user@example.com"
+    assert me.json()["session_subject"] == {
+        "id": me.json()["id"],
+        "subject_type": "user",
+        "email": "user@example.com",
+        "display_name": "Test User",
+        "first_name": "Test",
+        "avatar_initial": "T",
+        "household_role": None,
+    }
+    assert me.json()["primary_account_holder"] is True
+    assert me.json()["plan_display_name"] == "Not Selected"
+    assert {row["feature"] for row in me.json()["feature_access"]} == {
+        "income_planning",
+        "cash_projection",
+        "subscriptions",
+        "ai_planner",
+        "ai_coach",
+        "mortgage_loan_planning",
+        "retirement_planning",
+    }
 
 
 def test_stay_signed_in_survives_pending_mfa_and_controls_full_cookie_lifetime(client):
@@ -141,6 +161,19 @@ def test_shared_household_login_uses_member_as_pending_mfa_subject(client, db):
     assert completed.status_code == 200
     assert completed.json()["principal"]["subject_type"] == "household_member"
     assert completed.json()["mfa_verified"] is True
+    me = client.get("/v1/me", headers=auth_header(completed.json()["access_token"]))
+    assert me.status_code == 200
+    assert me.json()["email"] == "owner@example.com"
+    assert me.json()["session_subject"] == {
+        "id": member.id,
+        "subject_type": "household_member",
+        "email": "shared@example.com",
+        "display_name": "shared",
+        "first_name": "shared",
+        "avatar_initial": "S",
+        "household_role": "viewer",
+    }
+    assert me.json()["primary_account_holder"] is False
 
 
 def test_recovery_code_is_consumed_once(client):

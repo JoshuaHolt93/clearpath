@@ -128,6 +128,18 @@ describe("onboarding BFF routes", () => {
     expect(await response.json()).toEqual({ message: "Connect a bank account before finishing setup." });
   });
 
+  it("preserves Flask's one-time Today tutorial after onboarding completion", async () => {
+    apiPost.mockResolvedValue({
+      data: apiStatus({ active_step: "transactions", income_ready: true, setup_complete: true, next_path: "/monthly-plan?section=budgets&onboarding=complete" }),
+      error: undefined,
+      response: new Response(null, { status: 200 }),
+    });
+    const response = await POST(new Request("http://localhost/api/onboarding", { method: "POST" }));
+    expect(response.status).toBe(200);
+    expect(response.headers.get("set-cookie")).toContain("clearpath_today_tutorial=1");
+    expect(response.headers.get("set-cookie")).toContain("HttpOnly");
+  });
+
   it("uses generated transaction defaults and maps Plaid Link tokens", async () => {
     apiPatch.mockResolvedValue({
       data: { transaction: { id: 12, category: { id: 7 } } },

@@ -308,3 +308,129 @@ export const plaidLinkEventSchema = z.object({
 export const onboardingCategorySelectionSchema = z.object({
   category_id: z.number().int().positive("Choose a category."),
 });
+
+export const appFeatureAccessSchema = z.object({
+  feature: z.string(),
+  enabled: z.boolean(),
+  hidden: z.boolean(),
+  requiredPlan: z.string(),
+});
+
+export const signedInSessionSchema = z.object({
+  ownerUserId: z.number().int(),
+  householdName: z.string().nullable(),
+  selectedPlan: z.string(),
+  billingStatus: z.string(),
+  planDisplayName: z.string(),
+  primaryAccountHolder: z.boolean(),
+  subject: z.object({
+    id: z.number().int(),
+    subjectType: z.enum(["user", "household_member"]),
+    email: z.string().email(),
+    displayName: z.string(),
+    firstName: z.string(),
+    avatarInitial: z.string().length(1),
+    householdRole: z.string().nullable(),
+  }),
+  featureAccess: z.array(appFeatureAccessSchema),
+});
+
+const dashboardPlanDetailSchema = z.object({
+  label: z.string(),
+  planned: z.number(),
+  actual: z.number(),
+  source: z.string().nullable(),
+});
+
+const dashboardPlanRowSchema = z.object({
+  label: z.string(),
+  planned: z.number(),
+  actual: z.number(),
+  type: z.string(),
+  details: z.array(dashboardPlanDetailSchema),
+});
+
+const dashboardGoalSchema = z.object({
+  id: z.number().int(),
+  name: z.string(),
+  goalType: z.string(),
+  progress: z.number(),
+  timeline: z.string(),
+  currentAmount: z.number(),
+  targetAmount: z.number(),
+  requiredMonthly: z.number(),
+  requiredExtra: z.number(),
+  targetDate: z.string().nullable(),
+});
+
+const dashboardGuidanceItemSchema = z.object({
+  title: z.string(),
+  body: z.string(),
+  level: z.string(),
+  type: z.string(),
+  disclaimer: z.string().nullable(),
+  action: z.object({ label: z.string(), target: z.string() }).nullable(),
+});
+
+export const dashboardViewSchema = z.object({
+  session: signedInSessionSchema,
+  monthName: z.string(),
+  today: z.string(),
+  elapsedDays: z.number().int(),
+  totalDays: z.number().int(),
+  daysLeft: z.number().int(),
+  pacePercent: z.number(),
+  spendPercent: z.number(),
+  showTutorial: z.boolean(),
+  metrics: z.object({
+    monthIncome: z.number(),
+    fixedExpenses: z.number(),
+    variableSpend: z.number(),
+    safeToSpend: z.number(),
+    safeToSpendTarget: z.number(),
+    netCashFlow: z.number(),
+    onTrackStatus: z.enum(["green", "yellow", "red"]),
+    expectedVariableSpend: z.number(),
+  }),
+  netWorth: z.object({
+    assets: z.number(),
+    liabilities: z.number(),
+    netWorth: z.number(),
+  }),
+  categoryTotals: z.array(z.object({
+    category: z.string(),
+    categoryId: z.number().int().nullable(),
+    amount: z.number(),
+  })),
+  goals: z.array(dashboardGoalSchema),
+  recentTransactions: z.array(z.object({
+    id: z.number().int(),
+    postedDate: z.string(),
+    description: z.string(),
+    amount: z.number(),
+    transactionType: z.string(),
+    categoryName: z.string().nullable(),
+  })),
+  planRows: z.array(dashboardPlanRowSchema),
+  budgetRemaining: z.number(),
+  expectedCashFlow: z.number(),
+  insights: z.array(z.object({
+    title: z.string(),
+    body: z.string(),
+    level: z.string(),
+    type: z.string(),
+    disclaimer: z.string(),
+  })),
+  dashboardFocus: z.object({
+    items: z.array(dashboardGuidanceItemSchema),
+    generatedAt: z.string().nullable(),
+    message: z.string(),
+  }).nullable(),
+});
+
+export type DashboardView = z.infer<typeof dashboardViewSchema>;
+
+export const plaidRefreshSummarySchema = z.object({
+  synced: z.number().int(),
+  errors: z.array(z.string()),
+});
