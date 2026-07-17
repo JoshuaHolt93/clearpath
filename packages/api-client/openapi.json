@@ -6453,6 +6453,529 @@
         "title": "NetWorthResponse",
         "type": "object"
       },
+      "OnboardingCategoryResponse": {
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "kind"
+        ],
+        "title": "OnboardingCategoryResponse",
+        "type": "object"
+      },
+      "OnboardingCompleteRequest": {
+        "properties": {
+          "confirm": {
+            "default": true,
+            "title": "Confirm",
+            "type": "boolean"
+          }
+        },
+        "title": "OnboardingCompleteRequest",
+        "type": "object"
+      },
+      "OnboardingIncomePlanRequest": {
+        "properties": {
+          "additional_income_amount": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Additional Income Amount"
+          },
+          "additional_income_frequency": {
+            "default": "annual",
+            "title": "Additional Income Frequency",
+            "type": "string"
+          },
+          "fixed_expenses": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fixed Expenses"
+          },
+          "hourly_hours_per_week": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": 40,
+            "title": "Hourly Hours Per Week"
+          },
+          "include_payroll_taxes": {
+            "default": true,
+            "title": "Include Payroll Taxes",
+            "type": "boolean"
+          },
+          "income_amount": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Income Amount"
+          },
+          "income_basis": {
+            "default": "take_home",
+            "title": "Income Basis",
+            "type": "string"
+          },
+          "income_type": {
+            "default": "salary",
+            "title": "Income Type",
+            "type": "string"
+          },
+          "monthly_income": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Monthly Income"
+          },
+          "next_pay_date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Pay Date"
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          },
+          "paycheck_cadence": {
+            "default": "monthly",
+            "title": "Paycheck Cadence",
+            "type": "string"
+          },
+          "planned_debt_payment": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Planned Debt Payment"
+          },
+          "planned_savings_contribution": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Planned Savings Contribution"
+          },
+          "recurring_days_of_week": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "string"
+                }
+              ]
+            },
+            "title": "Recurring Days Of Week",
+            "type": "array"
+          },
+          "recurring_monthly_week_numbers": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "string"
+                }
+              ]
+            },
+            "title": "Recurring Monthly Week Numbers",
+            "type": "array"
+          },
+          "recurring_monthly_weekday": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recurring Monthly Weekday"
+          },
+          "second_date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Second Date"
+          },
+          "target_investment_contribution": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Investment Contribution"
+          },
+          "tax_filing_status": {
+            "default": "married_joint",
+            "title": "Tax Filing Status",
+            "type": "string"
+          },
+          "tax_state": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tax State"
+          },
+          "variable_expenses": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Variable Expenses"
+          }
+        },
+        "title": "OnboardingIncomePlanRequest",
+        "type": "object"
+      },
+      "OnboardingPlaidItemResponse": {
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "institution_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Institution Name"
+          },
+          "last_synced_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Synced At"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "status"
+        ],
+        "title": "OnboardingPlaidItemResponse",
+        "type": "object"
+      },
+      "OnboardingStatusResponse": {
+        "properties": {
+          "active_step": {
+            "enum": [
+              "connect",
+              "income",
+              "transactions"
+            ],
+            "title": "Active Step",
+            "type": "string"
+          },
+          "auto_categorized_count": {
+            "default": 0,
+            "title": "Auto Categorized Count",
+            "type": "integer"
+          },
+          "categories": {
+            "items": {
+              "$ref": "#/components/schemas/OnboardingCategoryResponse"
+            },
+            "title": "Categories",
+            "type": "array"
+          },
+          "has_bank": {
+            "title": "Has Bank",
+            "type": "boolean"
+          },
+          "income_basis_options": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Income Basis Options",
+            "type": "object"
+          },
+          "income_ready": {
+            "title": "Income Ready",
+            "type": "boolean"
+          },
+          "income_type_options": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Income Type Options",
+            "type": "object"
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Message"
+          },
+          "monthly_week_options": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Monthly Week Options",
+            "type": "object"
+          },
+          "next_path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Path"
+          },
+          "paycheck_cadence_options": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Paycheck Cadence Options",
+            "type": "object"
+          },
+          "plaid_items": {
+            "items": {
+              "$ref": "#/components/schemas/OnboardingPlaidItemResponse"
+            },
+            "title": "Plaid Items",
+            "type": "array"
+          },
+          "plaid_status": {
+            "$ref": "#/components/schemas/PlaidStatusResponse"
+          },
+          "profile": {
+            "$ref": "#/components/schemas/BaselineProfileResponse"
+          },
+          "recurring_frequency_options": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Recurring Frequency Options",
+            "type": "object"
+          },
+          "seeded_budget_count": {
+            "default": 0,
+            "title": "Seeded Budget Count",
+            "type": "integer"
+          },
+          "setup_complete": {
+            "title": "Setup Complete",
+            "type": "boolean"
+          },
+          "state_options": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "State Options",
+            "type": "object"
+          },
+          "tax_filing_status_options": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Tax Filing Status Options",
+            "type": "object"
+          },
+          "today": {
+            "format": "date",
+            "title": "Today",
+            "type": "string"
+          },
+          "transactions": {
+            "items": {
+              "$ref": "#/components/schemas/OnboardingTransactionResponse"
+            },
+            "title": "Transactions",
+            "type": "array"
+          },
+          "weekday_options": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Weekday Options",
+            "type": "object"
+          }
+        },
+        "required": [
+          "active_step",
+          "income_ready",
+          "has_bank",
+          "setup_complete",
+          "profile",
+          "today",
+          "plaid_status",
+          "income_basis_options",
+          "income_type_options",
+          "paycheck_cadence_options",
+          "recurring_frequency_options",
+          "weekday_options",
+          "monthly_week_options",
+          "tax_filing_status_options",
+          "state_options"
+        ],
+        "title": "OnboardingStatusResponse",
+        "type": "object"
+      },
+      "OnboardingTransactionResponse": {
+        "properties": {
+          "account_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Account Name"
+          },
+          "amount": {
+            "title": "Amount",
+            "type": "number"
+          },
+          "category_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category Id"
+          },
+          "display_merchant": {
+            "title": "Display Merchant",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "posted_date": {
+            "format": "date",
+            "title": "Posted Date",
+            "type": "string"
+          },
+          "source_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Name"
+          }
+        },
+        "required": [
+          "id",
+          "display_merchant",
+          "posted_date",
+          "amount"
+        ],
+        "title": "OnboardingTransactionResponse",
+        "type": "object"
+      },
       "PasswordResetConfirmRequest": {
         "properties": {
           "confirm_password": {
@@ -13599,6 +14122,146 @@
         "summary": "Update Monthly Plan Baseline",
         "tags": [
           "planning"
+        ]
+      }
+    },
+    "/v1/onboarding/complete": {
+      "post": {
+        "operationId": "complete_onboarding_v1_onboarding_complete_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OnboardingCompleteRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OnboardingStatusResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Complete Onboarding",
+        "tags": [
+          "onboarding"
+        ]
+      }
+    },
+    "/v1/onboarding/income-plan": {
+      "patch": {
+        "operationId": "update_onboarding_income_plan_v1_onboarding_income_plan_patch",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OnboardingIncomePlanRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OnboardingStatusResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Update Onboarding Income Plan",
+        "tags": [
+          "onboarding"
+        ]
+      }
+    },
+    "/v1/onboarding/status": {
+      "get": {
+        "operationId": "get_onboarding_status_v1_onboarding_status_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "step",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Step",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OnboardingStatusResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Onboarding Status",
+        "tags": [
+          "onboarding"
         ]
       }
     },

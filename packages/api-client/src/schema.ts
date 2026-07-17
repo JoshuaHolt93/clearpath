@@ -831,6 +831,57 @@ export interface paths {
         patch: operations["update_monthly_plan_baseline_v1_monthly_plan_baseline_patch"];
         trace?: never;
     };
+    "/v1/onboarding/complete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Complete Onboarding */
+        post: operations["complete_onboarding_v1_onboarding_complete_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/onboarding/income-plan": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update Onboarding Income Plan */
+        patch: operations["update_onboarding_income_plan_v1_onboarding_income_plan_patch"];
+        trace?: never;
+    };
+    "/v1/onboarding/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Onboarding Status */
+        get: operations["get_onboarding_status_v1_onboarding_status_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/plaid-ignored-accounts/{ignore_id}/restore": {
         parameters: {
             query?: never;
@@ -3709,6 +3760,195 @@ export interface components {
             secured_negative_equity: number;
             /** Unsecured Loan Balances */
             unsecured_loan_balances: number;
+        };
+        /** OnboardingCategoryResponse */
+        OnboardingCategoryResponse: {
+            /** Id */
+            id: number;
+            /** Kind */
+            kind: string;
+            /** Name */
+            name: string;
+        };
+        /** OnboardingCompleteRequest */
+        OnboardingCompleteRequest: {
+            /**
+             * Confirm
+             * @default true
+             */
+            confirm: boolean;
+        };
+        /** OnboardingIncomePlanRequest */
+        OnboardingIncomePlanRequest: {
+            /** Additional Income Amount */
+            additional_income_amount?: number | null;
+            /**
+             * Additional Income Frequency
+             * @default annual
+             */
+            additional_income_frequency: string;
+            /** Fixed Expenses */
+            fixed_expenses?: number | null;
+            /**
+             * Hourly Hours Per Week
+             * @default 40
+             */
+            hourly_hours_per_week: number | null;
+            /**
+             * Include Payroll Taxes
+             * @default true
+             */
+            include_payroll_taxes: boolean;
+            /** Income Amount */
+            income_amount?: number | null;
+            /**
+             * Income Basis
+             * @default take_home
+             */
+            income_basis: string;
+            /**
+             * Income Type
+             * @default salary
+             */
+            income_type: string;
+            /** Monthly Income */
+            monthly_income?: number | null;
+            /** Next Pay Date */
+            next_pay_date?: string | null;
+            /** Notes */
+            notes?: string | null;
+            /**
+             * Paycheck Cadence
+             * @default monthly
+             */
+            paycheck_cadence: string;
+            /** Planned Debt Payment */
+            planned_debt_payment?: number | null;
+            /** Planned Savings Contribution */
+            planned_savings_contribution?: number | null;
+            /** Recurring Days Of Week */
+            recurring_days_of_week?: (number | string)[];
+            /** Recurring Monthly Week Numbers */
+            recurring_monthly_week_numbers?: (number | string)[];
+            /** Recurring Monthly Weekday */
+            recurring_monthly_weekday?: number | string | null;
+            /** Second Date */
+            second_date?: string | null;
+            /** Target Investment Contribution */
+            target_investment_contribution?: number | null;
+            /**
+             * Tax Filing Status
+             * @default married_joint
+             */
+            tax_filing_status: string;
+            /** Tax State */
+            tax_state?: string | null;
+            /** Variable Expenses */
+            variable_expenses?: number | null;
+        };
+        /** OnboardingPlaidItemResponse */
+        OnboardingPlaidItemResponse: {
+            /** Id */
+            id: number;
+            /** Institution Name */
+            institution_name?: string | null;
+            /** Last Synced At */
+            last_synced_at?: string | null;
+            /** Status */
+            status: string;
+        };
+        /** OnboardingStatusResponse */
+        OnboardingStatusResponse: {
+            /**
+             * Active Step
+             * @enum {string}
+             */
+            active_step: "connect" | "income" | "transactions";
+            /**
+             * Auto Categorized Count
+             * @default 0
+             */
+            auto_categorized_count: number;
+            /** Categories */
+            categories?: components["schemas"]["OnboardingCategoryResponse"][];
+            /** Has Bank */
+            has_bank: boolean;
+            /** Income Basis Options */
+            income_basis_options: {
+                [key: string]: string;
+            };
+            /** Income Ready */
+            income_ready: boolean;
+            /** Income Type Options */
+            income_type_options: {
+                [key: string]: string;
+            };
+            /** Message */
+            message?: string | null;
+            /** Monthly Week Options */
+            monthly_week_options: {
+                [key: string]: string;
+            };
+            /** Next Path */
+            next_path?: string | null;
+            /** Paycheck Cadence Options */
+            paycheck_cadence_options: {
+                [key: string]: string;
+            };
+            /** Plaid Items */
+            plaid_items?: components["schemas"]["OnboardingPlaidItemResponse"][];
+            plaid_status: components["schemas"]["PlaidStatusResponse"];
+            profile: components["schemas"]["BaselineProfileResponse"];
+            /** Recurring Frequency Options */
+            recurring_frequency_options: {
+                [key: string]: string;
+            };
+            /**
+             * Seeded Budget Count
+             * @default 0
+             */
+            seeded_budget_count: number;
+            /** Setup Complete */
+            setup_complete: boolean;
+            /** State Options */
+            state_options: {
+                [key: string]: string;
+            };
+            /** Tax Filing Status Options */
+            tax_filing_status_options: {
+                [key: string]: string;
+            };
+            /**
+             * Today
+             * Format: date
+             */
+            today: string;
+            /** Transactions */
+            transactions?: components["schemas"]["OnboardingTransactionResponse"][];
+            /** Weekday Options */
+            weekday_options: {
+                [key: string]: string;
+            };
+        };
+        /** OnboardingTransactionResponse */
+        OnboardingTransactionResponse: {
+            /** Account Name */
+            account_name?: string | null;
+            /** Amount */
+            amount: number;
+            /** Category Id */
+            category_id?: number | null;
+            /** Display Merchant */
+            display_merchant: string;
+            /** Id */
+            id: number;
+            /**
+             * Posted Date
+             * Format: date
+             */
+            posted_date: string;
+            /** Source Name */
+            source_name?: string | null;
         };
         /** PasswordResetConfirmRequest */
         PasswordResetConfirmRequest: {
@@ -7023,6 +7263,103 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MonthlyPlanResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    complete_onboarding_v1_onboarding_complete_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OnboardingCompleteRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OnboardingStatusResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_onboarding_income_plan_v1_onboarding_income_plan_patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OnboardingIncomePlanRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OnboardingStatusResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_onboarding_status_v1_onboarding_status_get: {
+        parameters: {
+            query?: {
+                step?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OnboardingStatusResponse"];
                 };
             };
             /** @description Validation Error */

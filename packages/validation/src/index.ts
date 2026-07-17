@@ -181,3 +181,130 @@ export const mfaPushStartSchema = z.object({
   authorizationUrl: z.string().url().nullable(),
   reason: z.string().nullable(),
 });
+
+export const onboardingIncomePlanRequestSchema = z.object({
+  income_amount: z.number(),
+  monthly_income: z.number().optional(),
+  income_basis: z.enum(["take_home", "gross"]),
+  income_type: z.enum(["salary", "hourly"]),
+  paycheck_cadence: z.enum(["annual", "monthly", "semimonthly", "biweekly", "weekly", "irregular"]),
+  next_pay_date: z.string().nullable(),
+  second_date: z.string().nullable(),
+  recurring_days_of_week: z.array(z.number().int().min(0).max(6)),
+  recurring_monthly_week_numbers: z.array(z.number().int().min(1).max(5)),
+  recurring_monthly_weekday: z.number().int().min(0).max(6).nullable(),
+  hourly_hours_per_week: z.number(),
+  fixed_expenses: z.number().default(0),
+  variable_expenses: z.number().default(0),
+  additional_income_amount: z.number().default(0),
+  additional_income_frequency: z.enum(["weekly", "biweekly", "semimonthly", "monthly", "quarterly", "annual"]),
+  planned_savings_contribution: z.number().default(0),
+  planned_debt_payment: z.number().default(0),
+  target_investment_contribution: z.number().default(0),
+  tax_filing_status: z.string().min(1),
+  tax_state: z.string().nullable(),
+  include_payroll_taxes: z.boolean(),
+  notes: z.string().default(""),
+});
+
+export type OnboardingIncomePlanRequest = z.infer<typeof onboardingIncomePlanRequestSchema>;
+
+const onboardingProfileSchema = z.object({
+  householdName: z.string().nullable(),
+  incomeAmount: z.number().nullable(),
+  incomeAmountDisplay: z.number().nullable(),
+  monthlyIncome: z.number().nullable(),
+  incomeBasis: z.string().nullable(),
+  incomeType: z.string().nullable(),
+  paycheckCadence: z.string().nullable(),
+  nextPayDate: z.string().nullable(),
+  paycheckSecondDate: z.string().nullable(),
+  paycheckDaysOfWeek: z.string().nullable(),
+  paycheckMonthlyWeekNumbers: z.string().nullable(),
+  paycheckMonthlyWeekday: z.number().nullable(),
+  hourlyHoursPerWeek: z.number().nullable(),
+  additionalIncomeAmount: z.number().nullable(),
+  additionalIncomeFrequency: z.string().nullable(),
+  taxState: z.string().nullable(),
+  taxFilingStatus: z.string().nullable(),
+  includePayrollTaxes: z.boolean().nullable(),
+  notes: z.string().nullable(),
+});
+
+export const onboardingStatusSchema = z.object({
+  activeStep: z.enum(["connect", "income", "transactions"]),
+  incomeReady: z.boolean(),
+  hasBank: z.boolean(),
+  setupComplete: z.boolean(),
+  profile: onboardingProfileSchema,
+  today: z.string(),
+  plaidStatus: z.object({
+    ready: z.boolean(),
+    sdkInstalled: z.boolean(),
+    cryptoInstalled: z.boolean(),
+    hasCredentials: z.boolean(),
+    hasEncryptionKey: z.boolean(),
+    environment: z.string(),
+  }),
+  plaidItems: z.array(
+    z.object({
+      id: z.number().int(),
+      institutionName: z.string().nullable(),
+      status: z.string(),
+      lastSyncedAt: z.string().nullable(),
+    }),
+  ),
+  transactions: z.array(
+    z.object({
+      id: z.number().int(),
+      displayMerchant: z.string(),
+      postedDate: z.string(),
+      amount: z.number(),
+      accountName: z.string().nullable(),
+      sourceName: z.string().nullable(),
+      categoryId: z.number().int().nullable(),
+    }),
+  ),
+  categories: z.array(
+    z.object({
+      id: z.number().int(),
+      name: z.string(),
+      kind: z.string(),
+    }),
+  ),
+  autoCategorizedCount: z.number().int(),
+  seededBudgetCount: z.number().int(),
+  message: z.string().nullable(),
+  nextPath: z.string().nullable(),
+  incomeBasisOptions: z.record(z.string(), z.string()),
+  incomeTypeOptions: z.record(z.string(), z.string()),
+  paycheckCadenceOptions: z.record(z.string(), z.string()),
+  recurringFrequencyOptions: z.record(z.string(), z.string()),
+  weekdayOptions: z.record(z.string(), z.string()),
+  monthlyWeekOptions: z.record(z.string(), z.string()),
+  taxFilingStatusOptions: z.record(z.string(), z.string()),
+  stateOptions: z.record(z.string(), z.string()),
+});
+
+export type OnboardingStatus = z.infer<typeof onboardingStatusSchema>;
+
+export const plaidLinkTokenResultSchema = z.object({
+  linkToken: z.string().min(1),
+  consentToken: z.string().min(1),
+});
+
+export const plaidExchangeRequestSchema = z.object({
+  public_token: z.string().min(1, "Plaid did not return a public token."),
+  metadata: z.record(z.string(), z.unknown()).default({}),
+  consent_token: z.string().min(1).nullable(),
+});
+
+export const plaidLinkEventSchema = z.object({
+  event_name: z.string().max(80),
+  error: z.record(z.string(), z.unknown()).nullable().optional(),
+  metadata: z.record(z.string(), z.unknown()).default({}),
+});
+
+export const onboardingCategorySelectionSchema = z.object({
+  category_id: z.number().int().positive("Choose a category."),
+});
