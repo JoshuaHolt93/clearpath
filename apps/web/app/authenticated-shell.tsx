@@ -1,6 +1,6 @@
 "use client";
 
-import type { DashboardView } from "@clearpath/validation";
+import type { SignedInSession } from "@clearpath/validation";
 import {
   BarChart3,
   CalendarRange,
@@ -24,14 +24,13 @@ import { type ReactNode, useMemo, useState } from "react";
 
 import styles from "./authenticated-shell.module.css";
 
-type Session = DashboardView["session"];
-
 type AuthenticatedShellProps = {
-  session: Session;
+  session: SignedInSession;
+  activePlanSection?: "budgets" | "tools" | "forecast" | "baseline";
   children: ReactNode;
 };
 
-function featureEnabled(session: Session, key: string): boolean {
+function featureEnabled(session: SignedInSession, key: string): boolean {
   return session.featureAccess.some((row) => row.feature === key && row.enabled && !row.hidden);
 }
 
@@ -50,7 +49,7 @@ function NavLink({ href, label, icon, active, compact = false, onNavigate }: {
   );
 }
 
-export function AuthenticatedShell({ session, children }: AuthenticatedShellProps) {
+export function AuthenticatedShell({ session, activePlanSection, children }: AuthenticatedShellProps) {
   const pathname = usePathname();
   const router = useRouter();
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -105,10 +104,10 @@ export function AuthenticatedShell({ session, children }: AuthenticatedShellProp
             </div>
             {planOpen ? (
               <div className={styles.subNavigation}>
-                <NavLink href="/monthly-plan?section=budgets" label="Budgets" compact active={pathname === "/monthly-plan"} onNavigate={closeMobile} />
-                <NavLink href="/monthly-plan?section=tools" label="Quick Planning" compact active={false} onNavigate={closeMobile} />
-                <NavLink href="/monthly-plan?section=forecast" label="3-Month Forecast" compact active={false} onNavigate={closeMobile} />
-                {visibleFeatures.has("income_planning") ? <NavLink href="/monthly-plan?section=baseline" label="Income Planning" compact active={false} onNavigate={closeMobile} /> : null}
+                <NavLink href="/monthly-plan?section=budgets" label="Budgets" compact active={pathname === "/monthly-plan" && activePlanSection === "budgets"} onNavigate={closeMobile} />
+                <NavLink href="/monthly-plan?section=tools" label="Quick Planning" compact active={pathname === "/monthly-plan" && activePlanSection === "tools"} onNavigate={closeMobile} />
+                <NavLink href="/monthly-plan?section=forecast" label="3-Month Forecast" compact active={pathname === "/monthly-plan" && activePlanSection === "forecast"} onNavigate={closeMobile} />
+                {visibleFeatures.has("income_planning") ? <NavLink href="/monthly-plan?section=baseline" label="Income Planning" compact active={pathname === "/monthly-plan" && activePlanSection === "baseline"} onNavigate={closeMobile} /> : null}
                 {visibleFeatures.has("cash_projection") ? <NavLink href="/cash-projections" label="Cash Balance Projections" compact active={pathname.startsWith("/cash-projections")} onNavigate={closeMobile} /> : null}
               </div>
             ) : null}

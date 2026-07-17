@@ -335,6 +335,110 @@ export const signedInSessionSchema = z.object({
   featureAccess: z.array(appFeatureAccessSchema),
 });
 
+export type SignedInSession = z.infer<typeof signedInSessionSchema>;
+
+const monthlyBudgetRowSchema = z.object({
+  kind: z.string(),
+  categoryKind: z.string(),
+  categoryId: z.number().int().nullable(),
+  label: z.string(),
+  category: z.string(),
+  groupKey: z.string(),
+  planned: z.number(),
+  actual: z.number(),
+  remaining: z.number(),
+  progressPercent: z.number(),
+  progressStatus: z.string(),
+  anchorId: z.string(),
+  transactionIds: z.array(z.number().int()),
+  transactionCount: z.number().int(),
+  suggestionMatchCount: z.number().int(),
+  sortOrder: z.number().int().nullable(),
+  canRemoveBudget: z.boolean(),
+  actualLabel: z.string(),
+  plannedLabel: z.string(),
+  adjustLabel: z.string(),
+  amortizationAction: z.object({
+    action: z.enum(["open", "create"]),
+    fixedExpenseItemId: z.number().int().nullable(),
+    label: z.string(),
+    hint: z.string().nullable(),
+  }).nullable(),
+});
+
+const monthlyBudgetSectionSchema = z.object({
+  label: z.string(),
+  kind: z.string(),
+  description: z.string(),
+  empty: z.string(),
+  rows: z.array(monthlyBudgetRowSchema),
+  planned: z.number(),
+  actual: z.number(),
+  transactionIds: z.array(z.number().int()),
+  transactionCount: z.number().int(),
+});
+
+export const monthlyBudgetsViewSchema = z.object({
+  session: signedInSessionSchema,
+  monthName: z.string(),
+  today: z.string(),
+  onboardingComplete: z.boolean(),
+  budgetView: z.enum(["list", "grouped"]),
+  budgetGrouped: z.boolean(),
+  budgetSort: z.enum(["custom", "amount_desc", "amount_asc", "category_az", "category_za"]),
+  budgetDragEnabled: z.boolean(),
+  budgetSelectedMonth: z.string(),
+  budgetCurrentMonth: z.string(),
+  budgetMonthValue: z.string(),
+  budgetMonthLabel: z.string(),
+  budgetIsCurrentMonth: z.boolean(),
+  budgetHistoryMode: z.boolean(),
+  totalBudgetPlanned: z.number(),
+  totalBudgetActual: z.number(),
+  totalBudgetRemaining: z.number(),
+  expectedCashFlow: z.number(),
+  budgetSections: z.array(monthlyBudgetSectionSchema),
+  suggestedBudgetSections: z.array(z.object({
+    label: z.string(),
+    kind: z.string(),
+    rows: z.array(monthlyBudgetRowSchema),
+  })),
+  unassignedBudgetRows: z.array(monthlyBudgetRowSchema),
+  categoryLabelOptions: z.array(z.string()),
+  budgetGroupOptions: z.array(z.object({
+    key: z.string(),
+    label: z.string(),
+    description: z.string(),
+  })),
+  budgetSortOptions: z.record(z.string(), z.string()),
+});
+
+export type MonthlyBudgetsView = z.infer<typeof monthlyBudgetsViewSchema>;
+
+export const budgetCreateInputSchema = z.object({
+  categoryLabel: z.string().trim().min(1, "Choose or create a category."),
+  monthlyTarget: z.number().positive("Enter a monthly budget amount greater than $0."),
+  categoryKind: z.enum(["expense", "income"]),
+  budgetMonth: z.string().optional(),
+});
+
+export const budgetAmountInputSchema = z.object({
+  monthlyTarget: z.number().min(0, "Enter a valid monthly budget amount."),
+  budgetMonth: z.string().optional(),
+});
+
+export const budgetDeleteInputSchema = z.object({
+  budgetMonth: z.string().optional(),
+});
+
+export const budgetLayoutInputSchema = z.object({
+  budgetMonth: z.string().optional(),
+  rows: z.array(z.object({
+    categoryId: z.number().int().positive(),
+    groupKey: z.string().optional(),
+  })).min(1, "No budget rows were provided."),
+});
+
 const dashboardPlanDetailSchema = z.object({
   label: z.string(),
   planned: z.number(),
