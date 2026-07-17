@@ -415,6 +415,261 @@ export const monthlyBudgetsViewSchema = z.object({
 
 export type MonthlyBudgetsView = z.infer<typeof monthlyBudgetsViewSchema>;
 
+const planningFrequencySchema = z.enum(["once", "weekly", "biweekly", "semimonthly", "monthly", "quarterly", "annual"]);
+const planningWeekdaySchema = z.number().int().min(0).max(6);
+
+const fixedExpenseItemSchema = z.object({
+  id: z.number().int(),
+  name: z.string(),
+  amount: z.number(),
+  dueDay: z.number().int().nullable(),
+  startDate: z.string(),
+  frequency: z.string(),
+  daysOfWeek: z.string().nullable(),
+  secondDate: z.string().nullable(),
+  secondDayOfMonth: z.number().int().nullable(),
+  monthlyWeekNumbers: z.string().nullable(),
+  monthlyWeekday: z.number().int().nullable(),
+  categoryLabel: z.string().nullable(),
+  isLoan: z.boolean(),
+  notes: z.string().nullable(),
+  monthlyAmount: z.number().nullable(),
+});
+
+const variableExpenseItemSchema = z.object({
+  id: z.number().int(),
+  name: z.string(),
+  amount: z.number(),
+  frequency: z.string(),
+  useSpecificDate: z.boolean(),
+  specificDate: z.string().nullable(),
+  daysOfWeek: z.string().nullable(),
+  categoryLabel: z.string().nullable(),
+  notes: z.string().nullable(),
+  monthlyAmount: z.number().nullable(),
+});
+
+const forecastItemSchema = z.object({
+  id: z.number().int(),
+  itemDate: z.string(),
+  description: z.string(),
+  amount: z.number(),
+  itemType: z.enum(["income", "expense"]),
+  categoryLabel: z.string().nullable(),
+  notes: z.string().nullable(),
+});
+
+const recurringTemplateSchema = z.object({
+  id: z.number().int(),
+  name: z.string(),
+  amount: z.number(),
+  itemType: z.enum(["income", "expense"]),
+  frequency: z.string(),
+  startDate: z.string(),
+  secondDate: z.string().nullable(),
+  daysOfWeek: z.string().nullable(),
+  secondDayOfMonth: z.number().int().nullable(),
+  monthlyWeekNumbers: z.string().nullable(),
+  monthlyWeekday: z.number().int().nullable(),
+  categoryLabel: z.string().nullable(),
+  notes: z.string().nullable(),
+  incomeReplacement: z.boolean(),
+  incomeBasis: z.string().nullable(),
+  incomeType: z.string().nullable(),
+  paycheckCadence: z.string().nullable(),
+  incomeNextPayDate: z.string().nullable(),
+  hourlyHoursPerWeek: z.number(),
+  additionalIncomeAmount: z.number(),
+  additionalIncomeFrequency: z.string(),
+  taxState: z.string().nullable(),
+  taxFilingStatus: z.string().nullable(),
+  includePayrollTaxes: z.boolean(),
+  monthlyAmount: z.number().nullable(),
+});
+
+const planningProfileSchema = z.object({
+  householdName: z.string().nullable(),
+  incomeAmount: z.number().nullable(),
+  incomeAmountDisplay: z.number().nullable(),
+  monthlyIncome: z.number().nullable(),
+  incomeBasis: z.string().nullable(),
+  incomeType: z.string().nullable(),
+  incomeFrequency: z.string().nullable(),
+  paycheckCadence: z.string().nullable(),
+  nextPayDate: z.string().nullable(),
+  paycheckSecondDate: z.string().nullable(),
+  paycheckDaysOfWeek: z.string().nullable(),
+  paycheckSecondDayOfMonth: z.number().int().nullable(),
+  paycheckMonthlyWeekNumbers: z.string().nullable(),
+  paycheckMonthlyWeekday: z.number().int().nullable(),
+  hourlyHoursPerWeek: z.number().nullable(),
+  additionalIncomeAmount: z.number().nullable(),
+  additionalIncomeFrequency: z.string().nullable(),
+  taxState: z.string().nullable(),
+  taxFilingStatus: z.string().nullable(),
+  includePayrollTaxes: z.boolean().nullable(),
+  notes: z.string().nullable(),
+});
+
+export const monthlyQuickPlanningViewSchema = z.object({
+  session: signedInSessionSchema,
+  monthName: z.string(),
+  today: z.string(),
+  quickSort: z.enum(["amount_desc", "amount_asc", "name_asc", "name_desc", "timing_asc", "timing_desc", "category_az", "category_za"]),
+  quickSortOptions: z.record(z.string(), z.string()),
+  totalBudgetPlanned: z.number(),
+  fixedTotal: z.number(),
+  variablePlanTotal: z.number(),
+  quickCashRemainingIncome: z.number(),
+  quickCashRemainingExpenses: z.number(),
+  quickCashWeekChange: z.number(),
+  quickCashWeekEndBalance: z.number(),
+  quickCashProjection: z.object({
+    endDate: z.string(),
+    endBalance: z.number(),
+    balanceAnchor: z.object({
+      balance: z.number(),
+      checkingBalance: z.number(),
+      accountCount: z.number().int(),
+      checkingAccountCount: z.number().int(),
+      usesCashAccounts: z.boolean(),
+      includedAccounts: z.array(z.object({
+        id: z.number().int(),
+        name: z.string(),
+        institution: z.string().nullable(),
+        accountType: z.string(),
+        balance: z.number(),
+        mask: z.string().nullable(),
+        cashProjectionRole: z.string(),
+      })),
+    }),
+    lowestBalance: z.object({ date: z.string(), balance: z.number() }),
+  }).nullable(),
+  cashProjectionAccountRows: z.array(z.object({
+    accountId: z.number().int(),
+    name: z.string(),
+    institution: z.string().nullable(),
+    accountType: z.string(),
+    balance: z.number(),
+    mask: z.string().nullable(),
+    role: z.enum(["auto", "include", "exclude"]),
+    included: z.boolean(),
+    statusLabel: z.string(),
+    statusClass: z.string(),
+    statusDetail: z.string(),
+  })),
+  quickWorksheetRows: z.array(z.object({
+    name: z.string(),
+    subtitle: z.string(),
+    timing: z.string(),
+    category: z.string(),
+    amount: z.number(),
+    actionLabel: z.string(),
+    readonly: z.boolean(),
+    itemType: z.string(),
+    itemId: z.number().int().nullable(),
+  })),
+  fixedItems: z.array(fixedExpenseItemSchema),
+  variableItems: z.array(variableExpenseItemSchema),
+  forecastItems: z.array(forecastItemSchema),
+  recurringTemplates: z.array(recurringTemplateSchema),
+  categoryLabelOptions: z.array(z.string()),
+  profile: planningProfileSchema,
+  planIncome: z.number(),
+  incomeTypeOptions: z.record(z.string(), z.string()),
+  incomeBasisOptions: z.record(z.string(), z.string()),
+  paycheckCadenceOptions: z.record(z.string(), z.string()),
+  taxFilingStatusOptions: z.record(z.string(), z.string()),
+  stateOptions: z.record(z.string(), z.string()),
+  recurringFrequencyOptions: z.record(z.string(), z.string()),
+  weekdayOptions: z.record(z.string(), z.string()),
+  monthlyWeekOptions: z.record(z.string(), z.string()),
+});
+
+export type MonthlyQuickPlanningView = z.infer<typeof monthlyQuickPlanningViewSchema>;
+
+export const planningAmountInputSchema = z.object({
+  monthlyTarget: z.number().positive("Enter a positive planned cash amount."),
+});
+
+export const fixedExpenseInputSchema = z.object({
+  name: z.string().trim().min(1, "Enter an expense name."),
+  amount: z.number().positive("Enter a positive expense amount."),
+  frequency: planningFrequencySchema,
+  startDate: z.string().min(1, "Choose a start date."),
+  secondDate: z.string().nullable().optional(),
+  daysOfWeek: z.array(planningWeekdaySchema).default([]),
+  recurringMonthlyWeekNumbers: z.array(z.number().int().min(1).max(5)).default([]),
+  recurringMonthlyWeekday: planningWeekdaySchema.nullable().optional(),
+  categoryLabel: z.string().trim().nullable().optional(),
+  entryContext: z.string().nullable().optional(),
+  notes: z.string().trim().nullable().optional(),
+});
+
+export const variableExpenseInputSchema = z.object({
+  name: z.string().trim().min(1, "Enter an expense bucket."),
+  amount: z.number().positive("Enter a positive expense amount."),
+  frequency: planningFrequencySchema,
+  useSpecificDate: z.boolean(),
+  specificDate: z.string().nullable().optional(),
+  daysOfWeek: z.array(planningWeekdaySchema).default([]),
+  categoryLabel: z.string().trim().nullable().optional(),
+  notes: z.string().trim().nullable().optional(),
+});
+
+export const forecastItemInputSchema = z.object({
+  itemDate: z.string().min(1, "Choose a date."),
+  description: z.string().trim().min(1, "Enter a description."),
+  amount: z.number().positive("Enter a positive amount."),
+  itemType: z.enum(["income", "expense"]),
+  categoryLabel: z.string().trim().nullable().optional(),
+  notes: z.string().trim().nullable().optional(),
+});
+
+export const recurringTemplateInputSchema = z.object({
+  name: z.string().trim().min(1, "Enter a recurring item name."),
+  amount: z.number().positive("Enter a positive amount."),
+  itemType: z.enum(["income", "expense"]),
+  frequency: planningFrequencySchema,
+  startDate: z.string().min(1, "Choose a start date."),
+  secondDate: z.string().nullable().optional(),
+  recurringDaysOfWeek: z.array(planningWeekdaySchema).default([]),
+  recurringMonthlyWeekNumbers: z.array(z.number().int().min(1).max(5)).default([]),
+  recurringMonthlyWeekday: planningWeekdaySchema.nullable().optional(),
+  categoryLabel: z.string().trim().nullable().optional(),
+  notes: z.string().trim().nullable().optional(),
+  incomeAdjustment: z.boolean().default(false),
+});
+
+export const planningDeleteInputSchema = z.object({ confirm: z.literal(true) });
+
+export const cashProjectionRoleInputSchema = z.object({
+  cashProjectionRole: z.enum(["auto", "include", "exclude"]),
+});
+
+export const monthlyPlanBaselineInputSchema = z.object({
+  baselineScope: z.literal("core").default("core"),
+  householdName: z.string().trim().nullable().optional(),
+  incomeAmount: z.number().min(0).nullable().optional(),
+  incomeBasis: z.string().nullable().optional(),
+  incomeType: z.string().nullable().optional(),
+  paycheckCadence: z.string().nullable().optional(),
+  nextPayDate: z.string().nullable().optional(),
+  secondDate: z.string().nullable().optional(),
+  recurringDaysOfWeek: z.array(planningWeekdaySchema).default([]),
+  recurringMonthlyWeekNumbers: z.array(z.number().int().min(1).max(5)).default([]),
+  recurringMonthlyWeekday: planningWeekdaySchema.nullable().optional(),
+  hourlyHoursPerWeek: z.number().min(0).nullable().optional(),
+  additionalIncomeAmount: z.number().min(0).nullable().optional(),
+  additionalIncomeFrequency: z.string().nullable().optional(),
+  taxState: z.string().nullable().optional(),
+  taxFilingStatus: z.string().nullable().optional(),
+  includePayrollTaxes: z.boolean().nullable().optional(),
+  notes: z.string().trim().nullable().optional(),
+  view: z.literal("month").default("month"),
+  section: z.literal("tools").default("tools"),
+});
+
 export const budgetCreateInputSchema = z.object({
   categoryLabel: z.string().trim().min(1, "Choose or create a category."),
   monthlyTarget: z.number().positive("Enter a monthly budget amount greater than $0."),
