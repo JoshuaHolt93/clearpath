@@ -1112,3 +1112,153 @@ export const plaidRefreshSummarySchema = z.object({
   synced: z.number().int(),
   errors: z.array(z.string()),
 });
+
+const transactionCategorySchema = z.object({
+  id: z.number().int(),
+  name: z.string(),
+  kind: z.string(),
+  monthlyTarget: z.number(),
+  isDefault: z.boolean(),
+  budgetGroupKey: z.string().nullable(),
+  budgetSortOrder: z.number().int().nullable(),
+  canManage: z.boolean(),
+});
+
+const transactionAccountSchema = z.object({
+  id: z.number().int(),
+  name: z.string(),
+  accountType: z.string(),
+  institution: z.string().nullable(),
+  currentBalance: z.number(),
+  isManual: z.boolean(),
+  mask: z.string().nullable(),
+});
+
+export const transactionViewSchema = z.object({
+  id: z.number().int(),
+  postedDate: z.string(),
+  description: z.string(),
+  displayMerchant: z.string(),
+  rawDescription: z.string().nullable(),
+  amount: z.number(),
+  transactionType: z.string(),
+  sourceName: z.string().nullable(),
+  notes: z.string().nullable(),
+  plaidTransactionId: z.string().nullable(),
+  plaidCategoryLabel: z.string().nullable(),
+  paymentChannelLabel: z.string().nullable(),
+  locationSummary: z.string().nullable(),
+  pending: z.boolean(),
+  category: transactionCategorySchema.nullable(),
+  account: transactionAccountSchema.nullable(),
+  splits: z.array(z.object({
+    id: z.number().int(),
+    category: transactionCategorySchema,
+    amount: z.number(),
+    notes: z.string().nullable(),
+  })),
+});
+
+export type TransactionView = z.infer<typeof transactionViewSchema>;
+
+export const transactionReviewViewSchema = z.object({
+  session: signedInSessionSchema,
+  items: z.array(transactionViewSchema),
+  total: z.number().int(),
+  page: z.number().int().positive(),
+  perPage: z.number().int().positive(),
+  categories: z.array(transactionCategorySchema),
+  accounts: z.array(transactionAccountSchema),
+  duplicateSuggestions: z.array(z.object({
+    plaidTransactionId: z.number().int(),
+    manualTransactionId: z.number().int(),
+    score: z.number(),
+    confidenceLabel: z.string(),
+    plaidTransaction: transactionViewSchema,
+    manualTransaction: transactionViewSchema,
+  })),
+  budgetActions: z.record(z.string(), z.object({
+    categoryName: z.string(),
+    target: z.number(),
+    targetLabel: z.string(),
+    hint: z.string(),
+  })),
+  amortizationActions: z.record(z.string(), z.object({
+    action: z.string(),
+    fixedExpenseItemId: z.number().int().nullable(),
+    label: z.string(),
+    hint: z.string().nullable(),
+  })),
+  recurringTransactionIds: z.array(z.number().int()),
+  plaidItems: z.array(z.object({
+    id: z.number().int(),
+    institutionName: z.string().nullable(),
+    status: z.string(),
+    lastSyncedAt: z.string().nullable(),
+    errorMessage: z.string().nullable(),
+    reconnectRequiredAt: z.string().nullable(),
+    accounts: z.array(transactionAccountSchema),
+  })),
+});
+
+export type TransactionReviewView = z.infer<typeof transactionReviewViewSchema>;
+
+export const transactionCategoryUpdateInputSchema = z.object({
+  categoryId: z.number().int().positive().nullable(),
+  newCategoryName: z.string().trim().max(80).nullable().default(null),
+  applyToSimilar: z.boolean().default(true),
+  markRecurring: z.boolean().default(false),
+  recurringName: z.string().trim().max(160).nullable().default(null),
+  recurringStartDate: z.string().nullable().default(null),
+  recurringSecondDate: z.string().nullable().default(null),
+  recurringFrequency: z.enum(["weekly", "biweekly", "semimonthly", "monthly", "quarterly", "annual"]).default("monthly"),
+  recurringDaysOfWeek: z.array(z.number().int().min(0).max(6)).default([]),
+  recurringMonthlyWeekNumbers: z.array(z.number().int().min(1).max(5)).default([]),
+  recurringMonthlyWeekday: z.number().int().min(0).max(6).nullable().default(null),
+}).superRefine((value, context) => {
+  if (!value.categoryId && !value.newCategoryName) context.addIssue({ code: "custom", path: ["categoryId"], message: "Choose or create a category." });
+  if (value.markRecurring && !value.recurringStartDate) context.addIssue({ code: "custom", path: ["recurringStartDate"], message: "Choose the first expected date." });
+});
+
+export type TransactionCategoryUpdateInput = z.infer<typeof transactionCategoryUpdateInputSchema>;
+
+export const transactionSplitsInputSchema = z.object({
+  clearSplits: z.boolean().default(false),
+  splits: z.array(z.object({ categoryId: z.number().int().positive(), amount: z.number().positive(), notes: z.string().nullable().default(null) })).default([]),
+});
+
+export type TransactionSplitsInput = z.infer<typeof transactionSplitsInputSchema>;
+
+export const duplicateMergeInputSchema = z.object({ firstTransactionId: z.number().int().positive(), secondTransactionId: z.number().int().positive() });
+export const categoryCreateInputSchema = z.object({ name: z.string().trim().min(1).max(80), kind: z.enum(["expense", "income"]).default("expense"), activateBudget: z.boolean().default(true) });
+export const categoryUpdateInputSchema = z.object({ name: z.string().trim().min(1).max(80), kind: z.enum(["expense", "income"]) });
+export const categoryDeleteInputSchema = z.object({ replacementCategoryId: z.number().int().positive().nullable().default(null) });
+
+export const transactionImportMappingSchema = z.object({
+  date: z.string().min(1),
+  description: z.string().min(1),
+  amount: z.string().nullable().default(null),
+  debit: z.string().nullable().default(null),
+  credit: z.string().nullable().default(null),
+  account: z.string().nullable().default(null),
+});
+
+export const transactionImportPreviewInputSchema = z.object({
+  csvText: z.string().min(1),
+  mapping: transactionImportMappingSchema.nullable().default(null),
+  fallbackAccount: z.string().trim().min(1).default("Imported Account"),
+});
+
+export type TransactionImportPreviewInput = z.infer<typeof transactionImportPreviewInputSchema>;
+
+export const transactionImportPreviewViewSchema = z.object({
+  stagedImportId: z.string().min(1),
+  headers: z.array(z.string()),
+  sampleRows: z.array(z.record(z.string(), z.unknown())),
+  mapping: transactionImportMappingSchema,
+  newTransactions: z.array(z.object({ postedDate: z.string(), description: z.string(), amount: z.number(), transactionType: z.string(), sourceName: z.string(), categoryId: z.number().int().nullable(), categoryName: z.string().nullable() })),
+  newCount: z.number().int(),
+  duplicateCount: z.number().int(),
+});
+
+export type TransactionImportPreviewView = z.infer<typeof transactionImportPreviewViewSchema>;

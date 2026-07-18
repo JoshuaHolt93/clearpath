@@ -55,6 +55,11 @@ class TransactionResponse(BaseModel):
     plaid_transaction_id: str | None = None
     plaid_metadata: str | None = None
     pending: bool
+    display_merchant: str
+    raw_description: str | None = None
+    plaid_category_label: str | None = None
+    payment_channel_label: str | None = None
+    location_summary: str | None = None
     category: CategoryResponse | None = None
     account: AccountResponse | None = None
     splits: list[TransactionSplitResponse] = Field(default_factory=list)
@@ -83,6 +88,8 @@ class DuplicateSuggestionResponse(BaseModel):
     manual_transaction_id: int
     score: float
     confidence_label: str
+    plaid_transaction: TransactionResponse
+    manual_transaction: TransactionResponse
 
 
 class TransactionListResponse(BaseModel):

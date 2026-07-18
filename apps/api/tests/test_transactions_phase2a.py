@@ -3,8 +3,10 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from sqlalchemy import func, select
+
 from app.core.security import decode_token
-from app.models import User
+from app.models import Transaction, User
 from conftest import TestingSessionLocal
 
 VALID_PASSWORD = "CorrectHorse1!"
@@ -188,3 +190,68 @@ def test_transaction_splits_and_duplicate_merge(client):
     assert merged.status_code == 200
     assert merged.json()["merged"] is True
     assert merged.json()["deleted_transaction_id"] == second["id"]
+
+
+def test_transaction_list_preserves_flask_sort_and_duplicate_display_rows(client):
+    token = full_session_token(client, "transaction-list-parity@example.com")
+    alpha = client.post(
+        "/v1/transactions",
+        headers=auth_header(token),
+        json={"posted_date": "2026-04-20", "description": "Alpha Market", "amount": -20, "account_name": "Checking"},
+    ).json()
+    zulu = client.post(
+        "/v1/transactions",
+        headers=auth_header(token),
+        json={"posted_date": "2026-04-21", "description": "Zulu Shop", "amount": -90, "account_name": "Checking"},
+    ).json()
+    duplicate = client.post(
+        "/v1/transactions",
+        headers=auth_header(token),
+        json={"posted_date": "2026-04-20", "description": "Alpha Market Older", "amount": -20, "account_name": "Checking"},
+    ).json()
+    with TestingSessionLocal() as db:
+        live = db.get(Transaction, alpha["id"])
+        live.plaid_transaction_id = "plaid-alpha-live"
+        live.merchant = "Alpha Market"
+        live.plaid_metadata = json.dumps(
+            {
+                "original_description": "ALPHA MARKET #104",
+                "personal_finance_category": {"detailed": "GENERAL_MERCHANDISE_OTHER_GENERAL_MERCHANDISE"},
+                "payment_channel": "in_store",
+                "location": {"city": "Raleigh", "region": "NC", "store_number": "104"},
+            }
+        )
+        db.commit()
+
+    with TestingSessionLocal() as db:
+        encrypted_sort_ids = list(
+            db.scalars(
+                select(Transaction.id)
+                .where(Transaction.id.in_([alpha["id"], duplicate["id"], zulu["id"]]))
+                .order_by(
+                    func.lower(func.coalesce(Transaction.merchant, Transaction.description, "")).asc(),
+                    Transaction.posted_date.desc(),
+                    Transaction.id.desc(),
+                )
+            ).all()
+        )
+
+    alphabetical = client.get("/v1/transactions?sort=description_az&per_page=50", headers=auth_header(token))
+    assert alphabetical.status_code == 200
+    # Flask applies this sort expression to Fernet ciphertext. Preserve that
+    # behavior here; changing it to semantic plaintext order is a separate fix.
+    assert [row["id"] for row in alphabetical.json()["items"]] == encrypted_sort_ids
+    live_row = next(row for row in alphabetical.json()["items"] if row["id"] == alpha["id"])
+    assert live_row["display_merchant"] == "Alpha Market"
+    assert live_row["raw_description"] == "ALPHA MARKET #104"
+    assert live_row["plaid_category_label"] == "General Merchandise Other General Merchandise"
+    assert live_row["payment_channel_label"] == "In Store"
+    assert live_row["location_summary"] == "Raleigh, NC - Store 104"
+
+    by_amount = client.get("/v1/transactions?sort=amount_desc&per_page=50", headers=auth_header(token))
+    assert [row["id"] for row in by_amount.json()["items"]] == [zulu["id"], duplicate["id"], alpha["id"]]
+    suggestion = alphabetical.json()["duplicate_suggestions"][0]
+    assert suggestion["plaid_transaction_id"] == alpha["id"]
+    assert suggestion["manual_transaction_id"] == duplicate["id"]
+    assert suggestion["plaid_transaction"]["display_merchant"] == "Alpha Market"
+    assert suggestion["manual_transaction"]["description"] == "Alpha Market Older"

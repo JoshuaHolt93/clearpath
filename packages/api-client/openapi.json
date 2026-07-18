@@ -3353,9 +3353,15 @@
             "title": "Confidence Label",
             "type": "string"
           },
+          "manual_transaction": {
+            "$ref": "#/components/schemas/TransactionResponse"
+          },
           "manual_transaction_id": {
             "title": "Manual Transaction Id",
             "type": "integer"
+          },
+          "plaid_transaction": {
+            "$ref": "#/components/schemas/TransactionResponse"
           },
           "plaid_transaction_id": {
             "title": "Plaid Transaction Id",
@@ -3370,7 +3376,9 @@
           "plaid_transaction_id",
           "manual_transaction_id",
           "score",
-          "confidence_label"
+          "confidence_label",
+          "plaid_transaction",
+          "manual_transaction"
         ],
         "title": "DuplicateSuggestionResponse",
         "type": "object"
@@ -10832,6 +10840,10 @@
             "title": "Description",
             "type": "string"
           },
+          "display_merchant": {
+            "title": "Display Merchant",
+            "type": "string"
+          },
           "id": {
             "title": "Id",
             "type": "integer"
@@ -10839,6 +10851,17 @@
           "import_hash": {
             "title": "Import Hash",
             "type": "string"
+          },
+          "location_summary": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Location Summary"
           },
           "merchant": {
             "anyOf": [
@@ -10862,9 +10885,31 @@
             ],
             "title": "Notes"
           },
+          "payment_channel_label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Payment Channel Label"
+          },
           "pending": {
             "title": "Pending",
             "type": "boolean"
+          },
+          "plaid_category_label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Plaid Category Label"
           },
           "plaid_metadata": {
             "anyOf": [
@@ -10892,6 +10937,17 @@
             "format": "date",
             "title": "Posted Date",
             "type": "string"
+          },
+          "raw_description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Raw Description"
           },
           "source_name": {
             "anyOf": [
@@ -10923,7 +10979,8 @@
           "amount",
           "transaction_type",
           "import_hash",
-          "pending"
+          "pending",
+          "display_merchant"
         ],
         "title": "TransactionResponse",
         "type": "object"
@@ -15800,6 +15857,16 @@
             "schema": {
               "default": "",
               "title": "Ids",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "sort",
+            "required": false,
+            "schema": {
+              "default": "date_desc",
+              "title": "Sort",
               "type": "string"
             }
           },

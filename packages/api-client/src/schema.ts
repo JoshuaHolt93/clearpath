@@ -2681,8 +2681,10 @@ export interface components {
         DuplicateSuggestionResponse: {
             /** Confidence Label */
             confidence_label: string;
+            manual_transaction: components["schemas"]["TransactionResponse"];
             /** Manual Transaction Id */
             manual_transaction_id: number;
+            plaid_transaction: components["schemas"]["TransactionResponse"];
             /** Plaid Transaction Id */
             plaid_transaction_id: number;
             /** Score */
@@ -5268,16 +5270,24 @@ export interface components {
             category?: components["schemas"]["CategoryResponse"] | null;
             /** Description */
             description: string;
+            /** Display Merchant */
+            display_merchant: string;
             /** Id */
             id: number;
             /** Import Hash */
             import_hash: string;
+            /** Location Summary */
+            location_summary?: string | null;
             /** Merchant */
             merchant?: string | null;
             /** Notes */
             notes?: string | null;
+            /** Payment Channel Label */
+            payment_channel_label?: string | null;
             /** Pending */
             pending: boolean;
+            /** Plaid Category Label */
+            plaid_category_label?: string | null;
             /** Plaid Metadata */
             plaid_metadata?: string | null;
             /** Plaid Transaction Id */
@@ -5287,6 +5297,8 @@ export interface components {
              * Format: date
              */
             posted_date: string;
+            /** Raw Description */
+            raw_description?: string | null;
             /** Source Name */
             source_name?: string | null;
             /** Splits */
@@ -8324,6 +8336,7 @@ export interface operations {
                 max_amount?: string;
                 month?: string;
                 ids?: string;
+                sort?: string;
                 page?: number;
                 per_page?: number;
             };

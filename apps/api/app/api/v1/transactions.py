@@ -132,6 +132,7 @@ def list_transactions(
     max_amount: str = "",
     month: str = "",
     ids: str = "",
+    sort: str = "date_desc",
     page: int = 1,
     per_page: int = 20,
 ) -> TransactionListResponse:
@@ -184,7 +185,16 @@ def list_transactions(
         except ValueError:
             pass
 
-    rows = db.scalars(query.order_by(Transaction.posted_date.desc(), Transaction.id.desc())).all()
+    description_sort = func.lower(func.coalesce(Transaction.merchant, Transaction.description, ""))
+    sort_options = {
+        "date_desc": (Transaction.posted_date.desc(), Transaction.id.desc()),
+        "date_asc": (Transaction.posted_date.asc(), Transaction.id.asc()),
+        "description_az": (description_sort.asc(), Transaction.posted_date.desc(), Transaction.id.desc()),
+        "description_za": (description_sort.desc(), Transaction.posted_date.desc(), Transaction.id.desc()),
+        "amount_desc": (func.abs(Transaction.amount).desc(), Transaction.posted_date.desc(), Transaction.id.desc()),
+        "amount_asc": (func.abs(Transaction.amount).asc(), Transaction.posted_date.desc(), Transaction.id.desc()),
+    }
+    rows = db.scalars(query.order_by(*sort_options.get(sort, sort_options["date_desc"]))).all()
     if q:
         normalized_search = q.lower().strip()
         rows = [
@@ -222,6 +232,12 @@ def list_transactions(
         for action in [transaction_amortization_action(db, transaction, user)]
         if action
     }
+    duplicate_suggestions = transaction_duplicate_suggestions_for_user(db, user)
+    duplicate_rows = {
+        transaction_id: get_owned_transaction(db, user, transaction_id)
+        for suggestion in duplicate_suggestions
+        for transaction_id in (suggestion["plaid_transaction_id"], suggestion["manual_transaction_id"])
+    }
     return TransactionListResponse(
         items=[transaction_response(transaction) for transaction in items],
         total=total,
@@ -229,7 +245,14 @@ def list_transactions(
         per_page=per_page,
         categories=[category_response(db, user, category) for category in categories],
         accounts=[account_response(account) for account in accounts],
-        duplicate_suggestions=transaction_duplicate_suggestions_for_user(db, user),
+        duplicate_suggestions=[
+            {
+                **suggestion,
+                "plaid_transaction": transaction_response(duplicate_rows[suggestion["plaid_transaction_id"]]),
+                "manual_transaction": transaction_response(duplicate_rows[suggestion["manual_transaction_id"]]),
+            }
+            for suggestion in duplicate_suggestions
+        ],
         budget_actions=budget_actions,
         amortization_actions=amortization_actions,
         recurring_transaction_ids=sorted(recurring_transaction_ids_for_page(db, user, items)),
