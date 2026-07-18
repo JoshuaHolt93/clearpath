@@ -640,6 +640,7 @@ def update_category_rule(
     rule.category_id = category.id
     applied_count = apply_rule_to_existing_transactions(db, rule)
     db.commit()
+    sync_monthly_plan(db, principal.user, purpose="monthly_plan")
     return rule_response(get_owned_rule(db, principal.user, rule.id), applied_count=applied_count)
 
 

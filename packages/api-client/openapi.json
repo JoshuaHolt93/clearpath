@@ -2825,6 +2825,7 @@
             "items": {
               "$ref": "#/components/schemas/CategoryRuleCondition"
             },
+            "maxItems": 4,
             "title": "Conditions",
             "type": "array"
           },
@@ -2960,6 +2961,7 @@
             "items": {
               "$ref": "#/components/schemas/CategoryRuleCondition"
             },
+            "maxItems": 4,
             "title": "Conditions",
             "type": "array"
           },

@@ -152,6 +152,54 @@ def test_category_rule_requires_onboarding_and_returns_applied_count(client):
     assert updated.json()["items"][0]["category"]["name"] == "Groceries"
 
 
+def test_category_rule_update_syncs_monthly_plan_and_caps_editor_conditions(client, monkeypatch):
+    from app.api.v1 import transactions as transactions_api
+
+    token = full_session_token(client, "rule-update-parity@example.com")
+    mark_onboarded(token)
+    groceries = category_by_name(client, token, "Groceries")
+    created = client.post(
+        "/v1/category-rules",
+        headers=auth_header(token),
+        json={"category_id": groceries["id"], "conditions": [{"field": "description", "operator": "contains", "value": "market"}]},
+    )
+    assert created.status_code == 201
+
+    sync_calls = []
+    monkeypatch.setattr(
+        transactions_api,
+        "sync_monthly_plan",
+        lambda db, user, target_date=None, *, purpose="monthly_plan": sync_calls.append((user.id, purpose)),
+    )
+    updated = client.patch(
+        f"/v1/category-rules/{created.json()['id']}",
+        headers=auth_header(token),
+        json={
+            "category_id": groceries["id"],
+            "conditions": [
+                {"field": "description", "operator": "contains", "value": "market"},
+                {"field": "amount", "operator": "between", "value": "25", "value_secondary": "75", "join": "or"},
+            ],
+        },
+    )
+    assert updated.status_code == 200
+    assert updated.json()["rule_logic"] == "custom"
+    assert len(sync_calls) == 1
+    assert sync_calls[0][0] == int(decode_token(token)["user_id"])
+    assert sync_calls[0][1] == "monthly_plan"
+
+    too_many = client.post(
+        "/v1/category-rules",
+        headers=auth_header(token),
+        json={
+            "category_id": groceries["id"],
+            "conditions": [{"field": "description", "operator": "contains", "value": str(index)} for index in range(5)],
+        },
+    )
+    assert too_many.status_code == 422
+    assert len(sync_calls) == 1
+
+
 def test_transaction_splits_and_duplicate_merge(client):
     token = full_session_token(client, "splits@example.com")
     groceries = category_by_name(client, token, "Groceries")

@@ -256,13 +256,13 @@ class CategoryRuleCondition(BaseModel):
 
 class CategoryRuleCreateRequest(BaseModel):
     category_id: int
-    conditions: list[CategoryRuleCondition] = Field(default_factory=list)
+    conditions: list[CategoryRuleCondition] = Field(default_factory=list, max_length=4)
     match_text: str | None = None
 
 
 class CategoryRuleUpdateRequest(BaseModel):
     category_id: int
-    conditions: list[CategoryRuleCondition] = Field(default_factory=list)
+    conditions: list[CategoryRuleCondition] = Field(default_factory=list, max_length=4)
     match_text: str | None = None
 
 

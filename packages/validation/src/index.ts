@@ -1335,3 +1335,58 @@ export const subscriptionUpdateInputSchema = z.object({
 }).refine((value) => Object.values(value).some((item) => item !== undefined), "Choose a subscription change.");
 
 export const subscriptionImportInputSchema = z.object({ csvText: z.string().min(1, "Choose a CSV file to scan.") });
+
+export const categoryRuleFieldSchema = z.enum(["description", "account", "amount", "category"]);
+export const categoryRuleOperatorSchema = z.enum(["contains", "equals", "starts_with", "ends_with", "not_contains", "gt", "gte", "lt", "lte", "between"]);
+
+export const categoryRuleConditionSchema = z.object({
+  field: categoryRuleFieldSchema,
+  operator: categoryRuleOperatorSchema,
+  value: z.string().trim().min(1, "Enter a condition value."),
+  valueSecondary: z.string().trim().default(""),
+  group: z.string().default("primary"),
+  join: z.enum(["and", "or"]).default("and"),
+}).superRefine((condition, context) => {
+  if (condition.field === "amount" && condition.operator === "between" && !condition.valueSecondary) {
+    context.addIssue({ code: "custom", path: ["valueSecondary"], message: "Enter the upper limit." });
+  }
+});
+
+const categoryRuleCategorySchema = z.object({
+  id: z.number().int(),
+  name: z.string(),
+  kind: z.string(),
+  monthlyTarget: z.number(),
+  isDefault: z.boolean(),
+  canManage: z.boolean(),
+});
+
+export const categoryRuleSchema = z.object({
+  id: z.number().int(),
+  category: categoryRuleCategorySchema,
+  matchText: z.string(),
+  matchType: z.string(),
+  ruleLogic: z.string(),
+  conditions: z.array(categoryRuleConditionSchema).max(4),
+  summary: z.string(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+  appliedCount: z.number().int().nullable(),
+});
+
+export const categoryRulesViewSchema = z.object({
+  session: signedInSessionSchema,
+  rules: z.array(categoryRuleSchema),
+  categories: z.array(categoryRuleCategorySchema),
+});
+
+export type CategoryRuleCondition = z.infer<typeof categoryRuleConditionSchema>;
+export type CategoryRuleView = z.infer<typeof categoryRuleSchema>;
+export type CategoryRulesView = z.infer<typeof categoryRulesViewSchema>;
+
+export const categoryRuleMutationInputSchema = z.object({
+  categoryId: z.number().int().positive("Choose a category."),
+  conditions: z.array(categoryRuleConditionSchema).min(1, "Add at least one condition.").max(4, "Rules can have up to four conditions."),
+});
+
+export const categoryRuleDeleteInputSchema = z.object({ confirm: z.literal(true) });
