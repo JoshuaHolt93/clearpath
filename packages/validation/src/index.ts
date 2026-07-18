@@ -1242,6 +1242,86 @@ export type GoalView = z.infer<typeof goalViewSchema>;
 export type GoalsView = z.infer<typeof goalsViewSchema>;
 export type GoalMutationInput = z.infer<typeof goalMutationInputSchema>;
 
+export const plannerGuidanceActionSchema = z.object({
+  label: z.string(),
+  target: z.string(),
+});
+
+export const plannerGuidanceItemSchema = z.object({
+  title: z.string(),
+  body: z.string(),
+  level: z.string(),
+  type: z.string(),
+  disclaimer: z.string().nullable(),
+  action: plannerGuidanceActionSchema.nullable(),
+});
+
+export const plannerModelOptionSchema = z.object({
+  key: z.string(),
+  label: z.string(),
+  configured: z.boolean(),
+  models: z.array(z.object({ id: z.string(), label: z.string() })),
+});
+
+export const plannerUsageSchema = z.object({
+  burstCount: z.number().int(),
+  dailyCount: z.number().int(),
+  monthlyCount: z.number().int(),
+  monthlyCostCents: z.number(),
+  burstLimit: z.number().int(),
+  dailyLimit: z.number().int(),
+  monthlyLimit: z.number().int(),
+  monthlyCostLimitCents: z.number().int(),
+  currentLimitReason: z.string().nullable(),
+});
+
+export const plannerGuidanceSchema = z.object({
+  source: z.string(),
+  provider: z.string(),
+  model: z.string(),
+  items: z.array(plannerGuidanceItemSchema),
+  status: z.string(),
+  message: z.string(),
+  generatedAt: z.string().nullable(),
+  modelOptions: z.array(plannerModelOptionSchema),
+  selectedProvider: z.string(),
+  selectedModel: z.string(),
+  usage: plannerUsageSchema,
+});
+
+export const plannerViewSchema = z.object({
+  session: signedInSessionSchema,
+  guidance: plannerGuidanceSchema,
+});
+
+export const plannerPreferenceInputSchema = z.object({
+  provider: z.string().trim().min(1, "Choose an AI provider."),
+  model: z.string().trim().min(1, "Choose an AI model."),
+});
+
+export const plannerPageContextInputSchema = z.object({
+  path: z.string(),
+  title: z.string(),
+  section: z.string(),
+  visibleText: z.string(),
+  question: z.string(),
+});
+
+export const plannerPageContextResponseSchema = z.object({
+  source: z.string(),
+  provider: z.string(),
+  model: z.string(),
+  items: z.array(plannerGuidanceItemSchema),
+  status: z.string(),
+  message: z.string(),
+});
+
+export type PlannerGuidance = z.infer<typeof plannerGuidanceSchema>;
+export type PlannerGuidanceItem = z.infer<typeof plannerGuidanceItemSchema>;
+export type PlannerView = z.infer<typeof plannerViewSchema>;
+export type PlannerPageContextInput = z.infer<typeof plannerPageContextInputSchema>;
+export type PlannerPageContextResponse = z.infer<typeof plannerPageContextResponseSchema>;
+
 export const plaidRefreshSummarySchema = z.object({
   synced: z.number().int(),
   errors: z.array(z.string()),

@@ -1,6 +1,6 @@
 "use client";
 
-import type { SignedInSession } from "@clearpath/validation";
+import { plannerPageContextResponseSchema, type PlannerGuidanceItem, type SignedInSession } from "@clearpath/validation";
 import {
   BarChart3,
   CalendarRange,
@@ -14,13 +14,15 @@ import {
   MessageSquareText,
   PiggyBank,
   ReceiptText,
+  RefreshCw,
+  Send,
   Settings,
   Sparkles,
   X,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { type ReactNode, useMemo, useState } from "react";
+import { type FormEvent, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import styles from "./authenticated-shell.module.css";
 
@@ -47,6 +49,128 @@ function NavLink({ href, label, icon, active, compact = false, onNavigate }: {
       {icon}<span>{label}</span>
     </Link>
   );
+}
+
+type CoachMessage = {
+  id: number;
+  role: "user" | "assistant";
+  question?: string;
+  items?: PlannerGuidanceItem[];
+  error?: string;
+};
+
+function pageContext() {
+  const main = Array.from(document.querySelectorAll("main")).at(-1);
+  const params = new URLSearchParams(window.location.search);
+  return {
+    path: window.location.pathname,
+    title: document.title,
+    section: params.get("section") ?? "",
+    visibleText: (main?.innerText ?? "").slice(0, 3000),
+  };
+}
+
+function AiCoach({ session }: { session: SignedInSession }) {
+  const [open, setOpen] = useState(false);
+  const [question, setQuestion] = useState("");
+  const [messages, setMessages] = useState<CoachMessage[]>([]);
+  const [busy, setBusy] = useState(false);
+  const nextId = useRef(1);
+  const promptHandled = useRef(false);
+  const logRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const runCoach = useCallback(async (rawQuestion: string, hideUserPrompt = false) => {
+    const nextQuestion = rawQuestion.trim();
+    if (!nextQuestion || busy) return;
+    setOpen(true);
+    setBusy(true);
+    if (!hideUserPrompt) setMessages((current) => [...current, { id: nextId.current++, role: "user", question: nextQuestion }]);
+    try {
+      const response = await fetch("/api/planner/page-context", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ ...pageContext(), question: nextQuestion }),
+      });
+      const body = await response.json().catch(() => null) as unknown;
+      if (!response.ok) throw new Error((body as { message?: string } | null)?.message || "AI Coach could not review this page.");
+      const parsed = plannerPageContextResponseSchema.safeParse(body);
+      if (!parsed.success) throw new Error("AI Coach data did not match the expected contract.");
+      setMessages((current) => [...current, { id: nextId.current++, role: "assistant", items: parsed.data.items }]);
+    } catch (coachError) {
+      setMessages((current) => [...current, { id: nextId.current++, role: "assistant", error: coachError instanceof Error ? coachError.message : "AI Coach could not review this page." }]);
+    } finally {
+      setBusy(false);
+    }
+  }, [busy]);
+
+  useEffect(() => {
+    const listener = (event: Event) => {
+      const detail = (event as CustomEvent<{ prompt?: string; autoRun?: boolean }>).detail ?? {};
+      setOpen(true);
+      if (detail.autoRun && detail.prompt) {
+        setQuestion("");
+        void runCoach(detail.prompt, true);
+      } else {
+        setQuestion(detail.prompt ?? "");
+        window.setTimeout(() => textareaRef.current?.focus(), 0);
+      }
+    };
+    window.addEventListener("clearpath:open-ai-coach", listener);
+    return () => window.removeEventListener("clearpath:open-ai-coach", listener);
+  }, [runCoach]);
+
+  useEffect(() => {
+    if (promptHandled.current) return;
+    const prompt = new URLSearchParams(window.location.search).get("prompt")?.trim();
+    if (!prompt) return;
+    promptHandled.current = true;
+    setQuestion(prompt);
+    void runCoach(prompt, true);
+  }, [runCoach]);
+
+  useEffect(() => {
+    if (!open) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const closeOnEscape = (event: KeyboardEvent) => { if (event.key === "Escape") setOpen(false); };
+    window.addEventListener("keydown", closeOnEscape);
+    return () => { document.body.style.overflow = previousOverflow; window.removeEventListener("keydown", closeOnEscape); };
+  }, [open]);
+
+  useEffect(() => {
+    const log = logRef.current;
+    if (!log) return;
+    if (typeof log.scrollTo === "function") log.scrollTo({ top: log.scrollHeight });
+    else log.scrollTop = log.scrollHeight;
+  }, [busy, messages]);
+
+  const submit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!question.trim()) return textareaRef.current?.focus();
+    const submitted = question;
+    setQuestion("");
+    void runCoach(submitted);
+  };
+
+  if (!featureEnabled(session, "ai_coach")) return null;
+  const pageTitle = typeof document === "undefined" ? "ClearPath" : document.title.replace(" | ClearPath Finance", "");
+
+  return <>
+    {open ? <div className={styles.coachBackdrop} onMouseDown={(event) => { if (event.target === event.currentTarget) setOpen(false); }}>
+      <aside className={styles.coachDrawer} role="dialog" aria-modal="true" aria-labelledby="coach-title">
+        <header className={styles.coachHeader}><div className={styles.coachMark}>AI</div><div><h2 id="coach-title">Ask AI Coach</h2><p>Chat about this ClearPath page, planning workflow, or app insight.</p></div><button type="button" className={styles.iconButton} aria-label="Close AI Coach" title="Close AI Coach" onClick={() => setOpen(false)}><X size={18} aria-hidden="true" /></button></header>
+        <div className={styles.coachContext}><div><small>Reviewing</small><strong>{pageTitle}</strong></div><span>Coaching Only</span></div>
+        <div className={styles.chatLog} ref={logRef} aria-live="polite">
+          {!messages.length ? <div className={`${styles.chatMessage} ${styles.assistantMessage}`}><div><strong>Hi, I am ClearPath&apos;s AI Coach.</strong><p>Ask me to explain something on this page, review a ClearPath workflow, or help interpret budgeting, transactions, subscriptions, goals, or cash-flow planning.</p></div></div> : null}
+          {messages.map((message) => message.role === "user" ? <div className={`${styles.chatMessage} ${styles.userMessage}`} key={message.id}><div>{message.question}</div></div> : <div className={`${styles.chatMessage} ${styles.assistantMessage}`} key={message.id}><div>{message.error ? <><strong>AI Coach could not review this page.</strong><p>{message.error}</p></> : message.items?.length ? <div className={styles.coachItems}>{message.items.map((item, index) => <article key={`${item.title}-${index}`}><strong>{item.title}</strong><p>{item.body}</p></article>)}</div> : <><strong>No urgent notes</strong><p>Nothing on this page needs immediate attention based on the visible context.</p></>}</div></div>)}
+          {busy ? <div className={`${styles.chatMessage} ${styles.assistantMessage}`}><div className={styles.coachLoading}><RefreshCw size={14} aria-hidden="true" />AI Coach is reviewing...</div></div> : null}
+        </div>
+        <form className={styles.coachForm} onSubmit={submit}><label htmlFor="coach-question">Ask a question about this page</label><div><textarea ref={textareaRef} id="coach-question" rows={3} value={question} disabled={busy} placeholder="Ask why a number changed or what to review next." onChange={(event) => setQuestion(event.target.value)} /><button type="submit" aria-label="Send to AI Coach" title="Send to AI Coach" disabled={busy || !question.trim()}><Send size={17} aria-hidden="true" /></button></div><div className={styles.coachSuggestions} aria-label="Suggested AI Coach prompts">{["What stands out on this page?", "What should I review next?", "Where might I be missing something?"].map((prompt) => <button type="button" disabled={busy} key={prompt} onClick={() => { setQuestion(""); void runCoach(prompt); }}>{prompt === "What stands out on this page?" ? "What stands out?" : prompt === "What should I review next?" ? "Review next" : "Blind spots"}</button>)}</div></form>
+      </aside>
+    </div> : null}
+    <button type="button" className={styles.coachFloatingButton} onClick={() => { setOpen(true); window.setTimeout(() => textareaRef.current?.focus(), 0); }}><Sparkles size={17} aria-hidden="true" />Ask AI Coach</button>
+  </>;
 }
 
 export function AuthenticatedShell({ session, activePlanSection, children }: AuthenticatedShellProps) {
@@ -163,6 +287,7 @@ export function AuthenticatedShell({ session, activePlanSection, children }: Aut
       </aside>
 
       <main className={styles.main}>{children}</main>
+      <AiCoach session={session} />
     </div>
   );
 }

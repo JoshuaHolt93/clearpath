@@ -119,7 +119,7 @@ function AiLens({ enabled }: { enabled: boolean }) {
   const prompt = "Help me understand the biggest patterns in this Analytics page: income, spending, cash flow, debt-to-income, subscriptions, and category movement. Point out what looks worth reviewing next.";
   return <section className={styles.aiPanel}>
     <div><p className={styles.panelKicker}><Bot size={15} />Premier AI Analytics Lens</p><h2>{enabled ? "Turn trends into the next useful review." : "Have ClearPath explain the patterns behind the numbers."}</h2><p>Review budget drift, cash-flow swings, subscriptions, DTI, and category movement with educational coaching that does not provide investment, tax, or legal advice.</p></div>
-    <Link href={enabled ? `/planner?prompt=${encodeURIComponent(prompt)}` : "/select-plan"} className={styles.aiButton}>{enabled ? <><Sparkles size={16} />Ask AI Coach</> : <>Upgrade To Premier</>}</Link>
+    {enabled ? <button type="button" className={styles.aiButton} onClick={() => window.dispatchEvent(new CustomEvent("clearpath:open-ai-coach", { detail: { prompt, autoRun: true } }))}><Sparkles size={16} />Ask AI Coach</button> : <Link href="/select-plan" className={styles.aiButton}>Upgrade To Premier</Link>}
   </section>;
 }
 

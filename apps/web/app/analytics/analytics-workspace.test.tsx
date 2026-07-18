@@ -57,6 +57,17 @@ describe("AnalyticsWorkspace", () => {
     expect(screen.getByRole("heading", { name: "Spending By Category" })).toBeDefined();
   });
 
+  it("opens AI Coach on Analytics without losing page context", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(json(view()));
+    const listener = vi.fn();
+    window.addEventListener("clearpath:open-ai-coach", listener);
+    render(<AnalyticsWorkspace query={query} />);
+    fireEvent.click(await screen.findByRole("button", { name: "Ask AI Coach" }));
+    expect(listener).toHaveBeenCalledTimes(1);
+    expect((listener.mock.calls[0]?.[0] as CustomEvent).detail).toMatchObject({ autoRun: true });
+    window.removeEventListener("clearpath:open-ai-coach", listener);
+  });
+
   it("surfaces a load error and retries", async () => {
     const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(json({ message: "Analytics unavailable" }, 503)).mockResolvedValueOnce(json(view()));
     render(<AnalyticsWorkspace query={query} />);
