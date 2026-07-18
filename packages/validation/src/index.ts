@@ -1194,6 +1194,54 @@ export type AnalyticsView = z.infer<typeof analyticsViewSchema>;
 export type AnalyticsSummaryView = z.infer<typeof analyticsSummarySchema>;
 export type AnalyticsSnapshotView = z.infer<typeof analyticsSnapshotSchema>;
 
+export const goalViewSchema = z.object({
+  id: z.number().int(),
+  name: z.string(),
+  goalType: z.enum(["savings", "debt"]),
+  targetAmount: z.number(),
+  currentAmount: z.number(),
+  monthlyContribution: z.number(),
+  targetDate: z.string().nullable(),
+  fixedExpenseItemId: z.number().int().nullable(),
+  progress: z.number(),
+  timeline: z.string(),
+  remaining: z.number(),
+  requiredMonthly: z.number(),
+  requiredExtra: z.number(),
+  linkedItem: z.object({ id: z.number().int(), name: z.string() }).nullable(),
+});
+
+export const goalsViewSchema = z.object({
+  session: signedInSessionSchema,
+  goals: z.array(goalViewSchema),
+  loanOptions: z.array(z.object({
+    fixedExpenseItemId: z.number().int(),
+    name: z.string(),
+    loanKind: z.string(),
+    monthlyPayment: z.number(),
+    selectedExtra: z.number(),
+    totalMonthly: z.number(),
+    principalBalance: z.number(),
+    currentBalance: z.number(),
+    collateralValue: z.number(),
+    selectedScenario: z.string(),
+  })),
+});
+
+export const goalMutationInputSchema = z.object({
+  name: z.string().trim().min(1, "Enter a goal name."),
+  goalType: z.enum(["savings", "debt"]),
+  targetAmount: z.number().nullable(),
+  currentAmount: z.number().nullable(),
+  monthlyContribution: z.number().nullable(),
+  targetDate: z.string().nullable(),
+  fixedExpenseItemId: z.number().int().positive().nullable(),
+});
+
+export type GoalView = z.infer<typeof goalViewSchema>;
+export type GoalsView = z.infer<typeof goalsViewSchema>;
+export type GoalMutationInput = z.infer<typeof goalMutationInputSchema>;
+
 export const plaidRefreshSummarySchema = z.object({
   synced: z.number().int(),
   errors: z.array(z.string()),
