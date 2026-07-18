@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
+import { AuthenticatedShell } from "../authenticated-shell";
 import { TransactionImportPanel } from "./transaction-import-panel";
 import { TransactionRow } from "./transaction-row";
 import styles from "./transactions.module.css";
@@ -115,7 +116,7 @@ export function TransactionReviewWorkspace({ query }: { query: TransactionQuery 
     if (result) event.currentTarget.reset();
   };
 
-  return (
+  const content = (
     <main className={styles.page}>
       <header className={styles.pageHeader}>
         <div><p className={styles.eyebrow}>Transaction Review</p><h1>Transactions</h1><p>{data ? `${data.total.toLocaleString()} records` : "Loading records"}</p></div>
@@ -183,6 +184,8 @@ export function TransactionReviewWorkspace({ query }: { query: TransactionQuery 
 
     </main>
   );
+
+  return data ? <AuthenticatedShell session={data.session}>{content}</AuthenticatedShell> : content;
 }
 
 function CategoryManagerRow({ category, categories, busy, onMutate }: { category: TransactionReviewView["categories"][number]; categories: TransactionReviewView["categories"]; busy: boolean; onMutate: (url: string, options: RequestInit, message: string) => Promise<Record<string, unknown> | null> }) {

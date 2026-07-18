@@ -1262,3 +1262,76 @@ export const transactionImportPreviewViewSchema = z.object({
 });
 
 export type TransactionImportPreviewView = z.infer<typeof transactionImportPreviewViewSchema>;
+
+export const subscriptionEvidenceSchema = z.object({
+  id: z.number().int().nullable(),
+  date: z.string().nullable(),
+  description: z.string().nullable(),
+  amount: z.number().nullable(),
+});
+
+export const subscriptionViewSchema = z.object({
+  id: z.number().int(),
+  merchantKey: z.string(),
+  name: z.string(),
+  category: z.string(),
+  serviceCategory: z.string(),
+  amount: z.number(),
+  monthlyAmount: z.number(),
+  annualAmount: z.number(),
+  cycle: z.string(),
+  cycleDays: z.number().int(),
+  confidence: z.number(),
+  status: z.string(),
+  cancelUrl: z.string().nullable(),
+  replaceable: z.boolean(),
+  firstSeen: z.string().nullable(),
+  lastSeen: z.string().nullable(),
+  nextChargeDate: z.string().nullable(),
+  notes: z.string().nullable(),
+  isManual: z.boolean(),
+  cycleIsManual: z.boolean(),
+  evidence: z.array(subscriptionEvidenceSchema),
+});
+
+export type SubscriptionView = z.infer<typeof subscriptionViewSchema>;
+
+export const subscriptionsViewSchema = z.object({
+  session: signedInSessionSchema,
+  subscriptions: z.array(subscriptionViewSchema),
+  summary: z.object({
+    activeCount: z.number().int(),
+    reviewCount: z.number().int(),
+    actionCount: z.number().int(),
+    manageLinkCount: z.number().int(),
+    monthlyTotal: z.number(),
+    annualTotal: z.number(),
+    potentialSavings: z.number(),
+    averageConfidence: z.number().int(),
+    transactionCount: z.number().int(),
+  }),
+  categoryBreakdown: z.array(z.object({ category: z.string(), amount: z.number(), percent: z.number().int() })),
+  opportunities: z.array(z.object({ subscriptionId: z.number().int(), reason: z.string() })),
+  upcomingSubscriptionIds: z.array(z.number().int()),
+  statuses: z.record(z.string(), z.string()),
+  cycles: z.array(z.string()),
+});
+
+export type SubscriptionsView = z.infer<typeof subscriptionsViewSchema>;
+
+export const subscriptionCreateInputSchema = z.object({
+  name: z.string().trim().min(1, "Subscription name is required."),
+  amount: z.number().positive("Amount must be greater than zero."),
+  cycle: z.enum(["Weekly", "Biweekly", "Monthly", "Quarterly", "Annual"]),
+  nextChargeDate: z.string().nullable().default(null),
+  notes: z.string().trim().nullable().default(null),
+});
+
+export const subscriptionUpdateInputSchema = z.object({
+  status: z.string().nullable().optional(),
+  notes: z.string().nullable().optional(),
+  cycle: z.string().nullable().optional(),
+  cancelUrl: z.string().nullable().optional(),
+}).refine((value) => Object.values(value).some((item) => item !== undefined), "Choose a subscription change.");
+
+export const subscriptionImportInputSchema = z.object({ csvText: z.string().min(1, "Choose a CSV file to scan.") });

@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { TransactionReviewWorkspace, type TransactionQuery } from "./transaction-review-workspace";
 
 const navigation = vi.hoisted(() => ({ push: vi.fn() }));
-vi.mock("next/navigation", () => ({ useRouter: () => navigation }));
+vi.mock("next/navigation", () => ({ useRouter: () => navigation, usePathname: () => "/transactions" }));
 
 const query: TransactionQuery = { q: "", categoryIds: [], categoryNames: "", accountIds: [], minAmount: "", maxAmount: "", month: "", ids: "", sort: "date_desc", page: "1", importMode: false };
 
