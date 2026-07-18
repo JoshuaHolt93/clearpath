@@ -759,6 +759,209 @@ export const cashProjectionRoleInputSchema = z.object({
   cashProjectionRole: z.enum(["auto", "include", "exclude"]),
 });
 
+export const cashProjectionQueryInputSchema = z.object({
+  month: z.string().nullable().optional(),
+  horizon: z.enum(["week", "1m", "3m", "6m", "custom"]).nullable().optional(),
+  view: z.enum(["calendar", "list", "graph"]).default("calendar"),
+  startDate: z.string().nullable().optional(),
+  endDate: z.string().nullable().optional(),
+});
+
+export const cashProjectionPreferenceInputSchema = z.object({
+  defaultHorizon: z.enum(["week", "1m", "3m", "6m"]),
+});
+
+export const cashProjectionCalendarFeedInputSchema = z.object({
+  action: z.enum(["enable", "reset", "disable"]),
+});
+
+export const cashProjectionAutoRecurringInputSchema = cashProjectionQueryInputSchema.extend({
+  action: z.enum(["ignore", "save"]),
+  name: z.string().trim().nullable().optional(),
+  amount: z.number().positive().nullable().optional(),
+  frequency: planningFrequencySchema.nullable().optional(),
+  scheduleStartDate: z.string().nullable().optional(),
+  secondDate: z.string().nullable().optional(),
+  recurringDaysOfWeek: z.array(planningWeekdaySchema).default([]),
+  recurringMonthlyWeekNumbers: z.array(z.number().int().min(1).max(5)).default([]),
+  recurringMonthlyWeekday: planningWeekdaySchema.nullable().optional(),
+  categoryLabel: z.string().trim().nullable().optional(),
+  notes: z.string().trim().nullable().optional(),
+});
+
+const cashProjectionEventSchema = z.object({
+  date: z.string(),
+  description: z.string(),
+  amount: z.number(),
+  itemType: z.string(),
+  source: z.string(),
+  categoryLabel: z.string().nullable(),
+  notes: z.string().nullable(),
+  sourceId: z.union([z.number(), z.string()]).nullable(),
+  signedAmount: z.number().nullable(),
+  accountName: z.string().nullable(),
+  pending: z.boolean(),
+});
+
+const cashProjectionAccountSchema = z.object({
+  id: z.number().int(),
+  name: z.string(),
+  institution: z.string().nullable(),
+  accountType: z.string(),
+  balance: z.number(),
+  mask: z.string().nullable(),
+  cashProjectionRole: z.string(),
+});
+
+const cashProjectionAnchorSchema = z.object({
+  date: z.string(),
+  balance: z.number(),
+  checkingBalance: z.number(),
+  accountCount: z.number().int(),
+  checkingAccountCount: z.number().int(),
+  includedAccounts: z.array(cashProjectionAccountSchema),
+  usesCashAccounts: z.boolean(),
+});
+
+const cashProjectionDaySchema = z.object({
+  date: z.string(),
+  day: z.number().int(),
+  weekday: z.string(),
+  isToday: z.boolean(),
+  isPast: z.boolean(),
+  events: z.array(cashProjectionEventSchema),
+  actualEvents: z.array(cashProjectionEventSchema),
+  scheduledEvents: z.array(cashProjectionEventSchema),
+  actualBalance: z.number().nullable(),
+  balanceBasis: z.string(),
+  netChange: z.number(),
+  actualChange: z.number(),
+  scheduledChange: z.number(),
+  endingBalance: z.number(),
+});
+
+const cashProjectionGraphSchema = z.object({
+  points: z.string(),
+  zeroAxisPct: z.number(),
+  showZeroLine: z.boolean(),
+  minValue: z.number(),
+  maxValue: z.number(),
+  monthMarkers: z.array(z.object({ label: z.string(), axisLabel: z.string(), xPct: z.number() })),
+  pointRows: z.array(z.object({
+    xPct: z.number(),
+    yPct: z.number(),
+    dateLabel: z.string(),
+    balance: z.number(),
+    balanceBasis: z.string(),
+  })),
+});
+
+const cashProjectionPeriodSchema = z.object({
+  month: z.string(),
+  monthLabel: z.string(),
+  startDate: z.string(),
+  endDate: z.string(),
+  startBalance: z.number(),
+  endBalance: z.number(),
+  balanceAnchor: cashProjectionAnchorSchema,
+  lowestBalance: z.object({ date: z.string(), balance: z.number() }),
+  highestBalance: z.object({ date: z.string(), balance: z.number() }),
+  days: z.array(cashProjectionDaySchema),
+  weeks: z.array(z.object({
+    weekStart: z.string(),
+    weekEnd: z.string(),
+    days: z.array(cashProjectionDaySchema),
+    income: z.number(),
+    expenses: z.number(),
+    endingBalance: z.number(),
+    netChange: z.number(),
+  })),
+  calendarCells: z.array(cashProjectionDaySchema.nullable()),
+  events: z.array(cashProjectionEventSchema),
+  trend: z.object({
+    currentVariableSpend: z.number(),
+    plannedVariableSpend: z.number(),
+    averageFirstHalfShare: z.number(),
+    affectsProjection: z.boolean(),
+    message: z.string(),
+  }),
+  graph: cashProjectionGraphSchema,
+});
+
+export const cashProjectionViewSchema = z.object({
+  horizon: z.enum(["week", "1m", "3m", "6m", "custom"]),
+  view: z.enum(["calendar", "list", "graph"]),
+  projection: cashProjectionPeriodSchema,
+  projectionRange: z.object({
+    startMonth: z.string(),
+    startDate: z.string(),
+    endDate: z.string(),
+    months: z.number().int(),
+    projections: z.array(cashProjectionPeriodSchema),
+    days: z.array(cashProjectionDaySchema),
+    events: z.array(cashProjectionEventSchema),
+    startBalance: z.number(),
+    endBalance: z.number(),
+    balanceAnchor: cashProjectionAnchorSchema,
+    lowestBalance: z.object({ date: z.string(), balance: z.number() }),
+    highestBalance: z.object({ date: z.string(), balance: z.number() }),
+    graph: cashProjectionGraphSchema,
+  }),
+  previousMonth: z.string(),
+  nextMonth: z.string(),
+  customStart: z.string(),
+  customEnd: z.string(),
+  customMinDate: z.string(),
+  customMaxDate: z.string(),
+  projectionMinMonth: z.string(),
+  projectionMaxMonth: z.string(),
+  accountRows: z.array(z.object({
+    accountId: z.number().int(),
+    name: z.string(),
+    institution: z.string().nullable(),
+    accountType: z.string(),
+    balance: z.number(),
+    mask: z.string().nullable(),
+    role: z.enum(["auto", "include", "exclude"]),
+    included: z.boolean(),
+    statusLabel: z.string(),
+    statusClass: z.string(),
+    statusDetail: z.string(),
+  })),
+  detectedRecurring: z.array(z.object({
+    detectionKey: z.string(),
+    name: z.string(),
+    amount: z.number(),
+    frequency: z.string(),
+    startDate: z.string(),
+    secondDayOfMonth: z.number().int().nullable(),
+    categoryLabel: z.string().nullable(),
+    notes: z.string().nullable(),
+    lastSeen: z.string(),
+  })),
+  ignoredRecurring: z.array(z.object({
+    id: z.number().int(),
+    detectionKey: z.string(),
+    name: z.string(),
+    amount: z.number(),
+    frequency: z.string(),
+    categoryLabel: z.string().nullable(),
+    lastSeen: z.string().nullable(),
+    notes: z.string().nullable(),
+  })),
+  calendarFeed: z.object({
+    enabled: z.boolean(),
+    feedUrl: z.string().nullable(),
+    webcalUrl: z.string().nullable(),
+    googleUrl: z.string().nullable(),
+    generatedAt: z.string().nullable(),
+    historyMonths: z.number().int(),
+  }),
+  refresh: z.object({ synced: z.number().int(), errors: z.array(z.string()) }).nullable(),
+});
+
+export type CashProjectionView = z.infer<typeof cashProjectionViewSchema>;
+
 export const monthlyPlanBaselineInputSchema = z.object({
   baselineScope: z.literal("core").nullable().optional(),
   householdName: z.string().trim().nullable().optional(),
