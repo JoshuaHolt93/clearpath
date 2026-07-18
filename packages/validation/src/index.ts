@@ -1108,6 +1108,92 @@ export const dashboardViewSchema = z.object({
 
 export type DashboardView = z.infer<typeof dashboardViewSchema>;
 
+const analyticsSnapshotSchema = z.object({
+  month: z.string(),
+  plannedIncome: z.number(),
+  plannedFixedExpenses: z.number(),
+  plannedVariableExpenses: z.number(),
+  plannedSavings: z.number(),
+  plannedDebtPayment: z.number(),
+  plannedTaxes: z.number(),
+  plannedRetirement: z.number(),
+  plannedSafeToSpend: z.number(),
+  expectedCashFlow: z.number(),
+  budgetRemaining: z.number(),
+  actualIncome: z.number(),
+  actualFixedExpenses: z.number(),
+  actualVariableExpenses: z.number(),
+  actualTotalExpenses: z.number(),
+  netCashFlow: z.number(),
+});
+
+const analyticsSubscriptionSchema = z.object({
+  id: z.number().int(),
+  name: z.string(),
+  serviceCategory: z.string(),
+  monthlyAmount: z.number(),
+  annualAmount: z.number(),
+  cycle: z.string(),
+  confidence: z.number(),
+  status: z.string(),
+  replaceable: z.boolean(),
+  nextChargeDate: z.string().nullable(),
+});
+
+const analyticsSummarySchema = z.object({
+  rangeKey: z.string(),
+  rangeLabel: z.string(),
+  months: z.array(z.string()),
+  snapshots: z.array(analyticsSnapshotSchema),
+  startDate: z.string(),
+  endDate: z.string(),
+  totalIncome: z.number(),
+  totalSpending: z.number(),
+  totalExpectedCashFlow: z.number(),
+  totalNetCashFlow: z.number(),
+  averageIncome: z.number(),
+  averageSpending: z.number(),
+  averageNetCashFlow: z.number(),
+  maxIncome: z.number(),
+  maxSpending: z.number(),
+  maxCashFlow: z.number(),
+  categoryRows: z.array(z.object({ category: z.string(), categoryId: z.number().int().nullable(), amount: z.number() })),
+  subscriptions: z.object({
+    subscriptions: z.array(analyticsSubscriptionSchema),
+    activeCount: z.number().int(),
+    reviewCount: z.number().int(),
+    actionCount: z.number().int(),
+    manageLinkCount: z.number().int(),
+    monthlyTotal: z.number(),
+    annualTotal: z.number(),
+    potentialSavings: z.number(),
+    spendingShare: z.number().int(),
+    categoryBreakdown: z.array(z.object({ category: z.string(), amount: z.number(), percent: z.number().int() })),
+    opportunities: z.array(z.object({ subscription: analyticsSubscriptionSchema, reason: z.string() })),
+    upcoming: z.array(analyticsSubscriptionSchema),
+  }),
+});
+
+export const analyticsViewSchema = z.object({
+  session: signedInSessionSchema,
+  summary: analyticsSummarySchema,
+  budgetHistorySummary: analyticsSummarySchema,
+  debtToIncomeRatio: z.number(),
+  rangeOptions: z.record(z.string(), z.string()),
+  selectedRange: z.string(),
+  endMonth: z.string(),
+  selectedHistoryRange: z.string(),
+  historyEndMonth: z.string(),
+  subscriptionAnalyticsEnabled: z.boolean(),
+  subscriptionAnalyticsPlanLabel: z.string(),
+  aiCoachEnabled: z.boolean(),
+  aiCoachHidden: z.boolean(),
+});
+
+export type AnalyticsView = z.infer<typeof analyticsViewSchema>;
+export type AnalyticsSummaryView = z.infer<typeof analyticsSummarySchema>;
+export type AnalyticsSnapshotView = z.infer<typeof analyticsSnapshotSchema>;
+
 export const plaidRefreshSummarySchema = z.object({
   synced: z.number().int(),
   errors: z.array(z.string()),
