@@ -31,6 +31,29 @@ def email_delivery_configured(settings: Settings | None = None) -> bool:
     return bool(configured_sender(settings) and (settings.resend_api_key or settings.mail_server))
 
 
+def deliver_household_invite_email(invite, invite_url: str) -> EmailDeliveryResult:
+    # Flask household_access.deliver_household_invite_email at 92ccdbc.
+    if not email_delivery_configured():
+        return EmailDeliveryResult(False, "not_configured")
+
+    owner = invite.owner_user
+    household_name = owner.household_name or "a ClearPath household"
+    role_labels = {"editor": "Can Edit", "viewer": "View Only"}
+    role_label = role_labels.get((invite.role or "").strip().lower(), "Can Edit")
+    return send_transactional_email(
+        to_email=invite.email,
+        subject=f"You have been invited to {household_name} on ClearPath Finance",
+        text_body=(
+            f"{owner.email} invited you to join {household_name} on ClearPath Finance.\n\n"
+            f"Permission: {role_label}\n"
+            "Use this secure link to create your own shared-access password. "
+            "The link expires in 14 days and can only be used once.\n\n"
+            f"{invite_url}\n\n"
+            "If you were not expecting this invite, you can ignore this email."
+        ),
+    )
+
+
 def send_transactional_email(
     *,
     to_email: str,

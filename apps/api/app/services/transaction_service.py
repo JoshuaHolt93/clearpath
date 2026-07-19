@@ -462,6 +462,57 @@ def ensure_category_option(db: Session, label: str | None, user: User | None = N
     return category
 
 
+def category_usage_counts(db: Session, category: Category, user: User) -> dict:
+    label = category.name
+    return {
+        "transactions": db.query(Transaction).filter_by(user_id=user.id, category_id=category.id).count(),
+        "splits": db.query(TransactionSplit).filter_by(user_id=user.id, category_id=category.id).count(),
+        "fixed": db.query(FixedExpenseItem).filter_by(user_id=user.id, category_label=label).count(),
+        "variable": db.query(VariableExpenseItem).filter_by(user_id=user.id, category_label=label).count(),
+        "forecast": db.query(ForecastItem).filter_by(user_id=user.id, category_label=label).count(),
+        "recurring": db.query(RecurringForecastTemplate).filter_by(user_id=user.id, category_label=label).count(),
+    }
+
+
+def category_manager_rows_for_user(db: Session, user: User) -> list[dict]:
+    sync_planning_categories(db, user)
+    return [
+        {
+            "category": category,
+            "usage": category_usage_counts(db, category, user),
+            "can_manage": category_can_manage(db, category, user),
+        }
+        for category in categories_for_user(db, user)
+    ]
+
+
+def merge_duplicate_categories(db: Session) -> None:
+    grouped: dict[str, list[Category]] = {}
+    categories = db.scalars(
+        select(Category).order_by(Category.user_id.asc(), Category.is_default.desc(), Category.created_at.asc(), Category.id.asc())
+    ).all()
+    for category in categories:
+        grouped.setdefault(f"{category.user_id or 'default'}:{category.name.strip().lower()}", []).append(category)
+
+    changed = False
+    for duplicates in grouped.values():
+        if len(duplicates) < 2:
+            continue
+        primary = duplicates[0]
+        for duplicate in duplicates[1:]:
+            duplicate_transaction_query = db.query(Transaction).filter_by(category_id=duplicate.id)
+            duplicate_rule_query = db.query(CategoryRule).filter_by(category_id=duplicate.id)
+            if primary.user_id is not None:
+                duplicate_transaction_query = duplicate_transaction_query.filter_by(user_id=primary.user_id)
+                duplicate_rule_query = duplicate_rule_query.filter_by(user_id=primary.user_id)
+            duplicate_transaction_query.update({"category_id": primary.id})
+            duplicate_rule_query.update({"category_id": primary.id})
+            db.delete(duplicate)
+            changed = True
+    if changed:
+        db.commit()
+
+
 def sync_planning_categories(db: Session, user: User) -> None:
     labels = set()
     for model in [FixedExpenseItem, VariableExpenseItem, ForecastItem, RecurringForecastTemplate]:

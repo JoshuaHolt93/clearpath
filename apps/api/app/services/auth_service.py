@@ -623,6 +623,28 @@ def accept_household_invite(db: Session, *, invite: HouseholdInvite, display_nam
     return member
 
 
+def create_household_invite(db: Session, owner: User, email: str, role: str) -> tuple[HouseholdInvite, str]:
+    # Flask household_access.create_household_invite at 92ccdbc: validation +
+    # revoking prior pending invites for the same email, then a fresh token.
+    cleaned_email = (email or "").strip().lower()
+    if not cleaned_email:
+        raise ValueError("Email is required.")
+    if cleaned_email == (owner.email or "").strip().lower():
+        raise ValueError("You already have access with that email.")
+    if db.scalar(select(User).where(User.email == cleaned_email)):
+        raise ValueError("That email already has its own ClearPath account.")
+    existing_member = db.scalar(select(HouseholdMember).where(HouseholdMember.email == cleaned_email))
+    if existing_member and existing_member.status == "active":
+        raise ValueError("That email already has shared access.")
+
+    db.query(HouseholdInvite).filter_by(
+        owner_user_id=owner.id,
+        email=cleaned_email,
+        status="pending",
+    ).update({"status": "revoked", "revoked_at": utc_now()})
+    return create_invite(owner, cleaned_email, role, db=db)
+
+
 def create_invite(owner: User, email: str, role: str, *, db: Session) -> tuple[HouseholdInvite, str]:
     token = secrets.token_urlsafe(32)
     invite = HouseholdInvite(
