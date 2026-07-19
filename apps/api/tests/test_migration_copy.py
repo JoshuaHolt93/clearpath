@@ -287,6 +287,39 @@ def create_sample_flask_sqlite(path: Path, *, customer_key: str, plaid_key: str)
                 created_at TEXT NOT NULL,
                 updated_at TEXT NOT NULL
             );
+            CREATE TABLE security_incident (
+                id INTEGER PRIMARY KEY,
+                incident_type TEXT NOT NULL,
+                severity TEXT NOT NULL,
+                source TEXT NOT NULL,
+                description TEXT NOT NULL,
+                status TEXT NOT NULL,
+                detected_at TEXT NOT NULL,
+                report_deadline_at TEXT NOT NULL,
+                reported_at TEXT,
+                user_id INTEGER,
+                audit_notes TEXT,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            );
+            CREATE TABLE product_feedback (
+                id INTEGER PRIMARY KEY,
+                user_id INTEGER NOT NULL,
+                feedback_type TEXT NOT NULL,
+                source TEXT NOT NULL,
+                reason TEXT NOT NULL,
+                feature_expectation_reason TEXT,
+                broken_features TEXT,
+                notify_when_addressed INTEGER NOT NULL,
+                description TEXT,
+                selected_plan TEXT,
+                billing_status TEXT,
+                stripe_customer_id TEXT,
+                stripe_subscription_id TEXT,
+                status TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            );
             """
         )
         now = "2026-07-02T10:11:12"
@@ -448,6 +481,47 @@ def create_sample_flask_sqlite(path: Path, *, customer_key: str, plaid_key: str)
             "INSERT INTO loan_plan (id, user_id, fixed_expense_item_id, loan_type, principal_balance, annual_interest_rate, term_months, regular_payment, selected_scenario, notes, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             (1600, 1, 1200, "mortgage", 285000.0, 5.875, 360, 1800.0, "base", encrypted_customer_value(customer_key, "30yr fixed"), now, now),
         )
+        # Phase 6 operational tables (encryption-interesting samples for the
+        # copy gate: security_incident + product_feedback carry EncryptedText).
+        conn.execute(
+            "INSERT INTO security_incident (id, incident_type, severity, source, description, status, detected_at, report_deadline_at, reported_at, user_id, audit_notes, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (
+                1700,
+                "authentication_throttled",
+                "high",
+                "login_throttle",
+                encrypted_customer_value(customer_key, "Login throttling threshold reached."),
+                "open",
+                now,
+                now,
+                None,
+                1,
+                encrypted_customer_value(customer_key, "Deduplicated repeat signal."),
+                now,
+                now,
+            ),
+        )
+        conn.execute(
+            "INSERT INTO product_feedback (id, user_id, feedback_type, source, reason, feature_expectation_reason, broken_features, notify_when_addressed, description, selected_plan, billing_status, stripe_customer_id, stripe_subscription_id, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (
+                1800,
+                1,
+                "general",
+                "feedback",
+                "missing_feature",
+                None,
+                encrypted_customer_value(customer_key, "CSV export for budgets"),
+                1,
+                encrypted_customer_value(customer_key, "Would love budget exports."),
+                "basic",
+                "free",
+                None,
+                None,
+                "new",
+                now,
+                now,
+            ),
+        )
         conn.commit()
     finally:
         conn.close()
@@ -544,6 +618,11 @@ def test_copy_phase1_supplies_defaults_and_truncates_with_sqlite():
             "subscription": 1,
             "subscription_transaction_ignore": 1,
             "plaid_webhook_event": 1,
+            "privileged_access_log": 0,
+            "control_evaluation": 0,
+            "security_incident": 1,
+            "product_feedback": 1,
+            "stripe_webhook_event": 0,
         }
         second_counts = copy_phase1(source_conn, target_engine, truncate=True)
         assert second_counts == counts
@@ -630,6 +709,8 @@ def test_alembic_upgrade_and_sqlite_copy_against_real_postgres(tmp_path):
     assert "monthly_plan: 1" in first.stdout
     assert "insight: 1" in first.stdout
     assert "loan_plan: 1" in first.stdout
+    assert "security_incident: 1" in first.stdout
+    assert "product_feedback: 1" in first.stdout
 
     subprocess.run(command_line, cwd=API_ROOT, env=env, text=True, capture_output=True, check=True)
 
@@ -654,6 +735,10 @@ def test_alembic_upgrade_and_sqlite_copy_against_real_postgres(tmp_path):
         assert conn.scalar(text("SELECT count(*) FROM monthly_plan")) == 1
         assert conn.scalar(text("SELECT count(*) FROM insight")) == 1
         assert conn.scalar(text("SELECT count(*) FROM loan_plan")) == 1
+        assert conn.scalar(text("SELECT count(*) FROM security_incident")) == 1
+        assert conn.scalar(text("SELECT count(*) FROM product_feedback")) == 1
+        incident_row = conn.execute(text("SELECT description, status, user_id FROM security_incident WHERE id = 1700")).one()
+        feedback_row = conn.execute(text("SELECT description, notify_when_addressed, status FROM product_feedback WHERE id = 1800")).one()
         goal_row = conn.execute(text("SELECT name, target_amount FROM goal WHERE id = 1300")).one()
         loan_row = conn.execute(
             text("SELECT fixed_expense_item_id, annual_interest_rate, term_unit_preference FROM loan_plan WHERE id = 1600")
@@ -689,6 +774,14 @@ def test_alembic_upgrade_and_sqlite_copy_against_real_postgres(tmp_path):
     # replaceable is absent from the source, so the copy default (True) applies.
     assert subscription_row.replaceable is True
     assert subscription_row.monthly_amount == 18.99
+    decrypted_incident = Fernet(customer_key.encode("ascii")).decrypt(incident_row.description[len(CUSTOMER_DATA_PREFIX) :].encode("ascii")).decode("utf-8")
+    assert decrypted_incident == "Login throttling threshold reached."
+    assert incident_row.status == "open"
+    assert incident_row.user_id == 1
+    decrypted_feedback = Fernet(customer_key.encode("ascii")).decrypt(feedback_row.description[len(CUSTOMER_DATA_PREFIX) :].encode("ascii")).decode("utf-8")
+    assert decrypted_feedback == "Would love budget exports."
+    assert feedback_row.notify_when_addressed is True
+    assert feedback_row.status == "new"
     decrypted_goal_name = Fernet(customer_key.encode("ascii")).decrypt(goal_row.name[len(CUSTOMER_DATA_PREFIX) :].encode("ascii")).decode("utf-8")
     assert decrypted_goal_name == "Emergency Fund"
     assert goal_row.target_amount == 10000.0

@@ -206,6 +206,27 @@ def test_login_attempt_ledger_throttles_after_five_failures(client):
     locked = client.post("/v1/auth/login", json={"email": "throttle@example.com", "password": VALID_PASSWORD})
     assert locked.status_code == 429
 
+    # Flask 8c9f0bf: the throttle threshold records a SecurityIncident
+    # (high severity, {purpose}_throttle source) and repeats inside the
+    # 30-minute dedup window update the open incident instead of adding rows.
+    from app.models import SecurityIncident
+    from conftest import TestingSessionLocal
+
+    with TestingSessionLocal() as db:
+        incidents = db.query(SecurityIncident).all()
+        assert len(incidents) == 1
+        incident = incidents[0]
+        assert incident.incident_type == "authentication_throttled"
+        assert incident.severity == "high"
+        assert incident.source == "login_throttle"
+        assert incident.status == "open"
+        assert incident.report_deadline_at is not None
+
+    still_locked = client.post("/v1/auth/login", json={"email": "throttle@example.com", "password": VALID_PASSWORD})
+    assert still_locked.status_code == 429
+    with TestingSessionLocal() as db:
+        assert db.query(SecurityIncident).count() == 1
+
 
 def test_registration_throttles_per_source_after_five_signups(client):
     # Flask commit 8c9f0bf: each created account counts toward a 5-per-15-min

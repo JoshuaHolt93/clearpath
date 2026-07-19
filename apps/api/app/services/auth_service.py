@@ -60,9 +60,17 @@ def too_many_login_attempts(db: Session, email: str, purpose: str = "login", sou
     )
     is_locked = failed_count >= MAX_LOGIN_ATTEMPTS
     if is_locked:
-        # PHASE 6: Flask records a SecurityIncident (authentication_throttled,
-        # severity high) at this threshold. The incident ledger ports with the
-        # compliance phase; keep an operational log line until then.
+        # Flask 8c9f0bf: record the throttling threshold in the security
+        # incident ledger (deduplicated inside a 30-minute window).
+        from app.services.compliance_service import create_security_incident
+
+        create_security_incident(
+            db,
+            incident_type="authentication_throttled",
+            severity="high",
+            source=f"{purpose}_throttle",
+            description=f"{purpose.title()} throttling threshold reached.",
+        )
         logger.warning("Authentication throttled. purpose=%s source=%s", purpose, source_addr or "unknown")
     return is_locked
 

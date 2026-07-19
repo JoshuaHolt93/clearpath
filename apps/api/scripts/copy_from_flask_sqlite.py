@@ -49,8 +49,18 @@ PHASE1_TABLES = [
     "subscription",
     "subscription_transaction_ignore",
     "plaid_webhook_event",
+    "privileged_access_log",
+    "control_evaluation",
+    "security_incident",
+    "stripe_webhook_event",
+    "product_feedback",
 ]
 PHASE1_TRUNCATE_TABLES = [
+    "product_feedback",
+    "stripe_webhook_event",
+    "security_incident",
+    "control_evaluation",
+    "privileged_access_log",
     "plaid_webhook_event",
     "subscription_transaction_ignore",
     "subscription",
@@ -115,6 +125,9 @@ PHASE1_ENCRYPTED_COLUMNS = {
     "insight": ["title", "body"],
     "cash_projection_recurring_ignore": ["name", "notes"],
     "loan_plan": ["notes"],
+    "control_evaluation": ["evidence"],
+    "security_incident": ["description", "audit_notes"],
+    "product_feedback": ["broken_features", "description"],
 }
 
 

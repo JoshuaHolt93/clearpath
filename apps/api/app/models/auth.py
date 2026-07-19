@@ -61,6 +61,11 @@ class User(TimestampMixin, Base):
     insights: Mapped[list["Insight"]] = relationship("Insight", back_populates="user", cascade="all, delete-orphan")
     forecast_items: Mapped[list["ForecastItem"]] = relationship("ForecastItem", back_populates="user", cascade="all, delete-orphan")
     ai_usage_logs: Mapped[list["AIUsageLog"]] = relationship("AIUsageLog", back_populates="user", cascade="all, delete-orphan")
+    # Flask parity: privileged-access logs survive account deletion (user_id is
+    # nulled, not cascaded); product feedback rows are deleted explicitly by
+    # delete_user_account_data. Neither uses delete-orphan.
+    privileged_access_logs: Mapped[list["PrivilegedAccessLog"]] = relationship("PrivilegedAccessLog", back_populates="user")
+    product_feedback: Mapped[list["ProductFeedback"]] = relationship("ProductFeedback", back_populates="user")
     profile: Mapped[OnboardingProfile | None] = relationship(back_populates="user", cascade="all, delete-orphan")
     household_members: Mapped[list[HouseholdMember]] = relationship(
         back_populates="owner_user",

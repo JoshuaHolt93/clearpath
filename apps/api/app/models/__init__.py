@@ -16,6 +16,13 @@ from app.models.planning import (
     RecurringForecastTemplate,
     VariableExpenseItem,
 )
+from app.models.operations import (
+    ControlEvaluation,
+    PrivilegedAccessLog,
+    ProductFeedback,
+    SecurityIncident,
+    StripeWebhookEvent,
+)
 from app.models.subscriptions import Subscription, SubscriptionTransactionIgnore
 
 __all__ = [
@@ -25,6 +32,7 @@ __all__ = [
     "CashProjectionRecurringIgnore",
     "Category",
     "CategoryRule",
+    "ControlEvaluation",
     "FixedExpenseItem",
     "ForecastItem",
     "Goal",
@@ -40,7 +48,11 @@ __all__ = [
     "PlaidAccountIgnore",
     "PlaidItem",
     "PlaidWebhookEvent",
+    "PrivilegedAccessLog",
+    "ProductFeedback",
     "RecurringForecastTemplate",
+    "SecurityIncident",
+    "StripeWebhookEvent",
     "Subscription",
     "SubscriptionTransactionIgnore",
     "Transaction",
