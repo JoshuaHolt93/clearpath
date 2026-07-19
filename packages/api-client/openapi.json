@@ -4662,6 +4662,25 @@
             "title": "Loan Category Label Options",
             "type": "array"
           },
+          "monthly_week_options": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Monthly Week Options",
+            "type": "object"
+          },
+          "recurring_frequency_options": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Recurring Frequency Options",
+            "type": "object"
+          },
+          "today": {
+            "format": "date",
+            "title": "Today",
+            "type": "string"
+          },
           "total_debt_balance": {
             "title": "Total Debt Balance",
             "type": "number"
@@ -4669,12 +4688,20 @@
           "total_debt_monthly": {
             "title": "Total Debt Monthly",
             "type": "number"
+          },
+          "weekday_options": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Weekday Options",
+            "type": "object"
           }
         },
         "required": [
           "total_debt_monthly",
           "total_debt_balance",
-          "debt_to_income_ratio"
+          "debt_to_income_ratio",
+          "today"
         ],
         "title": "LoanPlanListResponse",
         "type": "object"

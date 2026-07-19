@@ -131,6 +131,10 @@ def test_loan_plan_directory_detail_update_and_scenario_side_effects(client):
     assert listed_body["total_debt_balance"] == 0.0
     assert listed_body["debt_to_income_ratio"] == pytest.approx(0.125)
     assert "Vehicle Payments" in listed_body["loan_category_label_options"]
+    assert listed_body["today"] == app_today().isoformat()
+    assert listed_body["recurring_frequency_options"]["semimonthly"] == "Twice Per Month"
+    assert listed_body["weekday_options"]["0"] == "Monday"
+    assert listed_body["monthly_week_options"]["5"] == "Last"
 
     with TestingSessionLocal() as db:
         db.add(

@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.core.feature_access import feature_min_plan_label, user_has_feature
+from app.core.planning_constants import MONTHLY_WEEK_OPTIONS, RECURRING_FREQUENCY_OPTIONS, WEEKDAY_OPTIONS
 from app.dependencies import Principal, require_household_access
 from app.models import FixedExpenseItem, LoanPlan, User
 from app.schemas.loan_plans import (
@@ -30,6 +31,7 @@ from app.services.loan_service import (
 )
 from app.services.planning_service import (
     amortization_schedule,
+    app_today,
     loan_category_for_item,
     loan_plan_scenarios,
     monthly_amount_for_fixed_item,
@@ -139,6 +141,10 @@ def list_loan_plans(
         total_debt_balance=sum(row["current_balance"] for row in rows),
         debt_to_income_ratio=debt_to_income_ratio(db, user),
         loan_category_label_options=loan_category_label_options_for_user(db, user),
+        today=app_today(),
+        recurring_frequency_options=RECURRING_FREQUENCY_OPTIONS,
+        weekday_options=WEEKDAY_OPTIONS,
+        monthly_week_options=MONTHLY_WEEK_OPTIONS,
     )
 
 

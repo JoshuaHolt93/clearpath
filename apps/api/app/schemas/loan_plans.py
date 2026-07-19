@@ -49,6 +49,10 @@ class LoanPlanListResponse(BaseModel):
     total_debt_balance: float
     debt_to_income_ratio: float
     loan_category_label_options: list[str] = Field(default_factory=list)
+    today: date
+    recurring_frequency_options: dict[str, str] = Field(default_factory=dict)
+    weekday_options: dict[int, str] = Field(default_factory=dict)
+    monthly_week_options: dict[int, str] = Field(default_factory=dict)
 
 
 class LoanPlanUpdateRequest(BaseModel):

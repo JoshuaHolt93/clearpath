@@ -1322,6 +1322,99 @@ export type PlannerView = z.infer<typeof plannerViewSchema>;
 export type PlannerPageContextInput = z.infer<typeof plannerPageContextInputSchema>;
 export type PlannerPageContextResponse = z.infer<typeof plannerPageContextResponseSchema>;
 
+export const loanPlanSummarySchema = z.object({
+  fixedExpenseItemId: z.number().int(),
+  name: z.string(),
+  loanKind: z.string(),
+  monthlyPayment: z.number(),
+  selectedExtra: z.number(),
+  totalMonthly: z.number(),
+  principalBalance: z.number(),
+  currentBalance: z.number(),
+  collateralValue: z.number(),
+  selectedScenario: z.string(),
+});
+
+export const loanPlanDirectorySchema = z.object({
+  session: signedInSessionSchema,
+  items: z.array(loanPlanSummarySchema),
+  totalDebtMonthly: z.number(),
+  totalDebtBalance: z.number(),
+  debtToIncomeRatio: z.number(),
+  loanCategoryLabelOptions: z.array(z.string()),
+  today: z.string(),
+  recurringFrequencyOptions: z.record(z.string(), z.string()),
+  weekdayOptions: z.record(z.string(), z.string()),
+  monthlyWeekOptions: z.record(z.string(), z.string()),
+});
+
+export const loanPlanRecordSchema = z.object({
+  id: z.number().int(),
+  fixedExpenseItemId: z.number().int(),
+  loanType: z.string(),
+  principalBalance: z.number(),
+  collateralValue: z.number(),
+  annualInterestRate: z.number(),
+  termMonths: z.number().int(),
+  termUnitPreference: z.string(),
+  regularPayment: z.number(),
+  extraPaymentOne: z.number(),
+  extraPaymentTwo: z.number(),
+  selectedScenario: z.string(),
+  notes: z.string().nullable(),
+});
+
+export const loanPlanResourceSchema = z.object({
+  fixedExpense: z.object({
+    id: z.number().int(),
+    name: z.string(),
+    amount: z.number(),
+    frequency: z.string(),
+    startDate: z.string(),
+    categoryLabel: z.string().nullable(),
+    isLoan: z.boolean(),
+    monthlyAmount: z.number().nullable(),
+  }),
+  loanKind: z.string(),
+  plan: loanPlanRecordSchema.nullable(),
+  scenarios: z.array(z.object({
+    key: z.string(), label: z.string(), extraPayment: z.number(), months: z.number().int(),
+    years: z.number(), interestPaid: z.number(), payoffPossible: z.boolean(),
+  })),
+  selectedSchedule: z.array(z.object({
+    month: z.number().int(), paymentDate: z.string(), beginningBalance: z.number(), payment: z.number(),
+    principal: z.number(), interest: z.number(), endingBalance: z.number(),
+  })),
+  createdFixedExpense: z.boolean(),
+});
+
+export const loanPlanDetailSchema = z.object({
+  session: signedInSessionSchema,
+  resource: loanPlanResourceSchema,
+});
+
+export const loanPlanUpdateInputSchema = z.object({
+  principalBalance: z.number().nonnegative(),
+  collateralValue: z.number().nonnegative(),
+  annualInterestRate: z.number().nonnegative(),
+  termValue: z.number().positive("Enter a remaining term."),
+  termUnit: z.enum(["months", "years"]),
+  regularPayment: z.number().nonnegative(),
+  extraPaymentOne: z.number().nonnegative(),
+  extraPaymentTwo: z.number().nonnegative(),
+  selectedScenario: z.enum(["base", "extra_one", "extra_two"]),
+  notes: z.string().trim().nullable(),
+});
+
+export const loanPlanScenarioInputSchema = z.object({
+  selectedScenario: z.enum(["base", "extra_one", "extra_two"]),
+});
+
+export type LoanPlanDirectory = z.infer<typeof loanPlanDirectorySchema>;
+export type LoanPlanResource = z.infer<typeof loanPlanResourceSchema>;
+export type LoanPlanDetail = z.infer<typeof loanPlanDetailSchema>;
+export type LoanPlanUpdateInput = z.infer<typeof loanPlanUpdateInputSchema>;
+
 export const plaidRefreshSummarySchema = z.object({
   synced: z.number().int(),
   errors: z.array(z.string()),

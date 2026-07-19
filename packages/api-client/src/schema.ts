@@ -3114,10 +3114,27 @@ export interface components {
             items?: components["schemas"]["LoanPlanSummaryResponse"][];
             /** Loan Category Label Options */
             loan_category_label_options?: string[];
+            /** Monthly Week Options */
+            monthly_week_options?: {
+                [key: string]: string;
+            };
+            /** Recurring Frequency Options */
+            recurring_frequency_options?: {
+                [key: string]: string;
+            };
+            /**
+             * Today
+             * Format: date
+             */
+            today: string;
             /** Total Debt Balance */
             total_debt_balance: number;
             /** Total Debt Monthly */
             total_debt_monthly: number;
+            /** Weekday Options */
+            weekday_options?: {
+                [key: string]: string;
+            };
         };
         /** LoanPlanRecordResponse */
         LoanPlanRecordResponse: {
