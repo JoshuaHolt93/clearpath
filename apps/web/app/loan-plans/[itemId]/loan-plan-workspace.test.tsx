@@ -1,5 +1,5 @@
 import type { LoanPlanDetail, LoanPlanResource } from "@clearpath/validation";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { LoanPlanWorkspace } from "./loan-plan-workspace";

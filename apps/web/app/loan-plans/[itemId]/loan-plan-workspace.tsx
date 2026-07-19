@@ -1,6 +1,6 @@
 "use client";
 
-import { loanPlanDetailSchema, loanPlanResourceSchema, type LoanPlanDetail, type LoanPlanResource } from "@clearpath/validation";
+import { loanPlanDetailSchema, loanPlanResourceSchema, type LoanPlanDetail } from "@clearpath/validation";
 import { ArrowLeft, Check, RefreshCw, Save } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
