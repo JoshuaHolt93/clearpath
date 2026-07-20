@@ -99,6 +99,38 @@ def require_primary_account_holder(principal: Annotated[Principal, Depends(requi
     return principal
 
 
+def require_admin(action: str, resource: str) -> Callable[..., Principal]:
+    # Flask guards.admin_required at 92ccdbc: every privileged-access attempt
+    # (unauthenticated, non-admin, and successful) lands in the audit ledger.
+    def dependency(
+        request: Request,
+        db: Annotated[Session, Depends(get_db)],
+        credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(bearer_scheme)] = None,
+    ) -> Principal:
+        from app.services.compliance_service import record_privileged_access_event
+
+        ip_address = request.client.host if request.client else None
+        user_agent = request.headers.get("User-Agent")
+        try:
+            principal = get_principal(request, db, credentials)
+        except HTTPException:
+            record_privileged_access_event(
+                db, user_id=None, action=action, resource=resource, success=False, ip_address=ip_address, user_agent=user_agent
+            )
+            raise
+        if not principal.mfa_verified or principal.is_shared_session or not getattr(principal.user, "is_admin", False):
+            record_privileged_access_event(
+                db, user_id=principal.user.id, action=action, resource=resource, success=False, ip_address=ip_address, user_agent=user_agent
+            )
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Administrator access is required.")
+        record_privileged_access_event(
+            db, user_id=principal.user.id, action=action, resource=resource, success=True, ip_address=ip_address, user_agent=user_agent
+        )
+        return principal
+
+    return dependency
+
+
 def require_household_access(min_role: str = "viewer") -> Callable[[Principal], Principal]:
     def dependency(principal: Annotated[Principal, Depends(require_full_session)]) -> Principal:
         if not principal.is_shared_session:

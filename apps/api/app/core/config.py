@@ -21,6 +21,8 @@ class Settings(BaseSettings):
     password_hash_method: str = Field(default="scrypt:32768:8:1", alias="PASSWORD_HASH_METHOD")
     password_reset_token_max_age_seconds: int = Field(default=1800, alias="PASSWORD_RESET_TOKEN_MAX_AGE_SECONDS")
     web_app_url: str | None = Field(default=None, alias="WEB_APP_URL")
+    force_https: bool = Field(default=False, alias="FORCE_HTTPS")
+    session_cookie_secure: bool = Field(default=False, alias="SESSION_COOKIE_SECURE")
 
     mfa_push_provider: str = Field(default="none", alias="MFA_PUSH_PROVIDER")
     duo_client_id: str | None = Field(default=None, alias="DUO_CLIENT_ID")

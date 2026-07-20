@@ -1,10 +1,12 @@
 ﻿from __future__ import annotations
 
 from fastapi import FastAPI
+from starlette.middleware.base import BaseHTTPMiddleware
 
 from app.api.v1.auth import router as auth_router
 from app.api.v1.billing import router as billing_router
 from app.api.v1.cash_projections import router as cash_projections_router
+from app.api.v1.compliance import router as compliance_router
 from app.api.v1.dashboard import router as dashboard_router
 from app.api.v1.goals import router as goals_router
 from app.api.v1.health import router as health_router
@@ -19,12 +21,33 @@ from app.api.v1.subscriptions import router as subscriptions_router
 from app.api.v1.transactions import router as transactions_router
 
 
+class SecurityHeadersMiddleware(BaseHTTPMiddleware):
+    # API adaptation of Flask's set_security_headers after-request hook
+    # (security.py at 92ccdbc). The page-oriented CSP/nonce/analytics pieces
+    # belong to the web app; the JSON API applies the static protections and
+    # HSTS when HTTPS is enforced.
+    async def dispatch(self, request, call_next):
+        from app.core.config import get_settings
+
+        response = await call_next(request)
+        response.headers.setdefault("X-Content-Type-Options", "nosniff")
+        response.headers.setdefault("X-Frame-Options", "DENY")
+        response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
+        response.headers.setdefault("Permissions-Policy", "camera=(), microphone=(), geolocation=(), payment=()")
+        response.headers.setdefault("Cross-Origin-Opener-Policy", "same-origin")
+        if request.url.scheme == "https" or get_settings().force_https:
+            response.headers.setdefault("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
+        return response
+
+
 def create_app() -> FastAPI:
     app = FastAPI(title="ClearPath Finance API", version="0.1.0")
+    app.add_middleware(SecurityHeadersMiddleware)
     app.include_router(health_router, prefix="/v1")
     app.include_router(auth_router, prefix="/v1")
     app.include_router(billing_router, prefix="/v1")
     app.include_router(cash_projections_router, prefix="/v1")
+    app.include_router(compliance_router, prefix="/v1")
     app.include_router(dashboard_router, prefix="/v1")
     app.include_router(goals_router, prefix="/v1")
     app.include_router(loan_plans_router, prefix="/v1")
