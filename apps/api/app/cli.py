@@ -121,5 +121,10 @@ def run_control_evaluations() -> None:
         typer.echo(f"{row['control_id']}: {row['status']} - {row['evidence']}")
 
 
-if __name__ == "__main__":
+def main() -> None:
+    """Console-script entry point declared in pyproject as `clearpath`."""
     cli()
+
+
+if __name__ == "__main__":
+    main()
