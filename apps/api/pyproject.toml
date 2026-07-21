@@ -17,6 +17,10 @@ dependencies = [
   "python-dotenv>=1.0,<2.0",
   "psycopg[binary]>=3.2,<4.0",
   "duo-universal>=2.2,<3.0",
+  # Pinned to Flask's version (requirements.txt: plaid-python==39.0.0). The
+  # service imports this lazily and degrades to "SDK missing", so leaving it
+  # undeclared silently disabled every Plaid feature in production.
+  "plaid-python==39.0.0",
 ]
 
 [project.optional-dependencies]
