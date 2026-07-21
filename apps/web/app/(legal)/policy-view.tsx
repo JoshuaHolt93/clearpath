@@ -11,13 +11,18 @@ export function PolicyView({ policy }: { policy: LegalPolicy }) {
           <Link href="/" className={styles.brand}>ClearPath Finance</Link>
           <h1>{policy.title}</h1>
           <p className={styles.meta}>Version {policy.version} · Effective {policy.effectiveDate}</p>
+          {policy.owner ? <p className={styles.meta}>Owner: {policy.owner}</p> : null}
+          {policy.reviewCadence ? <p className={styles.meta}>{policy.reviewCadence}</p> : null}
         </header>
-        <p className={styles.intro}>{policy.intro}</p>
+        {policy.intro ? <p className={styles.intro}>{policy.intro}</p> : null}
+        {policy.scope ? <p className={styles.intro}>{policy.scope}</p> : null}
+        {policy.note ? <p className={styles.contact}>{policy.note}</p> : null}
         {policy.contact ? <p className={styles.contact}>{policy.contact}</p> : null}
         <div className={styles.sections}>
           {policy.sections.map((section) => (
             <section key={section.heading}>
               <h2>{section.heading}</h2>
+              {section.summary ? <p className={styles.summary}>{section.summary}</p> : null}
               <ul>
                 {section.items.map((item) => (
                   <li key={item}>{item}</li>

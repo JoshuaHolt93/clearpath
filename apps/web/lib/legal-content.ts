@@ -5,13 +5,19 @@
 const CONTACT_EMAIL = "clearpathfinance1@proton.me";
 const PUBLIC_LEGAL_POLICY_VERSION = "2026.05.14";
 
+export type PolicySection = { heading: string; summary?: string; items: string[] };
+
 export type LegalPolicy = {
   title: string;
   version: string;
   effectiveDate: string;
-  intro: string;
+  intro?: string;
   contact?: string;
-  sections: { heading: string; items: string[] }[];
+  owner?: string;
+  reviewCadence?: string;
+  scope?: string;
+  note?: string;
+  sections: PolicySection[];
 };
 
 export const PRIVACY_POLICY: LegalPolicy = {
