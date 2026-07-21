@@ -1,5 +1,13 @@
 packages:
-  - "apps/*"
+  # apps/api is a Python (uv) project, not a pnpm package. Previously this globbed
+  # "apps/*", which resolved to apps/web only (api has no package.json).
+  - "apps/web"
+  # apps/mobile is a standalone Expo project intentionally EXCLUDED from the pnpm
+  # workspace for now: pulling its React Native / Expo dependency tree in would
+  # require regenerating pnpm-lock.yaml, and the web/domain CI jobs run
+  # `pnpm install --frozen-lockfile`. To ACTIVATE mobile: add `- "apps/mobile"`
+  # here, run `pnpm install` to update the lockfile, and add a mobile CI lane.
+  # Full activation steps are in apps/mobile/MOBILE.md.
   - "packages/*"
 allowBuilds:
   sharp: true
