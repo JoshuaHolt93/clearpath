@@ -18,6 +18,7 @@ import { useRouter } from "next/navigation";
 import { type FormEvent, type ReactNode, useCallback, useEffect, useMemo, useState } from "react";
 
 import { AuthenticatedShell } from "../authenticated-shell";
+import { SavingIndicator } from "../saving-indicator";
 import styles from "./monthly-quick-planning.module.css";
 
 export type MonthlyQuickPlanningQuery = { quickSort: string };
@@ -412,6 +413,7 @@ export function MonthlyQuickPlanningWorkspace({ query }: { query: MonthlyQuickPl
           {refreshWarning ? <div className={styles.warning}><TriangleAlert size={18} />{refreshWarning}</div> : null}
           {error ? <div className={styles.error} role="alert"><TriangleAlert size={18} />{error}</div> : null}
           {notice ? <div className={styles.notice} role="status">{notice}</div> : null}
+          {busy ? <SavingIndicator /> : null}
           {!canEdit ? <div className={styles.viewerBand}>You have view-only household access. Planning amounts and settings are read-only.</div> : null}
 
           <div className={styles.layout}>

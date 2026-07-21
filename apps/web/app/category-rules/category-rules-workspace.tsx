@@ -4,6 +4,10 @@ import type { CategoryRuleCondition, CategoryRulesView, CategoryRuleView } from 
 import { ChevronDown, Plus, RefreshCw, Settings2, Tags, Trash2, X } from "lucide-react";
 import { FormEvent, useCallback, useEffect, useState } from "react";
 
+import { usePendingMutations } from "@/lib/use-pending-mutations";
+
+import { SavingIndicator } from "../saving-indicator";
+
 import { AuthenticatedShell } from "../authenticated-shell";
 import styles from "./category-rules.module.css";
 
@@ -29,7 +33,7 @@ export function CategoryRulesWorkspace({ prefill }: { prefill: RulePrefill }) {
   const [data, setData] = useState<CategoryRulesView | null>(null);
   const [error, setError] = useState("");
   const [status, setStatus] = useState("");
-  const [busy, setBusy] = useState(false);
+  const { isPendingMatching, anyPending, start, stop } = usePendingMutations();
   const [managerOpen, setManagerOpen] = useState(false);
 
   const load = useCallback(async () => {
@@ -50,14 +54,16 @@ export function CategoryRulesWorkspace({ prefill }: { prefill: RulePrefill }) {
   const canEdit = Boolean(data && (data.session.primaryAccountHolder || data.session.subject.householdRole !== "viewer"));
 
   const mutate = async (url: string, options: RequestInit, success: string | ((payload: Record<string, unknown>) => string)) => {
-    setBusy(true); setError(""); setStatus("");
+    // Key by URL so editing one saved rule leaves the others interactive.
+    const key = `${options.method ?? "GET"} ${url}`;
+    start(key); setError(""); setStatus("");
     const response = await fetch(url, { ...options, headers: { "content-type": "application/json", ...options.headers } }).catch(() => null);
-    if (!response) { setError("ClearPath is temporarily unavailable. Please try again."); setBusy(false); return null; }
-    if (!response.ok) { setError(await responseMessage(response, "We could not save that change.")); setBusy(false); return null; }
+    if (!response) { setError("ClearPath is temporarily unavailable. Please try again."); stop(key); return null; }
+    if (!response.ok) { setError(await responseMessage(response, "We could not save that change.")); stop(key); return null; }
     const payload = await response.json().catch(() => ({})) as Record<string, unknown>;
     setStatus(typeof success === "function" ? success(payload) : success);
     await load();
-    setBusy(false);
+    stop(key);
     return payload;
   };
 
@@ -83,6 +89,7 @@ export function CategoryRulesWorkspace({ prefill }: { prefill: RulePrefill }) {
 
     {error ? <div className={styles.error} role="alert">{error}</div> : null}
     {status ? <div className={styles.status} role="status">{status}</div> : null}
+    {anyPending ? <SavingIndicator /> : null}
     {data && !canEdit ? <div className={styles.viewerNotice}>Shared viewer access is read-only.</div> : null}
 
     {!data ? <div className={styles.loading}><RefreshCw size={20} className={styles.spin} />Loading categorization rules...</div> : <>
@@ -94,7 +101,7 @@ export function CategoryRulesWorkspace({ prefill }: { prefill: RulePrefill }) {
             initialCategoryId={data.categories.some((category) => category.id === prefill.categoryId) ? prefill.categoryId : null}
             categories={data.categories}
             canEdit={canEdit}
-            busy={busy}
+            busy={anyPending}
             submitLabel="Save Rule"
             resetAfterSave
             onManageCategories={() => setManagerOpen(true)}
@@ -111,14 +118,14 @@ export function CategoryRulesWorkspace({ prefill }: { prefill: RulePrefill }) {
 
       <section className={styles.savedSection} aria-labelledby="saved-rules-title">
         <div className={styles.savedHeader}><div><h2 id="saved-rules-title">Saved Rules</h2><p>{data.rules.length} Total</p></div></div>
-        {data.rules.length ? <div className={styles.rulesStack}>{data.rules.map((rule) => <SavedRule key={rule.id} rule={rule} data={data} canEdit={canEdit} busy={busy} onManageCategories={() => setManagerOpen(true)} onMutate={mutate} />)}</div> : <div className={styles.empty}><Tags size={22} /><strong>No Rules Yet</strong><span>Create your first rule after you notice a merchant you categorize the same way every time.</span></div>}
+        {data.rules.length ? <div className={styles.rulesStack}>{data.rules.map((rule) => <SavedRule key={rule.id} rule={rule} data={data} canEdit={canEdit} busy={isPendingMatching(`/category-rules/${rule.id}`)} onManageCategories={() => setManagerOpen(true)} onMutate={mutate} />)}</div> : <div className={styles.empty}><Tags size={22} /><strong>No Rules Yet</strong><span>Create your first rule after you notice a merchant you categorize the same way every time.</span></div>}
       </section>
 
       {managerOpen ? <div className={styles.modalBackdrop} role="presentation" onMouseDown={(event) => { if (event.currentTarget === event.target) setManagerOpen(false); }}>
         <section className={styles.modal} role="dialog" aria-modal="true" aria-labelledby="category-manager-title">
           <div className={styles.modalHeader}><div><h2 id="category-manager-title">Manage Categories</h2><p>Changes apply across transactions and planning worksheets.</p></div><button type="button" className={styles.iconButton} title="Close" aria-label="Close category manager" onClick={() => setManagerOpen(false)}><X size={19} /></button></div>
-          <form className={styles.categoryCreate} onSubmit={createCategory}><label>Name<input name="name" maxLength={80} required disabled={!canEdit} /></label><label>Type<select name="kind" defaultValue="expense" disabled={!canEdit}><option value="expense">Expense</option><option value="income">Income</option></select></label><button type="submit" className={styles.primaryButton} disabled={!canEdit || busy}><Plus size={16} />Add Category</button></form>
-          <div className={styles.categoryList}>{data.categories.filter((category) => category.canManage).map((category) => <CategoryManagerRow key={category.id} category={category} categories={data.categories} canEdit={canEdit} busy={busy} onMutate={mutate} />)}</div>
+          <form className={styles.categoryCreate} onSubmit={createCategory}><label>Name<input name="name" maxLength={80} required disabled={!canEdit} /></label><label>Type<select name="kind" defaultValue="expense" disabled={!canEdit}><option value="expense">Expense</option><option value="income">Income</option></select></label><button type="submit" className={styles.primaryButton} disabled={!canEdit || anyPending}><Plus size={16} />Add Category</button></form>
+          <div className={styles.categoryList}>{data.categories.filter((category) => category.canManage).map((category) => <CategoryManagerRow key={category.id} category={category} categories={data.categories} canEdit={canEdit} busy={anyPending} onMutate={mutate} />)}</div>
         </section>
       </div> : null}
     </>}

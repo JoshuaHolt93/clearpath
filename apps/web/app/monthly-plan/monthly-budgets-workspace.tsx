@@ -19,6 +19,7 @@ import { useRouter } from "next/navigation";
 import { type DragEvent, type FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 
 import { AuthenticatedShell } from "../authenticated-shell";
+import { SavingIndicator } from "../saving-indicator";
 import styles from "./monthly-budgets.module.css";
 
 export type MonthlyBudgetQuery = {
@@ -256,6 +257,7 @@ export function MonthlyBudgetsWorkspace({ query }: { query: MonthlyBudgetQuery }
           {refreshWarning ? <div className={styles.warning}><TriangleAlert size={18} aria-hidden="true" />{refreshWarning}</div> : null}
           {error ? <div className={styles.error} role="alert"><TriangleAlert size={18} aria-hidden="true" />{error}</div> : null}
           {notice ? <div className={styles.notice} role="status">{notice}</div> : null}
+          {busy ? <SavingIndicator /> : null}
 
           {data.onboardingComplete ? (
             <div className={styles.onboardingNotice}><div><strong>Your first budgets are started.</strong><span>Income is preset from setup, and categorized expenses create budget categories you can review and adjust here.</span></div><Link href="/transactions">Continue Categorizing</Link></div>

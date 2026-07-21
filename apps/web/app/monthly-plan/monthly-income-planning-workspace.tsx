@@ -8,6 +8,7 @@ import { useRouter } from "next/navigation";
 import { type FormEvent, type ReactNode, useCallback, useEffect, useMemo, useState } from "react";
 
 import { AuthenticatedShell } from "../authenticated-shell";
+import { SavingIndicator } from "../saving-indicator";
 import styles from "./monthly-income-planning.module.css";
 
 type IncomeTemplate = MonthlyIncomePlanningView["futureIncomeTemplates"][number];
@@ -333,6 +334,7 @@ export function MonthlyIncomePlanningWorkspace() {
           {refreshWarning ? <div className={styles.warning}><TriangleAlert size={18} />{refreshWarning}</div> : null}
           {error ? <div className={styles.error} role="alert"><TriangleAlert size={18} />{error}</div> : null}
           {notice ? <div className={styles.notice} role="status">{notice}</div> : null}
+          {busy ? <SavingIndicator /> : null}
           {!canEdit ? <div className={styles.viewerBand}>You have view-only household access. Income settings and adjustments are read-only.</div> : null}
           <section className={styles.intro}><strong>Use Income Planning for income changes that have not happened yet.</strong><p>Your setup income is the current baseline. Future changes feed forecasts before they reach transactions.</p></section>
           <details className={styles.currentPanel} id="baseline">

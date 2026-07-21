@@ -1,0 +1,28 @@
+.indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.2rem 0.55rem;
+  border-radius: var(--cp-radius-sm);
+  background: var(--cp-brand-light);
+  color: var(--cp-brand-dark);
+  font-size: 0.8rem;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.spin {
+  animation: saving-indicator-spin 1s linear infinite;
+}
+
+@keyframes saving-indicator-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spin {
+    animation: none;
+  }
+}
