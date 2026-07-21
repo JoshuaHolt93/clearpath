@@ -1902,3 +1902,57 @@ export type FeedbackView = z.infer<typeof feedbackViewSchema>;
 export type FeedbackInput = z.infer<typeof feedbackInputSchema>;
 export type ComplianceView = z.infer<typeof complianceViewSchema>;
 export type ControlEvaluationView = z.infer<typeof controlEvaluationSchema>;
+
+export const retirementAccountSchema = z.object({
+  id: z.number().int(),
+  name: z.string(),
+  accountType: z.string(),
+  institution: z.string().nullable(),
+  currentBalance: z.number(),
+  isManual: z.boolean(),
+});
+
+export const retirementProfileSchema = z.object({
+  retirementEnabled: z.boolean(),
+  retirementHasEmployerPlan: z.boolean(),
+  retirementEmployerWithheld: z.boolean(),
+  retirementHasPersonalPlan: z.boolean(),
+  retirementMonthlyContribution: z.number(),
+  retirementPersonalMonthlyContribution: z.number(),
+  retirementLifestyleNotes: z.string().nullable(),
+  retirementLocationNotes: z.string().nullable(),
+  retirementHealthcareNotes: z.string().nullable(),
+  retirementIncomeNotes: z.string().nullable(),
+  retirementDebtNotes: z.string().nullable(),
+  retirementFamilyNotes: z.string().nullable(),
+});
+
+export const retirementViewSchema = z.object({
+  session: signedInSessionSchema,
+  profile: retirementProfileSchema,
+  retirementContribution: z.number(),
+  accounts: z.array(retirementAccountSchema),
+  plaidStatus: z.object({ configured: z.boolean(), ready: z.boolean() }).passthrough(),
+});
+
+export const retirementSurveyInputSchema = z.object({
+  retirementEnabled: z.boolean(),
+  retirementHasEmployerPlan: z.boolean(),
+  retirementEmployerWithheld: z.boolean(),
+  retirementHasPersonalPlan: z.boolean(),
+  retirementMonthlyContribution: z.number().nonnegative(),
+  retirementPersonalMonthlyContribution: z.number().nonnegative(),
+});
+
+export const retirementWorksheetInputSchema = z.object({
+  retirementLifestyleNotes: z.string(),
+  retirementLocationNotes: z.string(),
+  retirementHealthcareNotes: z.string(),
+  retirementIncomeNotes: z.string(),
+  retirementDebtNotes: z.string(),
+  retirementFamilyNotes: z.string(),
+});
+
+export type RetirementView = z.infer<typeof retirementViewSchema>;
+export type RetirementSurveyInput = z.infer<typeof retirementSurveyInputSchema>;
+export type RetirementWorksheetInput = z.infer<typeof retirementWorksheetInputSchema>;
