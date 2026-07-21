@@ -1,10 +1,10 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 import json
 from functools import lru_cache
 from typing import Annotated, Any
 
-from pydantic import Field, field_validator
+from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 
@@ -24,7 +24,9 @@ class Settings(BaseSettings):
     password_reset_token_max_age_seconds: int = Field(default=1800, alias="PASSWORD_RESET_TOKEN_MAX_AGE_SECONDS")
     web_app_url: str | None = Field(default=None, alias="WEB_APP_URL")
     force_https: bool = Field(default=False, alias="FORCE_HTTPS")
-    session_cookie_secure: bool = Field(default=False, alias="SESSION_COOKIE_SECURE")
+    # None means "not configured"; the Flask-equivalent default is applied in
+    # _apply_secure_cookie_default below. Read the resolved value, never None.
+    session_cookie_secure: bool | None = Field(default=None, alias="SESSION_COOKIE_SECURE")
 
     mfa_push_provider: str = Field(default="none", alias="MFA_PUSH_PROVIDER")
     duo_client_id: str | None = Field(default=None, alias="DUO_CLIENT_ID")
@@ -105,6 +107,22 @@ class Settings(BaseSettings):
         alias="AI_PLANNER_DEFAULT_OUTPUT_CENTS_PER_MILLION",
     )
     app_timezone: str | None = Field(default=None, alias="APP_TIMEZONE")
+
+    @model_validator(mode="after")
+    def _apply_secure_cookie_default(self) -> Settings:
+        """Default the Secure cookie flag the way Flask does.
+
+        Flask (app/__init__.py:1228,1247):
+            secure_runtime_default = app_env in {"development", "production"}
+                                     and not testing_requested
+            SESSION_COOKIE_SECURE = env_bool("SESSION_COOKIE_SECURE", secure_runtime_default)
+
+        An explicit env value always wins; this only fills the unset case.
+        """
+        if self.session_cookie_secure is None:
+            env = self.app_env.lower()
+            object.__setattr__(self, "session_cookie_secure", env in {"development", "production"})
+        return self
 
     @field_validator("database_url", mode="after")
     @classmethod

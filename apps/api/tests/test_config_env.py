@@ -61,6 +61,44 @@ def test_json_array_still_accepted(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 @pytest.mark.parametrize(
+    ("env", "expected", "why"),
+    [
+        # Flask: secure_runtime_default = app_env in {development, production}
+        # and not testing_requested  (app/__init__.py:1228,1247).
+        ({"CLEARPATH_ENV": "production"}, True, "production defaults secure"),
+        ({"CLEARPATH_ENV": "development"}, True, "development defaults secure too"),
+        ({"CLEARPATH_ENV": "testing"}, False, "testing defaults insecure"),
+        # An explicit env value always wins over the computed default.
+        ({"CLEARPATH_ENV": "production", "SESSION_COOKIE_SECURE": "false"}, False, "opt out"),
+        ({"CLEARPATH_ENV": "testing", "SESSION_COOKIE_SECURE": "true"}, True, "opt in"),
+    ],
+)
+def test_session_cookie_secure_matches_flask_default(
+    monkeypatch: pytest.MonkeyPatch, env: dict[str, str], expected: bool, why: str
+) -> None:
+    monkeypatch.delenv("SESSION_COOKIE_SECURE", raising=False)
+    for key, value in env.items():
+        monkeypatch.setenv(key, value)
+    assert Settings(_env_file=None).session_cookie_secure is expected, why
+
+
+def test_session_cookie_uses_the_setting_not_the_environment_name() -> None:
+    """The Secure flag must be driven by SESSION_COOKIE_SECURE.
+
+    It was previously wired to `is_production`, which left SESSION_COOKIE_SECURE
+    feeding only the SOC2 control report -- so the control could pass while the
+    cookie it describes was unaffected.
+    """
+    import inspect
+
+    from app.services import auth_service
+
+    source = inspect.getsource(auth_service)
+    assert "secure=bool(settings.session_cookie_secure)" in source
+    assert "secure=settings.is_production" not in source
+
+
+@pytest.mark.parametrize(
     ("raw", "expected"),
     [
         # Railway/Render hand out this form; SQLAlchemy would pick psycopg2.

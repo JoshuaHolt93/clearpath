@@ -1,4 +1,4 @@
-﻿"""phase 1 auth and household foundation
+"""phase 1 auth and household foundation
 
 Revision ID: 0001_phase1_auth_households
 Revises:

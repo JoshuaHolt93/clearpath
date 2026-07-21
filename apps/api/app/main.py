@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 from fastapi import FastAPI
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -41,7 +41,20 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
 
 
 def create_app() -> FastAPI:
-    app = FastAPI(title="ClearPath Finance API", version="0.1.0")
+    # Keep the interactive docs and the schema route out of production so the
+    # full API surface isn't published to anonymous callers. Flask never served
+    # a schema, so this also restores parity. `app.openapi()` still works
+    # in-process, which is what scripts/export_openapi.py uses for codegen.
+    from app.core.config import get_settings
+
+    docs_enabled = not get_settings().is_production
+    app = FastAPI(
+        title="ClearPath Finance API",
+        version="0.1.0",
+        docs_url="/docs" if docs_enabled else None,
+        redoc_url="/redoc" if docs_enabled else None,
+        openapi_url="/openapi.json" if docs_enabled else None,
+    )
     app.add_middleware(SecurityHeadersMiddleware)
     app.include_router(health_router, prefix="/v1")
     app.include_router(auth_router, prefix="/v1")

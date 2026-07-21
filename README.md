@@ -1,4 +1,4 @@
-﻿# ClearPath Finance Rewrite
+# ClearPath Finance Rewrite
 
 Phase 1 monorepo scaffold for the FastAPI auth foundation. The canonical Flask app remains at `C:\Users\joshu\Documents\Codex\ClearPath Finance` and must stay running until cutover.
 

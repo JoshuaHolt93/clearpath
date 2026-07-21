@@ -1,1 +1,1 @@
-﻿"""ClearPath FastAPI application package."""
+"""ClearPath FastAPI application package."""
