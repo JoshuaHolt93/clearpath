@@ -9,19 +9,25 @@ from app.models import PlaidItem, User
 cli = typer.Typer(help="ClearPath Finance operational CLI.")
 
 
-def _phase_not_ported(command: str, phase: str) -> None:
-    typer.echo(f"{command} is registered but its underlying Flask service ports in {phase}.")
-    raise typer.Exit(2)
-
-
 @cli.command("seed-demo")
 def seed_demo() -> None:
-    _phase_not_ported("seed-demo", "the pre-cutover demo/data phase (app/seed.py)")
+    from app.services.seed_service import DEMO_EMAIL, seed_demo_user
+
+    with SessionLocal() as db:
+        user = seed_demo_user(db)
+    if user is None:
+        typer.echo(f"Demo user {DEMO_EMAIL} already exists; nothing to seed.")
+    else:
+        typer.echo(f"Seeded demo account {DEMO_EMAIL}.")
 
 
 @cli.command("seed-defaults")
 def seed_defaults() -> None:
-    _phase_not_ported("seed-defaults", "the pre-cutover demo/data phase (app/seed.py)")
+    from app.services.seed_service import ensure_defaults
+
+    with SessionLocal() as db:
+        ensure_defaults(db)
+    typer.echo("Seeded default categories.")
 
 
 @cli.command("make-admin")
