@@ -1,9 +1,11 @@
 ﻿from __future__ import annotations
 
+import json
 from functools import lru_cache
+from typing import Annotated, Any
 
-from pydantic import Field
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic import Field, field_validator
+from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 
 class Settings(BaseSettings):
@@ -47,8 +49,10 @@ class Settings(BaseSettings):
     plaid_client_id: str | None = Field(default=None, alias="PLAID_CLIENT_ID")
     plaid_secret: str | None = Field(default=None, alias="PLAID_SECRET")
     plaid_env: str = Field(default="sandbox", alias="PLAID_ENV")
-    plaid_products: list[str] = Field(default=["transactions"], alias="PLAID_PRODUCTS")
-    plaid_country_codes: list[str] = Field(default=["US"], alias="PLAID_COUNTRY_CODES")
+    # NoDecode: Flask reads these as comma-separated strings (app/__init__.py:1339-1340),
+    # so skip pydantic-settings' default JSON decoding and split the same way.
+    plaid_products: Annotated[list[str], NoDecode] = Field(default=["transactions"], alias="PLAID_PRODUCTS")
+    plaid_country_codes: Annotated[list[str], NoDecode] = Field(default=["US"], alias="PLAID_COUNTRY_CODES")
     plaid_redirect_uri: str | None = Field(default=None, alias="PLAID_REDIRECT_URI")
     plaid_webhook_url: str | None = Field(default=None, alias="PLAID_WEBHOOK_URL")
     auto_refresh_plaid_on_page_load: bool = Field(default=True, alias="AUTO_REFRESH_PLAID_ON_PAGE_LOAD")
@@ -101,6 +105,24 @@ class Settings(BaseSettings):
         alias="AI_PLANNER_DEFAULT_OUTPUT_CENTS_PER_MILLION",
     )
     app_timezone: str | None = Field(default=None, alias="APP_TIMEZONE")
+
+    @field_validator("plaid_products", "plaid_country_codes", mode="before")
+    @classmethod
+    def _split_csv(cls, value: Any) -> Any:
+        """Parse comma-separated env values the way Flask does.
+
+        Flask: `[p.strip() for p in os.getenv(...).split(",") if p.strip()]`.
+        A JSON array is still accepted so existing list defaults keep working.
+        """
+        if not isinstance(value, str):
+            return value
+        stripped = value.strip()
+        if stripped.startswith("["):
+            try:
+                return json.loads(stripped)
+            except json.JSONDecodeError:
+                pass
+        return [item.strip() for item in stripped.split(",") if item.strip()]
 
     @property
     def is_production(self) -> bool:
