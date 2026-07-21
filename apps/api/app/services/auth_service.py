@@ -152,7 +152,7 @@ def issue_auth_response(
             settings.session_cookie_name,
             token,
             httponly=True,
-            secure=settings.is_production,
+            secure=bool(settings.session_cookie_secure),
             samesite="lax",
             max_age=cookie_max_age,
         )
