@@ -1858,3 +1858,47 @@ export type BillingView = z.infer<typeof billingViewSchema>;
 export type BillingPlan = z.infer<typeof billingPlanSchema>;
 export type BillingPlanSelectionInput = z.infer<typeof billingPlanSelectionInputSchema>;
 export type BillingCancellationInput = z.infer<typeof billingCancellationInputSchema>;
+
+export const feedbackViewSchema = z.object({
+  session: signedInSessionSchema,
+  options: z.object({
+    reasons: z.array(z.tuple([z.string(), z.string()])),
+    featureExpectationReasons: z.array(z.tuple([z.string(), z.string()])),
+    brokenFeatures: z.array(z.tuple([z.string(), z.string()])),
+  }),
+});
+
+export const feedbackInputSchema = z.object({
+  reason: z.string().min(1, "Choose the main reason."),
+  featureExpectationReason: z.string().nullable().optional(),
+  brokenFeatures: z.array(z.string()).optional(),
+  description: z.string().nullable().optional(),
+  notifyWhenAddressed: z.boolean().optional(),
+});
+
+export const controlEvaluationSchema = z.object({
+  id: z.number().int(),
+  controlId: z.string(),
+  controlName: z.string(),
+  status: z.enum(["pass", "warn", "fail"]),
+  evidence: z.string(),
+  evaluatedAt: z.string(),
+});
+
+export const complianceViewSchema = z.object({
+  session: signedInSessionSchema,
+  isAdmin: z.boolean(),
+  evaluations: z.array(controlEvaluationSchema),
+  controls: z.array(z.object({
+    id: z.string(),
+    name: z.string(),
+    description: z.string(),
+    ownerRole: z.string().nullable(),
+    reviewCadence: z.string().nullable(),
+  })),
+});
+
+export type FeedbackView = z.infer<typeof feedbackViewSchema>;
+export type FeedbackInput = z.infer<typeof feedbackInputSchema>;
+export type ComplianceView = z.infer<typeof complianceViewSchema>;
+export type ControlEvaluationView = z.infer<typeof controlEvaluationSchema>;
