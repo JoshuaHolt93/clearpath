@@ -6,6 +6,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
+import { usePendingMutations } from "@/lib/use-pending-mutations";
+
 import { AuthenticatedShell } from "../authenticated-shell";
 import { TransactionImportPanel } from "./transaction-import-panel";
 import { TransactionRow } from "./transaction-row";
@@ -48,7 +50,7 @@ export function TransactionReviewWorkspace({ query }: { query: TransactionQuery 
   const [data, setData] = useState<TransactionReviewView | null>(null);
   const [error, setError] = useState("");
   const [status, setStatus] = useState("");
-  const [busy, setBusy] = useState(false);
+  const { isPendingMatching, anyPending, start, stop } = usePendingMutations();
   const [filtersOpen, setFiltersOpen] = useState(Boolean(query.q || query.categoryIds.length || query.accountIds.length || query.minAmount || query.maxAmount || query.month));
   const [importOpen, setImportOpen] = useState(query.importMode);
   const refreshedKey = useRef<string | null>(null);
@@ -84,7 +86,10 @@ export function TransactionReviewWorkspace({ query }: { query: TransactionQuery 
   };
 
   const mutate = async (url: string, options: RequestInit, successMessage: string, redirect?: string) => {
-    setBusy(true); setError(""); setStatus("");
+    // The URL identifies the row, so concurrent edits on different rows stay
+    // independent instead of sharing one global busy flag.
+    const key = `${options.method ?? "GET"} ${url}`;
+    start(key); setError(""); setStatus("");
     try {
       const response = await fetch(url, { ...options, headers: { "content-type": "application/json", ...(options.headers ?? {}) } });
       if (!response.ok) throw new Error(await responseMessage(response, successMessage));
@@ -96,7 +101,7 @@ export function TransactionReviewWorkspace({ query }: { query: TransactionQuery 
     } catch (mutationError) {
       setError(mutationError instanceof Error ? mutationError.message : "That change could not be saved.");
       return null;
-    } finally { setBusy(false); }
+    } finally { stop(key); }
   };
 
   const applyFilters = (event: FormEvent<HTMLFormElement>) => {
@@ -144,7 +149,7 @@ export function TransactionReviewWorkspace({ query }: { query: TransactionQuery 
         </form>
       ) : null}
 
-      {importOpen && data ? <TransactionImportPanel plaidItems={data.plaidItems} canEdit={canEdit} busy={busy} onMutate={mutate} onImported={() => { setImportOpen(false); navigate({ importMode: false, page: "1" }); }} /> : null}
+      {importOpen && data ? <TransactionImportPanel plaidItems={data.plaidItems} canEdit={canEdit} busy={anyPending} onMutate={mutate} onImported={() => { setImportOpen(false); navigate({ importMode: false, page: "1" }); }} /> : null}
 
       {data?.duplicateSuggestions.length ? (
         <section className={styles.duplicateSection} aria-labelledby="duplicates-title">
@@ -154,7 +159,7 @@ export function TransactionReviewWorkspace({ query }: { query: TransactionQuery 
               <div><strong>{duplicate.plaidTransaction.displayMerchant}</strong><span>Bank record · {duplicate.plaidTransaction.postedDate}</span></div>
               <div><strong>{duplicate.manualTransaction.displayMerchant}</strong><span>Manual record · {duplicate.manualTransaction.postedDate}</span></div>
               <span className={styles.confidence}>{duplicate.confidenceLabel}</span>
-              <button type="button" className={styles.secondaryButton} disabled={!canEdit || busy} onClick={() => void mutate("/api/transactions/duplicates/merge", { method: "POST", body: JSON.stringify({ firstTransactionId: duplicate.plaidTransactionId, secondTransactionId: duplicate.manualTransactionId }) }, "Duplicate records merged.")}>Merge</button>
+              <button type="button" className={styles.secondaryButton} disabled={!canEdit || anyPending} onClick={() => void mutate("/api/transactions/duplicates/merge", { method: "POST", body: JSON.stringify({ firstTransactionId: duplicate.plaidTransactionId, secondTransactionId: duplicate.manualTransactionId }) }, "Duplicate records merged.")}>Merge</button>
             </article>
           ))}</div>
         </section>
@@ -169,7 +174,7 @@ export function TransactionReviewWorkspace({ query }: { query: TransactionQuery 
         {!data ? <div className={styles.empty}><RefreshCw size={20} className={styles.spin} aria-hidden="true" />Loading transactions...</div> : null}
         {data && !data.items.length ? <div className={styles.empty}>No transactions match these filters.</div> : null}
         {data?.items.map((transaction) => (
-          <TransactionRow key={transaction.id} transaction={transaction} categories={data.categories} budgetAction={data.budgetActions[String(transaction.id)]} amortizationAction={data.amortizationActions[String(transaction.id)]} recurring={data.recurringTransactionIds.includes(transaction.id)} canEdit={canEdit} busy={busy} onMutate={mutate} />
+          <TransactionRow key={transaction.id} transaction={transaction} categories={data.categories} budgetAction={data.budgetActions[String(transaction.id)]} amortizationAction={data.amortizationActions[String(transaction.id)]} recurring={data.recurringTransactionIds.includes(transaction.id)} canEdit={canEdit} busy={isPendingMatching(`/transactions/${transaction.id}`)} onMutate={mutate} />
         ))}
         {data && totalPages > 1 ? <nav className={styles.pagination} aria-label="Transaction pages"><button type="button" disabled={data.page <= 1} onClick={() => navigate({ page: String(data.page - 1) })}><ChevronLeft size={17} /><span>Previous</span></button><strong>Page {data.page} of {totalPages}</strong><button type="button" disabled={data.page >= totalPages} onClick={() => navigate({ page: String(data.page + 1) })}><span>Next</span><ChevronRight size={17} /></button></nav> : null}
       </section>
@@ -177,8 +182,8 @@ export function TransactionReviewWorkspace({ query }: { query: TransactionQuery 
       {data && canEdit ? (
         <details className={styles.categoryManager}>
           <summary><Tags size={17} aria-hidden="true" />Manage Categories</summary>
-          <form className={styles.categoryCreate} onSubmit={createCategory}><label>Name<input name="name" maxLength={80} required /></label><label>Type<select name="kind" defaultValue="expense"><option value="expense">Expense</option><option value="income">Income</option></select></label><button type="submit" className={styles.primaryButton} disabled={busy}><Plus size={16} />Add Category</button></form>
-          <div className={styles.categoryList}>{data.categories.filter((category) => category.canManage).map((category) => <CategoryManagerRow key={category.id} category={category} categories={data.categories} busy={busy} onMutate={mutate} />)}</div>
+          <form className={styles.categoryCreate} onSubmit={createCategory}><label>Name<input name="name" maxLength={80} required /></label><label>Type<select name="kind" defaultValue="expense"><option value="expense">Expense</option><option value="income">Income</option></select></label><button type="submit" className={styles.primaryButton} disabled={anyPending}><Plus size={16} />Add Category</button></form>
+          <div className={styles.categoryList}>{data.categories.filter((category) => category.canManage).map((category) => <CategoryManagerRow key={category.id} category={category} categories={data.categories} busy={anyPending} onMutate={mutate} />)}</div>
         </details>
       ) : null}
 

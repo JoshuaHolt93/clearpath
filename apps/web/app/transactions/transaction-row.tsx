@@ -1,7 +1,7 @@
 "use client";
 
 import type { TransactionReviewView, TransactionView } from "@clearpath/validation";
-import { CircleDollarSign, Landmark, Plus, ReceiptText, Repeat2, Scissors, Tags, Trash2 } from "lucide-react";
+import { CircleDollarSign, Landmark, Loader2, Plus, ReceiptText, Repeat2, Scissors, Tags, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { FormEvent, useMemo, useState } from "react";
 
@@ -72,6 +72,7 @@ function CategoryControl({ transaction, categories, recurring, canEdit, busy, on
 
   return <div className={styles.categoryControl}>
     <label className={styles.visuallyHidden} htmlFor={`category-${transaction.id}`}>Category for {transaction.displayMerchant}</label>
+    {busy ? <span className={styles.savingBadge} role="status"><Loader2 size={13} className={styles.spin} aria-hidden="true" />Saving</span> : null}
     <select id={`category-${transaction.id}`} value={categoryId} disabled={!canEdit || busy} onChange={(event) => { const value = event.target.value; setCategoryId(value); if (value) void saveCategory(value); }}><option value="">Uncategorized</option>{categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}</select>
     {canEdit ? <label className={styles.compactCheck}><input type="checkbox" checked={applySimilar} onChange={(event) => setApplySimilar(event.target.checked)} />Apply to similar</label> : null}
     {canEdit ? <details className={styles.inlineDetails}><summary>New category</summary><div className={styles.inlineCreate}><input aria-label={`New category for ${transaction.displayMerchant}`} value={newCategory} maxLength={80} onChange={(event) => setNewCategory(event.target.value)} /><button type="button" title="Add category" disabled={!newCategory.trim() || busy} onClick={() => void saveCategory("", newCategory)}><Plus size={15} /></button></div></details> : null}
