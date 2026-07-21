@@ -62,7 +62,9 @@ describe("DashboardWorkspace", () => {
 
   it("refreshes through the explicit mutation, then renders canonical dashboard sections", async () => {
     const fetchMock = vi.spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(new Response(JSON.stringify(dashboard()), { status: 200, headers: { "content-type": "application/json" } }))
       .mockResolvedValueOnce(new Response(JSON.stringify({ synced: 1, errors: [] }), { status: 200, headers: { "content-type": "application/json" } }))
+      // synced > 0 reloads in the background, so serve the dashboard again.
       .mockResolvedValueOnce(new Response(JSON.stringify(dashboard()), { status: 200, headers: { "content-type": "application/json" } }));
     render(<DashboardWorkspace initialWelcome />);
 
@@ -73,15 +75,17 @@ describe("DashboardWorkspace", () => {
     expect(screen.getByRole("heading", { name: "Where The Money Went" })).toBeDefined();
     expect(screen.getByText("Grocery Run")).toBeDefined();
     expect(screen.getByRole("link", { name: "AI Planner" })).toBeDefined();
-    expect(fetchMock.mock.calls[0]?.[0]).toBe("/api/plaid-items/refresh-stale");
-    expect(fetchMock.mock.calls[1]?.[0]).toBe("/api/dashboard?welcome=1");
+    // The page must render from saved data first; the Plaid refresh runs
+    // afterwards so a slow sync cannot hold the loading screen up.
+    expect(String(fetchMock.mock.calls[0]?.[0])).toContain("/api/dashboard");
+    await waitFor(() => expect(fetchMock.mock.calls.some((call) => String(call[0]).includes("refresh-stale"))).toBe(true));
   });
 
   it("allows an editor principal to delete the inline goal", async () => {
     vi.spyOn(window, "confirm").mockReturnValue(true);
     const fetchMock = vi.spyOn(globalThis, "fetch")
-      .mockResolvedValueOnce(new Response(JSON.stringify({ synced: 0, errors: [] }), { status: 200, headers: { "content-type": "application/json" } }))
       .mockResolvedValueOnce(new Response(JSON.stringify(dashboard()), { status: 200, headers: { "content-type": "application/json" } }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ synced: 0, errors: [] }), { status: 200, headers: { "content-type": "application/json" } }))
       .mockResolvedValueOnce(new Response(JSON.stringify({ deletedGoalId: 4 }), { status: 200, headers: { "content-type": "application/json" } }));
     render(<DashboardWorkspace initialWelcome={false} />);
 
@@ -101,8 +105,8 @@ describe("DashboardWorkspace", () => {
       },
     });
     vi.spyOn(globalThis, "fetch")
-      .mockResolvedValueOnce(new Response(JSON.stringify({ message: "Shared household access is view-only." }), { status: 403, headers: { "content-type": "application/json" } }))
-      .mockResolvedValueOnce(new Response(JSON.stringify(viewer), { status: 200, headers: { "content-type": "application/json" } }));
+      .mockResolvedValueOnce(new Response(JSON.stringify(viewer), { status: 200, headers: { "content-type": "application/json" } }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ message: "Shared household access is view-only." }), { status: 403, headers: { "content-type": "application/json" } }));
     render(<DashboardWorkspace initialWelcome={false} />);
 
     expect(await screen.findByRole("heading", { name: /Good .* Taylor/ })).toBeDefined();

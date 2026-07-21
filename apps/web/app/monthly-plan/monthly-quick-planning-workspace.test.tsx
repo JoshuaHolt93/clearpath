@@ -49,7 +49,7 @@ describe("MonthlyQuickPlanningWorkspace", () => {
   beforeEach(() => { navigation.push.mockReset(); navigation.replace.mockReset(); navigation.refresh.mockReset(); vi.restoreAllMocks(); });
 
   it("refreshes explicitly, then renders the cash bridge, accounts, worksheet, and active navigation", async () => {
-    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(jsonResponse({ synced: 0, errors: [] })).mockResolvedValueOnce(jsonResponse(view()));
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(jsonResponse(view())).mockResolvedValueOnce(jsonResponse({ synced: 0, errors: [] }));
     render(<MonthlyQuickPlanningWorkspace query={query} />);
 
     expect(await screen.findByRole("heading", { name: "Quick Planning", level: 1 })).toBeDefined();
@@ -58,14 +58,16 @@ describe("MonthlyQuickPlanningWorkspace", () => {
     expect(screen.getByText("Household Checking · 1234: +$1,800")).toBeDefined();
     expect(screen.getByRole("spinbutton", { name: "Planned cash for Rent" })).toBeDefined();
     expect(screen.getByRole("link", { name: "Quick Planning" }).getAttribute("class")).toContain("active");
-    expect(fetchMock.mock.calls[0]?.[0]).toBe("/api/plaid-items/refresh-stale");
-    expect(String(fetchMock.mock.calls[1]?.[0])).toContain("/api/monthly-plan?section=tools");
+    // The page must render from saved data first; the Plaid refresh runs
+    // afterwards so a slow sync cannot hold the loading screen up.
+    expect(String(fetchMock.mock.calls[0]?.[0])).toContain("/api/monthly-plan");
+    await waitFor(() => expect(fetchMock.mock.calls.some((call) => String(call[0]).includes("refresh-stale"))).toBe(true));
   });
 
   it("saves an amount-only worksheet edit and reloads without another Plaid refresh", async () => {
     const fetchMock = vi.spyOn(globalThis, "fetch")
-      .mockResolvedValueOnce(jsonResponse({ synced: 0, errors: [] }))
       .mockResolvedValueOnce(jsonResponse(view()))
+      .mockResolvedValueOnce(jsonResponse({ synced: 0, errors: [] }))
       .mockResolvedValueOnce(jsonResponse({ itemId: 11, monthlyAmount: 1250 }))
       .mockResolvedValueOnce(jsonResponse(view({ quickWorksheetRows: [{ ...view().quickWorksheetRows[0], amount: 1250 }, view().quickWorksheetRows[1]] })));
     render(<MonthlyQuickPlanningWorkspace query={query} />);
@@ -82,8 +84,8 @@ describe("MonthlyQuickPlanningWorkspace", () => {
 
   it("opens the fixed-expense editor and posts the canonical full resource", async () => {
     const fetchMock = vi.spyOn(globalThis, "fetch")
-      .mockResolvedValueOnce(jsonResponse({ synced: 0, errors: [] }))
       .mockResolvedValueOnce(jsonResponse(view()))
+      .mockResolvedValueOnce(jsonResponse({ synced: 0, errors: [] }))
       .mockResolvedValueOnce(jsonResponse({ itemId: 21, name: "Insurance", monthlyAmount: 100 }, 201))
       .mockResolvedValueOnce(jsonResponse(view()));
     render(<MonthlyQuickPlanningWorkspace query={query} />);
@@ -104,8 +106,8 @@ describe("MonthlyQuickPlanningWorkspace", () => {
       quickWorksheetRows: [{ name: "Gym", subtitle: "Recurring expense", timing: "Monthly", category: "Health", amount: 50, actionLabel: "Edit", readonly: false, itemType: "recurring_template", itemId: 14 }],
     });
     const fetchMock = vi.spyOn(globalThis, "fetch")
-      .mockResolvedValueOnce(jsonResponse({ synced: 0, errors: [] }))
       .mockResolvedValueOnce(jsonResponse(recurringView))
+      .mockResolvedValueOnce(jsonResponse({ synced: 0, errors: [] }))
       .mockResolvedValueOnce(jsonResponse({ templateId: 14, name: "Gym", monthlyAmount: 50 }))
       .mockResolvedValueOnce(jsonResponse(recurringView));
     render(<MonthlyQuickPlanningWorkspace query={query} />);
@@ -125,7 +127,7 @@ describe("MonthlyQuickPlanningWorkspace", () => {
 
   it("keeps a shared household viewer read-only while preserving the cash information", async () => {
     const viewer = view({ session: { ...view().session, primaryAccountHolder: false, subject: { ...view().session.subject, id: 9, subjectType: "household_member", email: "viewer@example.com", displayName: "Taylor Viewer", firstName: "Taylor", avatarInitial: "T", householdRole: "viewer" } } });
-    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(jsonResponse({ message: "View only" }, 403)).mockResolvedValueOnce(jsonResponse(viewer));
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(jsonResponse(viewer)).mockResolvedValueOnce(jsonResponse({ message: "View only" }, 403));
     render(<MonthlyQuickPlanningWorkspace query={query} />);
 
     expect(await screen.findByText("You have view-only household access. Planning amounts and settings are read-only.")).toBeDefined();

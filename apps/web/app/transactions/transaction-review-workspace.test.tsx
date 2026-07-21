@@ -35,7 +35,9 @@ describe("TransactionReviewWorkspace", () => {
     expect(await screen.findByRole("heading", { name: "Transactions", level: 1 })).toBeDefined();
     expect(await screen.findByText("Local Market")).toBeDefined();
     expect(screen.getByText(/Raleigh, NC - Store 104/)).toBeDefined();
-    expect(fetchMock.mock.calls.map((call) => [call[0], call[1]?.method])).toEqual([["/api/plaid-items/refresh-stale", "POST"], ["/api/transactions", undefined]]);
+    // Transactions load first; the refresh follows without blocking it.
+    expect(fetchMock.mock.calls[0]).toEqual(["/api/transactions", expect.objectContaining({ cache: "no-store" })]);
+    await waitFor(() => expect(fetchMock.mock.calls.some((call) => String(call[0]).includes("refresh-stale") && call[1]?.method === "POST")).toBe(true));
   });
 
   it("keeps filters and sorting in the URL", async () => {

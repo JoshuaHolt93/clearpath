@@ -86,8 +86,8 @@ describe("MonthlyBudgetsWorkspace", () => {
 
   it("refreshes explicitly and renders current budgets, cleanup, suggestions, and onboarding state", async () => {
     const fetchMock = vi.spyOn(globalThis, "fetch")
-      .mockResolvedValueOnce(new Response(JSON.stringify({ synced: 0, errors: [] }), { status: 200, headers: { "content-type": "application/json" } }))
-      .mockResolvedValueOnce(new Response(JSON.stringify(view()), { status: 200, headers: { "content-type": "application/json" } }));
+      .mockResolvedValueOnce(new Response(JSON.stringify(view()), { status: 200, headers: { "content-type": "application/json" } }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ synced: 0, errors: [] }), { status: 200, headers: { "content-type": "application/json" } }));
     render(<MonthlyBudgetsWorkspace query={query} />);
 
     expect(await screen.findByRole("heading", { name: "Budgets", level: 1 })).toBeDefined();
@@ -96,17 +96,19 @@ describe("MonthlyBudgetsWorkspace", () => {
     expect(screen.getByRole("heading", { name: "Other Spending To Categorize" })).toBeDefined();
     expect(screen.getByText("Suggested Categories")).toBeDefined();
     expect(screen.getByRole("link", { name: "Budgets" }).getAttribute("class")).toContain("active");
-    expect(fetchMock.mock.calls[0]?.[0]).toBe("/api/plaid-items/refresh-stale");
-    expect(String(fetchMock.mock.calls[1]?.[0])).toContain("/api/monthly-plan?section=budgets");
+    // The page must render from saved data first; the Plaid refresh runs
+    // afterwards so a slow sync cannot hold the loading screen up.
+    expect(String(fetchMock.mock.calls[0]?.[0])).toContain("/api/monthly-plan");
+    await waitFor(() => expect(fetchMock.mock.calls.some((call) => String(call[0]).includes("refresh-stale"))).toBe(true));
   });
 
   it("saves an inline amount then reloads the canonical budget resource", async () => {
     const fetchMock = vi.spyOn(globalThis, "fetch")
-      .mockResolvedValueOnce(new Response(JSON.stringify({ synced: 0, errors: [] }), { status: 200, headers: { "content-type": "application/json" } }))
       .mockResolvedValueOnce(new Response(JSON.stringify(view()), { status: 200, headers: { "content-type": "application/json" } }))
-      .mockResolvedValueOnce(new Response(JSON.stringify({ categoryId: 3, monthlyTarget: 650 }), { status: 200, headers: { "content-type": "application/json" } }))
       .mockResolvedValueOnce(new Response(JSON.stringify({ synced: 0, errors: [] }), { status: 200, headers: { "content-type": "application/json" } }))
-      .mockResolvedValueOnce(new Response(JSON.stringify(view({ totalBudgetPlanned: 650, budgetSections: [{ ...view().budgetSections[0], planned: 650, rows: [row({ planned: 650, remaining: 400 })] }] })), { status: 200, headers: { "content-type": "application/json" } }));
+      .mockResolvedValueOnce(new Response(JSON.stringify({ categoryId: 3, monthlyTarget: 650 }), { status: 200, headers: { "content-type": "application/json" } }))
+      .mockResolvedValueOnce(new Response(JSON.stringify(view({ totalBudgetPlanned: 650, budgetSections: [{ ...view().budgetSections[0], planned: 650, rows: [row({ planned: 650, remaining: 400 })] }] })), { status: 200, headers: { "content-type": "application/json" } }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ synced: 0, errors: [] }), { status: 200, headers: { "content-type": "application/json" } }));
     render(<MonthlyBudgetsWorkspace query={{ ...query, onboardingComplete: false }} />);
 
     const amount = await screen.findByRole("spinbutton", { name: "Budget amount for Groceries" });
@@ -120,11 +122,11 @@ describe("MonthlyBudgetsWorkspace", () => {
 
   it("resets the captured form after creating a budget", async () => {
     const fetchMock = vi.spyOn(globalThis, "fetch")
-      .mockResolvedValueOnce(new Response(JSON.stringify({ synced: 0, errors: [] }), { status: 200, headers: { "content-type": "application/json" } }))
       .mockResolvedValueOnce(new Response(JSON.stringify(view()), { status: 200, headers: { "content-type": "application/json" } }))
-      .mockResolvedValueOnce(new Response(JSON.stringify({ categoryId: 4, category: "Books", monthlyTarget: 50 }), { status: 201, headers: { "content-type": "application/json" } }))
       .mockResolvedValueOnce(new Response(JSON.stringify({ synced: 0, errors: [] }), { status: 200, headers: { "content-type": "application/json" } }))
-      .mockResolvedValueOnce(new Response(JSON.stringify(view()), { status: 200, headers: { "content-type": "application/json" } }));
+      .mockResolvedValueOnce(new Response(JSON.stringify({ categoryId: 4, category: "Books", monthlyTarget: 50 }), { status: 201, headers: { "content-type": "application/json" } }))
+      .mockResolvedValueOnce(new Response(JSON.stringify(view()), { status: 200, headers: { "content-type": "application/json" } }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ synced: 0, errors: [] }), { status: 200, headers: { "content-type": "application/json" } }));
     render(<MonthlyBudgetsWorkspace query={{ ...query, onboardingComplete: false }} />);
 
     const category = await screen.findByRole("combobox", { name: "Category" }) as HTMLInputElement;
@@ -150,8 +152,8 @@ describe("MonthlyBudgetsWorkspace", () => {
       session: { ...view().session, primaryAccountHolder: false, subject: { ...view().session.subject, subjectType: "household_member", householdRole: "viewer", displayName: "Taylor Viewer", email: "viewer@example.com" } },
     });
     vi.spyOn(globalThis, "fetch")
-      .mockResolvedValueOnce(new Response(JSON.stringify({ message: "View only" }), { status: 403, headers: { "content-type": "application/json" } }))
-      .mockResolvedValueOnce(new Response(JSON.stringify(history), { status: 200, headers: { "content-type": "application/json" } }));
+      .mockResolvedValueOnce(new Response(JSON.stringify(history), { status: 200, headers: { "content-type": "application/json" } }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ message: "View only" }), { status: 403, headers: { "content-type": "application/json" } }));
     render(<MonthlyBudgetsWorkspace query={{ ...query, budgetMonth: "2026-06", onboardingComplete: false }} />);
 
     expect(await screen.findByText("This is a read-only historical budget. Current category changes do not rewrite June 2026.")).toBeDefined();

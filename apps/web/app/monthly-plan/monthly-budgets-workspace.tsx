@@ -19,6 +19,8 @@ import { useRouter } from "next/navigation";
 import { type DragEvent, type FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 
 import { AuthenticatedShell } from "../authenticated-shell";
+import { refreshLiveBankData } from "@/lib/live-bank-refresh";
+
 import { SavingIndicator } from "../saving-indicator";
 import styles from "./monthly-budgets.module.css";
 
@@ -83,13 +85,6 @@ export function MonthlyBudgetsWorkspace({ query }: { query: MonthlyBudgetQuery }
     setError(null);
     setRefreshWarning(null);
     try {
-      const refresh = await fetch("/api/plaid-items/refresh-stale", { method: "POST" });
-      if (!refresh.ok && refresh.status !== 403) {
-        setRefreshWarning(await responseMessage(refresh, "Live bank refresh could not complete. Your saved budget is still available."));
-      } else if (refresh.ok) {
-        const summary = await refresh.json().catch(() => null);
-        if (summary && Array.isArray(summary.errors) && summary.errors.length) setRefreshWarning("Live bank refresh could not complete. Your saved budget is still available.");
-      }
       const response = await fetch(apiRouteForQuery(query), { cache: "no-store" });
       if (response.status === 401) {
         router.replace(`/login?next=${encodeURIComponent(routeForQuery(query))}`);
@@ -111,6 +106,20 @@ export function MonthlyBudgetsWorkspace({ query }: { query: MonthlyBudgetQuery }
   }, [query, router]);
 
   useEffect(() => { void loadBudgets(); }, [loadBudgets]);
+
+  // Refresh live bank data after the page renders. Awaiting this before the
+  // first fetch left the loading screen up for the whole Plaid sync, with no
+  // timeout if it stalled.
+  useEffect(() => {
+    let cancelled = false;
+    void refreshLiveBankData().then((result) => {
+      if (cancelled) return;
+      setRefreshWarning(result.warning);
+      if (result.synced) void loadBudgets();
+    });
+    return () => { cancelled = true; };
+  }, [loadBudgets]);
+
 
   const canEdit = data ? data.session.primaryAccountHolder || data.session.subject.householdRole === "editor" : false;
   const canMutate = Boolean(data && canEdit && !data.budgetHistoryMode);

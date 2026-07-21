@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
+import { refreshLiveBankData } from "@/lib/live-bank-refresh";
 import { usePendingMutations } from "@/lib/use-pending-mutations";
 
 import { AuthenticatedShell } from "../authenticated-shell";
@@ -56,14 +57,9 @@ export function TransactionReviewWorkspace({ query }: { query: TransactionQuery 
   const refreshedKey = useRef<string | null>(null);
   const serializedQuery = useMemo(() => queryParams(query).toString(), [query]);
 
-  const load = useCallback(async (refreshStale: boolean) => {
+  const load = useCallback(async () => {
     setError("");
     try {
-      if (refreshStale && refreshedKey.current !== serializedQuery) {
-        refreshedKey.current = serializedQuery;
-        const refresh = await fetch("/api/plaid-items/refresh-stale", { method: "POST" });
-        if (!refresh.ok && refresh.status !== 403) setStatus(await responseMessage(refresh, "Live bank refresh could not complete."));
-      }
       const response = await fetch(`/api/transactions${serializedQuery ? `?${serializedQuery}` : ""}`, { cache: "no-store" });
       if (!response.ok) throw new Error(await responseMessage(response, "We could not load transactions."));
       const parsed = transactionReviewViewSchema.safeParse(await response.json());
@@ -74,7 +70,21 @@ export function TransactionReviewWorkspace({ query }: { query: TransactionQuery 
     }
   }, [serializedQuery]);
 
-  useEffect(() => { void load(true); }, [load]);
+  useEffect(() => { void load(); }, [load]);
+
+  // Refresh live bank data once per query, after the list renders. This used
+  // to run before the first fetch, so a stalled Plaid sync blocked the page.
+  useEffect(() => {
+    if (refreshedKey.current === serializedQuery) return;
+    refreshedKey.current = serializedQuery;
+    let cancelled = false;
+    void refreshLiveBankData().then((result) => {
+      if (cancelled) return;
+      if (result.warning) setStatus(result.warning);
+      if (result.synced) void load();
+    });
+    return () => { cancelled = true; };
+  }, [load, serializedQuery]);
 
   const canEdit = Boolean(data && (data.session.primaryAccountHolder || data.session.subject.householdRole !== "viewer"));
   const totalPages = data ? Math.max(1, Math.ceil(data.total / data.perPage)) : 1;
@@ -118,8 +128,8 @@ export function TransactionReviewWorkspace({ query }: { query: TransactionQuery 
         // The row is already correct from the response, so reconcile derived
         // data (budget actions, category list, totals) in the background
         // instead of blocking the user on a full reload.
-        void load(false);
-      } else await load(false);
+        void load();
+      } else await load();
       return body;
     } catch (mutationError) {
       setError(mutationError instanceof Error ? mutationError.message : "That change could not be saved.");

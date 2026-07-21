@@ -8,6 +8,8 @@ import { useRouter } from "next/navigation";
 import { type FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 
 import { AuthenticatedShell } from "../authenticated-shell";
+import { refreshLiveBankData } from "@/lib/live-bank-refresh";
+
 import { SavingIndicator } from "../saving-indicator";
 import styles from "./monthly-forecast.module.css";
 
@@ -131,22 +133,10 @@ export function MonthlyForecastWorkspace() {
   const [refreshWarning, setRefreshWarning] = useState<string | null>(null);
   const [editing, setEditing] = useState<ForecastItem | null>(null);
 
-  const loadForecast = useCallback(async (refreshLive: boolean) => {
+  const loadForecast = useCallback(async () => {
     setLoading(true);
     setError(null);
-    if (refreshLive) setRefreshWarning(null);
     try {
-      if (refreshLive) {
-        const refresh = await fetch("/api/plaid-items/refresh-stale", { method: "POST" });
-        if (!refresh.ok && refresh.status !== 403) {
-          setRefreshWarning(await responseMessage(refresh, "Live bank refresh could not complete. Your saved forecast is still available."));
-        } else if (refresh.ok) {
-          const summary = await refresh.json().catch(() => null);
-          if (summary && Array.isArray(summary.errors) && summary.errors.length) {
-            setRefreshWarning("Live bank refresh could not complete. Your saved forecast is still available.");
-          }
-        }
-      }
       const response = await fetch("/api/monthly-plan?section=forecast", { cache: "no-store" });
       if (response.status === 401) { router.replace("/login?next=%2Fmonthly-plan%3Fsection%3Dforecast"); return; }
       if (response.status === 409) { router.replace("/onboarding"); return; }
@@ -161,7 +151,20 @@ export function MonthlyForecastWorkspace() {
     }
   }, [router]);
 
-  useEffect(() => { void loadForecast(true); }, [loadForecast]);
+  useEffect(() => { void loadForecast(); }, [loadForecast]);
+
+  // Refresh live bank data *after* the page is on screen. This used to run
+  // before the first fetch, so a slow Plaid sync left the loading screen up
+  // indefinitely with no timeout.
+  useEffect(() => {
+    let cancelled = false;
+    void refreshLiveBankData().then((result) => {
+      if (cancelled) return;
+      setRefreshWarning(result.warning);
+      if (result.synced) void loadForecast();
+    });
+    return () => { cancelled = true; };
+  }, [loadForecast]);
 
   const canEdit = data ? data.session.primaryAccountHolder || data.session.subject.householdRole === "editor" : false;
   const expenseItems = useMemo(
@@ -178,7 +181,7 @@ export function MonthlyForecastWorkspace() {
       if (!response.ok) throw new Error(await responseMessage(response, "We could not save that forecast item."));
       setNotice(success);
       setEditing(null);
-      await loadForecast(false);
+      await loadForecast();
       return true;
     } catch (mutationError) {
       setError(mutationError instanceof Error ? mutationError.message : "We could not save that forecast item.");
@@ -215,7 +218,7 @@ export function MonthlyForecastWorkspace() {
   };
 
   if (loading && !data) return <div className={styles.loadingPage}><span className="logo-mark">C</span><strong>Loading 3-Month Forecast...</strong></div>;
-  if (!data) return <div className={styles.loadingPage}><div className={styles.loadError}><TriangleAlert size={24} /><p>{error ?? "We could not load the three-month forecast."}</p><button type="button" onClick={() => void loadForecast(true)}>Try Again</button></div></div>;
+  if (!data) return <div className={styles.loadingPage}><div className={styles.loadError}><TriangleAlert size={24} /><p>{error ?? "We could not load the three-month forecast."}</p><button type="button" onClick={() => void loadForecast()}>Try Again</button></div></div>;
 
   const cashProjection = featureEnabled(data, "cash_projection");
   const requiredPlan = featurePlan(data, "cash_projection");

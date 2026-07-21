@@ -85,8 +85,8 @@ describe("MonthlyForecastWorkspace", () => {
 
   it("refreshes explicitly and renders Flask-parity month statuses, movement, and active navigation", async () => {
     const fetchMock = vi.spyOn(globalThis, "fetch")
-      .mockResolvedValueOnce(jsonResponse({ synced: 0, errors: [] }))
-      .mockResolvedValueOnce(jsonResponse(view()));
+      .mockResolvedValueOnce(jsonResponse(view()))
+      .mockResolvedValueOnce(jsonResponse({ synced: 0, errors: [] }));
 
     render(<MonthlyForecastWorkspace />);
 
@@ -97,14 +97,16 @@ describe("MonthlyForecastWorkspace", () => {
     expect(screen.getByText("+ 1 more planned item")).toBeDefined();
     expect(screen.getByRole("link", { name: "3-Month Forecast" }).getAttribute("class")).toContain("active");
     expect(screen.getByRole("link", { name: "Open Cash Balance Projections" }).getAttribute("href")).toBe("/cash-projections");
-    expect(fetchMock.mock.calls[0]?.[0]).toBe("/api/plaid-items/refresh-stale");
-    expect(fetchMock.mock.calls[1]?.[0]).toBe("/api/monthly-plan?section=forecast");
+    // The page must render from saved data first; the Plaid refresh runs
+    // afterwards so a slow sync cannot hold the loading screen up.
+    expect(String(fetchMock.mock.calls[0]?.[0])).toContain("/api/monthly-plan");
+    await waitFor(() => expect(fetchMock.mock.calls.some((call) => String(call[0]).includes("refresh-stale"))).toBe(true));
   });
 
   it("creates a one-time expense and reloads without a second Plaid refresh", async () => {
     const fetchMock = vi.spyOn(globalThis, "fetch")
-      .mockResolvedValueOnce(jsonResponse({ synced: 0, errors: [] }))
       .mockResolvedValueOnce(jsonResponse(view()))
+      .mockResolvedValueOnce(jsonResponse({ synced: 0, errors: [] }))
       .mockResolvedValueOnce(jsonResponse({ itemId: 40, description: "Annual premium", amount: 900 }, 201))
       .mockResolvedValueOnce(jsonResponse(view()));
     render(<MonthlyForecastWorkspace />);
@@ -124,8 +126,8 @@ describe("MonthlyForecastWorkspace", () => {
 
   it("edits the expense resource from the forecast list", async () => {
     const fetchMock = vi.spyOn(globalThis, "fetch")
-      .mockResolvedValueOnce(jsonResponse({ synced: 0, errors: [] }))
       .mockResolvedValueOnce(jsonResponse(view()))
+      .mockResolvedValueOnce(jsonResponse({ synced: 0, errors: [] }))
       .mockResolvedValueOnce(jsonResponse({ itemId: 32, description: "Roof repair", amount: 700 }))
       .mockResolvedValueOnce(jsonResponse(view()));
     render(<MonthlyForecastWorkspace />);
@@ -145,8 +147,8 @@ describe("MonthlyForecastWorkspace", () => {
   it("deletes a confirmed one-time expense and reloads the forecast", async () => {
     vi.spyOn(window, "confirm").mockReturnValue(true);
     const fetchMock = vi.spyOn(globalThis, "fetch")
-      .mockResolvedValueOnce(jsonResponse({ synced: 0, errors: [] }))
       .mockResolvedValueOnce(jsonResponse(view()))
+      .mockResolvedValueOnce(jsonResponse({ synced: 0, errors: [] }))
       .mockResolvedValueOnce(jsonResponse({ deletedItemId: 32 }))
       .mockResolvedValueOnce(jsonResponse(view({ forecastItems: [] })));
     render(<MonthlyForecastWorkspace />);
@@ -169,8 +171,8 @@ describe("MonthlyForecastWorkspace", () => {
       },
     });
     vi.spyOn(globalThis, "fetch")
-      .mockResolvedValueOnce(jsonResponse({ message: "View only" }, 403))
-      .mockResolvedValueOnce(jsonResponse(viewer));
+      .mockResolvedValueOnce(jsonResponse(viewer))
+      .mockResolvedValueOnce(jsonResponse({ message: "View only" }, 403));
     render(<MonthlyForecastWorkspace />);
 
     expect(await screen.findByText("You have view-only household access. Forecast items are read-only.")).toBeDefined();

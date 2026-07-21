@@ -146,8 +146,8 @@ describe("MonthlyIncomePlanningWorkspace", () => {
 
   it("refreshes explicitly and renders current income, tax-aware math, future income, and navigation", async () => {
     const fetchMock = vi.spyOn(globalThis, "fetch")
-      .mockResolvedValueOnce(jsonResponse({ synced: 0, errors: [] }))
-      .mockResolvedValueOnce(jsonResponse(view()));
+      .mockResolvedValueOnce(jsonResponse(view()))
+      .mockResolvedValueOnce(jsonResponse({ synced: 0, errors: [] }));
     render(<MonthlyIncomePlanningWorkspace />);
 
     expect(await screen.findByRole("heading", { name: "Income Planning", level: 1 })).toBeDefined();
@@ -157,14 +157,16 @@ describe("MonthlyIncomePlanningWorkspace", () => {
     expect(screen.getByRole("link", { name: "Income Planning" }).getAttribute("class")).toContain("active");
     const current = currentIncomePanel();
     expect((current.getByLabelText(/Estimated Monthly Gross Income/) as HTMLInputElement).value).toBe("7600.00");
-    expect(fetchMock.mock.calls[0]?.[0]).toBe("/api/plaid-items/refresh-stale");
-    expect(fetchMock.mock.calls[1]?.[0]).toBe("/api/monthly-plan?section=baseline");
+    // The page must render from saved data first; the Plaid refresh runs
+    // afterwards so a slow sync cannot hold the loading screen up.
+    expect(String(fetchMock.mock.calls[0]?.[0])).toContain("/api/monthly-plan");
+    await waitFor(() => expect(fetchMock.mock.calls.some((call) => String(call[0]).includes("refresh-stale"))).toBe(true));
   });
 
   it("saves the complete current-income baseline without bypassing the income-planning gate", async () => {
     const fetchMock = vi.spyOn(globalThis, "fetch")
-      .mockResolvedValueOnce(jsonResponse({ synced: 0, errors: [] }))
       .mockResolvedValueOnce(jsonResponse(view()))
+      .mockResolvedValueOnce(jsonResponse({ synced: 0, errors: [] }))
       .mockResolvedValueOnce(jsonResponse({ profile: {}, plan: { income: 8100 } }))
       .mockResolvedValueOnce(jsonResponse(view({ planIncome: 8100 })));
     render(<MonthlyIncomePlanningWorkspace />);
@@ -185,8 +187,8 @@ describe("MonthlyIncomePlanningWorkspace", () => {
 
   it("creates a future adjustment with the full Flask income schedule and clamps first pay to its start date", async () => {
     const fetchMock = vi.spyOn(globalThis, "fetch")
-      .mockResolvedValueOnce(jsonResponse({ synced: 0, errors: [] }))
       .mockResolvedValueOnce(jsonResponse(view()))
+      .mockResolvedValueOnce(jsonResponse({ synced: 0, errors: [] }))
       .mockResolvedValueOnce(jsonResponse({ id: 22, name: "Winter Contract" }, 201))
       .mockResolvedValueOnce(jsonResponse(view()));
     render(<MonthlyIncomePlanningWorkspace />);
@@ -219,8 +221,8 @@ describe("MonthlyIncomePlanningWorkspace", () => {
   it("edits and deletes a future adjustment through the recurring-template resource", async () => {
     vi.spyOn(window, "confirm").mockReturnValue(true);
     const fetchMock = vi.spyOn(globalThis, "fetch")
-      .mockResolvedValueOnce(jsonResponse({ synced: 0, errors: [] }))
       .mockResolvedValueOnce(jsonResponse(view()))
+      .mockResolvedValueOnce(jsonResponse({ synced: 0, errors: [] }))
       .mockResolvedValueOnce(jsonResponse({ id: 21, name: "Fall Promotion" }))
       .mockResolvedValueOnce(jsonResponse(view()))
       .mockResolvedValueOnce(jsonResponse({ deletedTemplateId: 21 }))
@@ -253,8 +255,8 @@ describe("MonthlyIncomePlanningWorkspace", () => {
       },
     });
     const ownerFetch = vi.spyOn(globalThis, "fetch")
-      .mockResolvedValueOnce(jsonResponse({ synced: 0, errors: [] }))
       .mockResolvedValueOnce(jsonResponse(view()))
+      .mockResolvedValueOnce(jsonResponse({ synced: 0, errors: [] }))
       .mockResolvedValueOnce(jsonResponse({ profile: {}, plan: { income: 7600 } }))
       .mockResolvedValueOnce(jsonResponse(view()));
     const ownerRender = render(<MonthlyIncomePlanningWorkspace />);
@@ -271,8 +273,8 @@ describe("MonthlyIncomePlanningWorkspace", () => {
     ownerRender.unmount();
 
     ownerFetch.mockReset()
-      .mockResolvedValueOnce(jsonResponse({ message: "View only" }, 403))
-      .mockResolvedValueOnce(jsonResponse(viewer));
+      .mockResolvedValueOnce(jsonResponse(viewer))
+      .mockResolvedValueOnce(jsonResponse({ message: "View only" }, 403));
     render(<MonthlyIncomePlanningWorkspace />);
     expect(await screen.findByText("You have view-only household access. Income settings and adjustments are read-only.")).toBeDefined();
     expect(screen.queryByRole("button", { name: "Add Income Adjustment" })).toBeNull();

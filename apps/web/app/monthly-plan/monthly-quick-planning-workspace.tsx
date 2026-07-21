@@ -18,6 +18,8 @@ import { useRouter } from "next/navigation";
 import { type FormEvent, type ReactNode, useCallback, useEffect, useMemo, useState } from "react";
 
 import { AuthenticatedShell } from "../authenticated-shell";
+import { refreshLiveBankData } from "@/lib/live-bank-refresh";
+
 import { SavingIndicator } from "../saving-indicator";
 import styles from "./monthly-quick-planning.module.css";
 
@@ -321,18 +323,9 @@ export function MonthlyQuickPlanningWorkspace({ query }: { query: MonthlyQuickPl
   const [refreshWarning, setRefreshWarning] = useState<string | null>(null);
   const [editor, setEditor] = useState<Editor | null>(null);
 
-  const loadPlan = useCallback(async (refreshLive: boolean) => {
+  const loadPlan = useCallback(async () => {
     setLoading(true); setError(null);
-    if (refreshLive) setRefreshWarning(null);
     try {
-      if (refreshLive) {
-        const refresh = await fetch("/api/plaid-items/refresh-stale", { method: "POST" });
-        if (!refresh.ok && refresh.status !== 403) setRefreshWarning(await responseMessage(refresh, "Live bank refresh could not complete. Your saved plan is still available."));
-        else if (refresh.ok) {
-          const summary = await refresh.json().catch(() => null);
-          if (summary && Array.isArray(summary.errors) && summary.errors.length) setRefreshWarning("Live bank refresh could not complete. Your saved plan is still available.");
-        }
-      }
       const response = await fetch(apiRouteForQuery(query), { cache: "no-store" });
       if (response.status === 401) { router.replace(`/login?next=${encodeURIComponent(routeForQuery(query))}`); return; }
       if (response.status === 409) { router.replace("/onboarding"); return; }
@@ -345,7 +338,21 @@ export function MonthlyQuickPlanningWorkspace({ query }: { query: MonthlyQuickPl
     } finally { setLoading(false); }
   }, [query, router]);
 
-  useEffect(() => { void loadPlan(true); }, [loadPlan]);
+  useEffect(() => { void loadPlan(); }, [loadPlan]);
+
+  // Refresh live bank data after the page renders. Awaiting this before the
+  // first fetch left the loading screen up for the whole Plaid sync, with no
+  // timeout if it stalled.
+  useEffect(() => {
+    let cancelled = false;
+    void refreshLiveBankData().then((result) => {
+      if (cancelled) return;
+      setRefreshWarning(result.warning);
+      if (result.synced) void loadPlan();
+    });
+    return () => { cancelled = true; };
+  }, [loadPlan]);
+
 
   const canEdit = data ? data.session.primaryAccountHolder || data.session.subject.householdRole === "editor" : false;
   const projection = data?.quickCashProjection ?? null;
@@ -356,7 +363,7 @@ export function MonthlyQuickPlanningWorkspace({ query }: { query: MonthlyQuickPl
     try {
       const response = await fetch(path, options);
       if (!response.ok) throw new Error(await responseMessage(response, "We could not save that planning change."));
-      setNotice(success); setEditor(null); await loadPlan(false); return true;
+      setNotice(success); setEditor(null); await loadPlan(); return true;
     } catch (mutationError) {
       setError(mutationError instanceof Error ? mutationError.message : "We could not save that planning change."); return false;
     } finally { setBusy(null); }
@@ -399,7 +406,7 @@ export function MonthlyQuickPlanningWorkspace({ query }: { query: MonthlyQuickPl
   };
 
   if (loading && !data) return <div className={styles.loadingPage}><span className="logo-mark">C</span><strong>Loading Quick Planning...</strong></div>;
-  if (!data) return <div className={styles.loadingPage}><div className={styles.loadError}><TriangleAlert size={24} /><p>{error ?? "We could not load Quick Planning."}</p><button type="button" onClick={() => void loadPlan(true)}>Try Again</button></div></div>;
+  if (!data) return <div className={styles.loadingPage}><div className={styles.loadError}><TriangleAlert size={24} /><p>{error ?? "We could not load Quick Planning."}</p><button type="button" onClick={() => void loadPlan()}>Try Again</button></div></div>;
 
   const incomePlanning = featureEnabled(data, "income_planning");
   const cashProjection = featureEnabled(data, "cash_projection");

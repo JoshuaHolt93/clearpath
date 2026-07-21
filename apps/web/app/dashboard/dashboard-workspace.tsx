@@ -1,6 +1,6 @@
 "use client";
 
-import { dashboardViewSchema, plaidRefreshSummarySchema, type DashboardView } from "@clearpath/validation";
+import { dashboardViewSchema, type DashboardView } from "@clearpath/validation";
 import {
   AlertTriangle,
   ArrowRight,
@@ -16,6 +16,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { AuthenticatedShell } from "../authenticated-shell";
+import { refreshLiveBankData } from "@/lib/live-bank-refresh";
 import styles from "./dashboard.module.css";
 
 function currency(value: number, decimals = 0): string {
@@ -116,16 +117,6 @@ export function DashboardWorkspace({ initialWelcome }: { initialWelcome: boolean
     setError(null);
     setRefreshWarning(null);
     try {
-      const refreshResponse = await fetch("/api/plaid-items/refresh-stale", { method: "POST" });
-      if (refreshResponse.ok) {
-        const refresh = plaidRefreshSummarySchema.safeParse(await refreshResponse.json());
-        if (refresh.success && refresh.data.errors.length) {
-          setRefreshWarning("Live bank refresh could not complete. Use the Transactions sync button if this continues.");
-        }
-      } else if (refreshResponse.status !== 403) {
-        setRefreshWarning(await responseMessage(refreshResponse, "Live bank refresh could not complete. Use the Transactions sync button if this continues."));
-      }
-
       const response = await fetch(`/api/dashboard${initialWelcome ? "?welcome=1" : ""}`, { cache: "no-store" });
       if (response.status === 401) {
         router.replace("/login?next=/dashboard");
@@ -147,6 +138,18 @@ export function DashboardWorkspace({ initialWelcome }: { initialWelcome: boolean
   }, [initialWelcome, router]);
 
   useEffect(() => { void loadDashboard(); }, [loadDashboard]);
+
+  // Live bank refresh runs after the dashboard is on screen; blocking the
+  // first render on a Plaid sync could hang the page with no timeout.
+  useEffect(() => {
+    let cancelled = false;
+    void refreshLiveBankData().then((result) => {
+      if (cancelled) return;
+      setRefreshWarning(result.warning);
+      if (result.synced) void loadDashboard();
+    });
+    return () => { cancelled = true; };
+  }, [loadDashboard]);
 
   const canEdit = data ? data.session.primaryAccountHolder || data.session.subject.householdRole === "editor" : false;
   const greeting = useMemo(() => {
