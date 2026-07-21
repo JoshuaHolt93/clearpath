@@ -106,6 +106,21 @@ class Settings(BaseSettings):
     )
     app_timezone: str | None = Field(default=None, alias="APP_TIMEZONE")
 
+    @field_validator("database_url", mode="after")
+    @classmethod
+    def _normalize_postgres_driver(cls, value: str) -> str:
+        """Pin Postgres URLs to the psycopg 3 dialect.
+
+        Hosting providers (Railway, Heroku, Render) hand out `postgresql://` or
+        the legacy `postgres://`. SQLAlchemy maps both to psycopg2, which this
+        project does not depend on, so the app would die with
+        `ModuleNotFoundError: psycopg2`. An explicit `+driver` is left alone.
+        """
+        for prefix in ("postgresql://", "postgres://"):
+            if value.startswith(prefix):
+                return "postgresql+psycopg://" + value[len(prefix) :]
+        return value
+
     @field_validator("plaid_products", "plaid_country_codes", mode="before")
     @classmethod
     def _split_csv(cls, value: Any) -> Any:

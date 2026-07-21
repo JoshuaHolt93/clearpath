@@ -58,3 +58,35 @@ def test_json_array_still_accepted(monkeypatch: pytest.MonkeyPatch) -> None:
     )
     assert settings.plaid_products == ["transactions", "auth"]
     assert settings.plaid_country_codes == ["US"]
+
+
+@pytest.mark.parametrize(
+    ("raw", "expected"),
+    [
+        # Railway/Render hand out this form; SQLAlchemy would pick psycopg2.
+        (
+            "postgresql://user:pw@host.railway.internal:5432/railway",
+            "postgresql+psycopg://user:pw@host.railway.internal:5432/railway",
+        ),
+        # Legacy Heroku-style scheme.
+        ("postgres://user:pw@host:5432/db", "postgresql+psycopg://user:pw@host:5432/db"),
+        # Already explicit: left untouched.
+        ("postgresql+psycopg://user:pw@host:5432/db", "postgresql+psycopg://user:pw@host:5432/db"),
+        # An explicit psycopg2 opt-in is honoured rather than rewritten.
+        ("postgresql+psycopg2://user:pw@host:5432/db", "postgresql+psycopg2://user:pw@host:5432/db"),
+        # Non-Postgres URLs pass through.
+        ("sqlite:///./clearpath_dev.db", "sqlite:///./clearpath_dev.db"),
+    ],
+)
+def test_postgres_urls_are_pinned_to_psycopg3(
+    monkeypatch: pytest.MonkeyPatch, raw: str, expected: str
+) -> None:
+    monkeypatch.setenv("DATABASE_URL", raw)
+    assert Settings(_env_file=None).database_url == expected
+
+
+def test_password_containing_scheme_like_text_is_not_mangled(monkeypatch: pytest.MonkeyPatch) -> None:
+    # Only a leading scheme is rewritten; credentials are left byte-identical.
+    raw = "postgresql://user:pg%2Fpostgres%3A%2F%2Fpw@host:5432/db"
+    monkeypatch.setenv("DATABASE_URL", raw)
+    assert Settings(_env_file=None).database_url == "postgresql+psycopg://" + raw[len("postgresql://") :]
