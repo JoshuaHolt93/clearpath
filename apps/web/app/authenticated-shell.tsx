@@ -6,6 +6,7 @@ import {
   CalendarRange,
   ChevronDown,
   CircleHelp,
+  CreditCard,
   Goal,
   Home,
   Landmark,
@@ -261,6 +262,7 @@ export function AuthenticatedShell({ session, activePlanSection, children }: Aut
 
           <div className={styles.utilityNav}>
             <NavLink href="/help" label="Help" icon={<CircleHelp size={18} aria-hidden="true" />} active={pathname.startsWith("/help")} onNavigate={closeMobile} />
+            {session.primaryAccountHolder ? <NavLink href="/billing" label="Billing" icon={<CreditCard size={18} aria-hidden="true" />} active={pathname.startsWith("/billing")} onNavigate={closeMobile} /> : null}
             <NavLink href="/settings" label="Settings" icon={<Settings size={18} aria-hidden="true" />} active={pathname.startsWith("/settings")} onNavigate={closeMobile} />
           </div>
         </nav>

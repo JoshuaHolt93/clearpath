@@ -1,0 +1,193 @@
+.layout {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.header h1 {
+  margin: 0;
+  font-size: 1.5rem;
+}
+
+.header p {
+  margin: 0.25rem 0 0;
+  color: var(--color-text-muted, #5b6472);
+  max-width: 42rem;
+}
+
+.header button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.planGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+  gap: 1rem;
+}
+
+.planCard {
+  border: 1px solid var(--color-border, #dde2ea);
+  border-radius: 12px;
+  padding: 1.25rem;
+  background: var(--color-surface, #fff);
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+}
+
+.currentPlan {
+  border-color: var(--color-success, #1f7a4d);
+  box-shadow: 0 0 0 1px var(--color-success, #1f7a4d) inset;
+}
+
+.planHead {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.planName {
+  font-weight: 600;
+  font-size: 1.05rem;
+}
+
+.priceWrap {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.3rem;
+}
+
+.price {
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
+.badge {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--color-success, #1f7a4d);
+  border: 1px solid var(--color-success, #1f7a4d);
+  border-radius: 999px;
+  padding: 0.1rem 0.5rem;
+}
+
+.features {
+  list-style: disc;
+  margin: 0;
+  padding-left: 1.1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-size: 0.85rem;
+  color: var(--color-text-secondary, #3d4453);
+  flex: 1;
+}
+
+.promo {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  font-size: 0.8rem;
+}
+
+.secure {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  border: 1px solid var(--color-border, #dde2ea);
+  border-radius: 10px;
+  padding: 0.75rem 1rem;
+  color: var(--color-text-secondary, #3d4453);
+  font-size: 0.9rem;
+}
+
+.secure p {
+  margin: 0;
+}
+
+.manage {
+  border: 1px solid var(--color-border, #dde2ea);
+  border-radius: 12px;
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.manage header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.manage h2 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.manageActions {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.manageActions button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.dangerButton {
+  border-color: var(--color-danger, #c2413b);
+  color: var(--color-danger, #c2413b);
+}
+
+.cancelForm {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  align-items: flex-start;
+  border-top: 1px solid var(--color-border, #e3e7ee);
+  padding-top: 0.75rem;
+}
+
+.cancelForm label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  font-size: 0.85rem;
+  width: 100%;
+  max-width: 26rem;
+}
+
+.meta {
+  margin: 0;
+  color: var(--color-text-muted, #5b6472);
+  font-size: 0.9rem;
+}
+
+.error {
+  color: var(--color-danger, #c2413b);
+  margin: 0;
+}
+
+.status {
+  color: var(--color-success, #1f7a4d);
+  margin: 0;
+}
+
+.loading {
+  color: var(--color-text-muted, #5b6472);
+}

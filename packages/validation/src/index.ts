@@ -1791,3 +1791,70 @@ export type HouseholdInviteView = z.infer<typeof householdInviteViewSchema>;
 export type PasswordChangeInput = z.infer<typeof passwordChangeInputSchema>;
 export type HouseholdInviteInput = z.infer<typeof householdInviteInputSchema>;
 export type AccountDeleteInput = z.infer<typeof accountDeleteInputSchema>;
+
+export const billingPlanSchema = z.object({
+  key: z.string(),
+  name: z.string(),
+  amountCents: z.number().int(),
+  currency: z.string(),
+  billingInterval: z.string(),
+  priceDisplay: z.string(),
+  intervalDisplay: z.string(),
+  trialPeriodDays: z.number().int(),
+  features: z.array(z.string()),
+  priceConfigured: z.boolean(),
+});
+
+export const billingTutorialItemSchema = z.object({
+  title: z.string(),
+  body: z.string(),
+  target: z.string().nullable(),
+  cta: z.string().nullable(),
+});
+
+export const billingUserStateSchema = z.object({
+  selectedPlan: z.string().nullable(),
+  billingStatus: z.string(),
+  hasStripeCustomer: z.boolean(),
+  hasStripeSubscription: z.boolean(),
+  stripeCurrentPeriodEnd: z.string().nullable(),
+  billingPriceId: z.string().nullable(),
+  config: z.record(z.string(), z.unknown()),
+});
+
+export const billingViewSchema = z.object({
+  session: signedInSessionSchema,
+  plans: z.array(billingPlanSchema),
+  billingConfig: z.record(z.string(), z.unknown()),
+  pricingPolicy: z.record(z.string(), z.unknown()),
+  freeTierSignupsEnabled: z.boolean(),
+  upgradeTutorials: z.object({
+    basic: z.array(billingTutorialItemSchema),
+    premium: z.array(billingTutorialItemSchema),
+  }),
+  canManageBilling: z.boolean(),
+  userState: billingUserStateSchema.nullable(),
+  feedbackOptions: z.object({
+    reasons: z.array(z.tuple([z.string(), z.string()])),
+    featureExpectationReasons: z.array(z.tuple([z.string(), z.string()])),
+    brokenFeatures: z.array(z.tuple([z.string(), z.string()])),
+  }).nullable(),
+});
+
+export const billingPlanSelectionInputSchema = z.object({
+  plan: z.string().min(1, "Choose a plan."),
+  promotionCode: z.string().trim().nullable().optional(),
+});
+
+export const billingCancellationInputSchema = z.object({
+  reason: z.string().nullable().optional(),
+  featureExpectationReason: z.string().nullable().optional(),
+  brokenFeatures: z.array(z.string()).optional(),
+  description: z.string().nullable().optional(),
+  notifyWhenAddressed: z.boolean().optional(),
+});
+
+export type BillingView = z.infer<typeof billingViewSchema>;
+export type BillingPlan = z.infer<typeof billingPlanSchema>;
+export type BillingPlanSelectionInput = z.infer<typeof billingPlanSelectionInputSchema>;
+export type BillingCancellationInput = z.infer<typeof billingCancellationInputSchema>;
