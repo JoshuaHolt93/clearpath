@@ -106,6 +106,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/auth/mfa/preferences": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update Mfa Preferences */
+        patch: operations["update_mfa_preferences_v1_auth_mfa_preferences_patch"];
+        trace?: never;
+    };
     "/v1/auth/mfa/push/callback": {
         parameters: {
             query?: never;
@@ -307,6 +324,108 @@ export interface paths {
         post?: never;
         /** Logout */
         delete: operations["logout_v1_auth_session_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/billing/cancellation-sessions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create Cancellation */
+        post: operations["create_cancellation_v1_billing_cancellation_sessions_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/billing/checkout-sessions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create Checkout */
+        post: operations["create_checkout_v1_billing_checkout_sessions_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/billing/plan-selection": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Select Plan */
+        post: operations["select_plan_v1_billing_plan_selection_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/billing/plans": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Billing Plans */
+        get: operations["get_billing_plans_v1_billing_plans_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/billing/portal-sessions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create Portal */
+        post: operations["create_portal_v1_billing_portal_sessions_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/billing/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Billing State */
+        get: operations["get_billing_state_v1_billing_status_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -554,6 +673,40 @@ export interface paths {
         patch: operations["update_category_rule_v1_category_rules__rule_id__patch"];
         trace?: never;
     };
+    "/v1/compliance/control-evaluations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Control Evaluations */
+        get: operations["list_control_evaluations_v1_compliance_control_evaluations_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/compliance/control-evaluations/run": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Run Control Evaluations Endpoint */
+        post: operations["run_control_evaluations_endpoint_v1_compliance_control_evaluations_run_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/dashboard": {
         parameters: {
             query?: never;
@@ -563,6 +716,40 @@ export interface paths {
         };
         /** Get Dashboard */
         get: operations["get_dashboard_v1_dashboard_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/feedback": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create Feedback */
+        post: operations["create_feedback_v1_feedback_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/feedback/options": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Feedback Options */
+        get: operations["get_feedback_options_v1_feedback_options_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -728,6 +915,75 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/households/current": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update Household */
+        patch: operations["update_household_v1_households_current_patch"];
+        trace?: never;
+    };
+    "/v1/households/current/invites": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create Invite Endpoint */
+        post: operations["create_invite_endpoint_v1_households_current_invites_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/households/current/invites/{invite_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Revoke Invite */
+        delete: operations["revoke_invite_v1_households_current_invites__invite_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/households/current/members/{member_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Revoke Member */
+        delete: operations["revoke_member_v1_households_current_members__member_id__delete"];
+        options?: never;
+        head?: never;
+        /** Update Member Role */
+        patch: operations["update_member_role_v1_households_current_members__member_id__patch"];
+        trace?: never;
+    };
     "/v1/loan-plans": {
         parameters: {
             query?: never;
@@ -789,6 +1045,74 @@ export interface paths {
         };
         /** Me */
         get: operations["me_v1_me_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/me/account": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete Account */
+        delete: operations["delete_account_v1_me_account_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/me/compliance-acknowledgements/ethics": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Acknowledge Ethics Policy */
+        post: operations["acknowledge_ethics_policy_v1_me_compliance_acknowledgements_ethics_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/me/password": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Change Password */
+        patch: operations["change_password_v1_me_password_patch"];
+        trace?: never;
+    };
+    "/v1/me/settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Settings Dashboard */
+        get: operations["get_settings_dashboard_v1_me_settings_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1499,6 +1823,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/webhooks/stripe": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Stripe Webhook */
+        post: operations["stripe_webhook_v1_webhooks_stripe_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1507,6 +1848,24 @@ export interface components {
         AccountCashProjectionRoleUpdateRequest: {
             /** Cash Projection Role */
             cash_projection_role: string;
+        };
+        /** AccountDeleteRequest */
+        AccountDeleteRequest: {
+            /**
+             * Confirmation
+             * @default
+             */
+            confirmation: string;
+            /**
+             * Current Password
+             * @default
+             */
+            current_password: string;
+        };
+        /** AccountDeleteResponse */
+        AccountDeleteResponse: {
+            /** Deleted */
+            deleted: boolean;
         };
         /** AccountRemoveResponse */
         AccountRemoveResponse: {
@@ -1818,6 +2177,133 @@ export interface components {
             tax_state?: string | null;
             /** Variable Expenses */
             variable_expenses?: number | null;
+        };
+        /** BillingCancellationSessionCreateRequest */
+        BillingCancellationSessionCreateRequest: {
+            /** Broken Features */
+            broken_features?: string[];
+            /** Description */
+            description?: string | null;
+            /** Feature Expectation Reason */
+            feature_expectation_reason?: string | null;
+            /**
+             * Notify When Addressed
+             * @default false
+             */
+            notify_when_addressed: boolean;
+            /** Reason */
+            reason?: string | null;
+        };
+        /** BillingCancellationSessionResponse */
+        BillingCancellationSessionResponse: {
+            /** Feedback Saved */
+            feedback_saved: boolean;
+            /** Message */
+            message?: string | null;
+            /** Portal Url */
+            portal_url?: string | null;
+        };
+        /** BillingCheckoutSessionCreateRequest */
+        BillingCheckoutSessionCreateRequest: {
+            /** Cancel Path */
+            cancel_path?: string | null;
+            /** Plan */
+            plan?: string | null;
+            /** Promotion Code */
+            promotion_code?: string | null;
+            /** Success Path */
+            success_path?: string | null;
+        };
+        /** BillingCheckoutSessionResponse */
+        BillingCheckoutSessionResponse: {
+            /** Checkout Url */
+            checkout_url: string;
+        };
+        /** BillingPlanResponse */
+        BillingPlanResponse: {
+            /** Amount Cents */
+            amount_cents: number;
+            /** Billing Interval */
+            billing_interval: string;
+            /** Currency */
+            currency: string;
+            /** Features */
+            features?: string[];
+            /** Interval Display */
+            interval_display: string;
+            /** Key */
+            key: string;
+            /** Name */
+            name: string;
+            /** Price Configured */
+            price_configured: boolean;
+            /** Price Display */
+            price_display: string;
+            /** Trial Period Days */
+            trial_period_days: number;
+        };
+        /** BillingPlanSelectionRequest */
+        BillingPlanSelectionRequest: {
+            /** Cancel Path */
+            cancel_path?: string | null;
+            /**
+             * Plan
+             * @default
+             */
+            plan: string;
+            /** Promotion Code */
+            promotion_code?: string | null;
+            /** Success Path */
+            success_path?: string | null;
+        };
+        /** BillingPlanSelectionResponse */
+        BillingPlanSelectionResponse: {
+            /**
+             * Already Selected
+             * @default false
+             */
+            already_selected: boolean;
+            billing: components["schemas"]["UserBillingStateResponse"];
+            /** Checkout Url */
+            checkout_url?: string | null;
+            /** Plan Name */
+            plan_name: string;
+            /** Selected Plan */
+            selected_plan: string;
+            /** Upgrade Tutorial Items */
+            upgrade_tutorial_items?: components["schemas"]["UpgradeTutorialItemResponse"][];
+        };
+        /** BillingPlansResponse */
+        BillingPlansResponse: {
+            /** Billing Status */
+            billing_status: {
+                [key: string]: unknown;
+            };
+            /** Free Tier Signups Enabled */
+            free_tier_signups_enabled: boolean;
+            /** Plans */
+            plans: components["schemas"]["BillingPlanResponse"][];
+            /** Pricing Policy */
+            pricing_policy: {
+                [key: string]: unknown;
+            };
+            /** Upgrade Tutorials */
+            upgrade_tutorials: {
+                [key: string]: components["schemas"]["UpgradeTutorialItemResponse"][];
+            };
+        };
+        /** BillingPortalSessionCreateRequest */
+        BillingPortalSessionCreateRequest: {
+            /**
+             * Confirm
+             * @default true
+             */
+            confirm: boolean;
+        };
+        /** BillingPortalSessionResponse */
+        BillingPortalSessionResponse: {
+            /** Portal Url */
+            portal_url: string;
         };
         /** BudgetCreateRequest */
         BudgetCreateRequest: {
@@ -2438,6 +2924,16 @@ export interface components {
             deleted_category_id: number;
             replacement_category?: components["schemas"]["CategoryResponse"] | null;
         };
+        /** CategoryManagerRowResponse */
+        CategoryManagerRowResponse: {
+            /** Can Manage */
+            can_manage: boolean;
+            category: components["schemas"]["CategoryResponse"];
+            /** Usage */
+            usage: {
+                [key: string]: number;
+            };
+        };
         /** CategoryResponse */
         CategoryResponse: {
             /** Budget Group Key */
@@ -2562,6 +3058,55 @@ export interface components {
             kind?: string | null;
             /** Name */
             name?: string | null;
+        };
+        /** ControlEvaluationListResponse */
+        ControlEvaluationListResponse: {
+            /** Controls */
+            controls: {
+                [key: string]: unknown;
+            }[];
+            /** Evaluations */
+            evaluations: components["schemas"]["ControlEvaluationResponse"][];
+        };
+        /** ControlEvaluationResponse */
+        ControlEvaluationResponse: {
+            /** Control Id */
+            control_id: string;
+            /** Control Name */
+            control_name: string;
+            /**
+             * Evaluated At
+             * Format: date-time
+             */
+            evaluated_at: string;
+            /** Evidence */
+            evidence: string;
+            /** Id */
+            id: number;
+            /** Status */
+            status: string;
+        };
+        /** ControlEvaluationRunRequest */
+        ControlEvaluationRunRequest: {
+            /**
+             * Confirm
+             * @default true
+             */
+            confirm: boolean;
+        };
+        /** ControlEvaluationRunResponse */
+        ControlEvaluationRunResponse: {
+            /** Evaluated */
+            evaluated: number;
+            /**
+             * Evaluated At
+             * Format: date-time
+             */
+            evaluated_at: string;
+            /** Results */
+            results: {
+                [key: string]: unknown;
+            }[];
         };
         /** DashboardFeatureStateResponse */
         DashboardFeatureStateResponse: {
@@ -2705,6 +3250,24 @@ export interface components {
             merged: boolean;
             surviving_transaction: components["schemas"]["TransactionResponse"];
         };
+        /** EthicsAcknowledgementRequest */
+        EthicsAcknowledgementRequest: {
+            /**
+             * Acknowledged
+             * @default true
+             */
+            acknowledged: boolean;
+        };
+        /** EthicsAcknowledgementResponse */
+        EthicsAcknowledgementResponse: {
+            /**
+             * Ethics Acknowledged At
+             * Format: date-time
+             */
+            ethics_acknowledged_at: string;
+            /** Ethics Policy Version */
+            ethics_policy_version: string;
+        };
         /** ExpenseSourceRowResponse */
         ExpenseSourceRowResponse: {
             /** Amount */
@@ -2728,6 +3291,61 @@ export interface components {
             hidden: boolean;
             /** Required Plan */
             required_plan: string;
+        };
+        /** FeedbackCreateRequest */
+        FeedbackCreateRequest: {
+            /** Broken Features */
+            broken_features?: string[];
+            /** Description */
+            description?: string | null;
+            /** Feature Expectation Reason */
+            feature_expectation_reason?: string | null;
+            /**
+             * Notify When Addressed
+             * @default false
+             */
+            notify_when_addressed: boolean;
+            /**
+             * Reason
+             * @default
+             */
+            reason: string;
+        };
+        /** FeedbackOptionsResponse */
+        FeedbackOptionsResponse: {
+            /** Broken Features */
+            broken_features: [
+                string,
+                string
+            ][];
+            /** Feature Expectation Reasons */
+            feature_expectation_reasons: [
+                string,
+                string
+            ][];
+            /** Reasons */
+            reasons: [
+                string,
+                string
+            ][];
+        };
+        /** FeedbackResponse */
+        FeedbackResponse: {
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Feedback Type */
+            feedback_type: string;
+            /** Id */
+            id: number;
+            /** Reason */
+            reason: string;
+            /** Source */
+            source: string;
+            /** Status */
+            status: string;
         };
         /** FixedExpenseCreateRequest */
         FixedExpenseCreateRequest: {
@@ -3076,6 +3694,54 @@ export interface components {
              */
             policy_acknowledgement: boolean;
         };
+        /** HouseholdInviteCreateRequest */
+        HouseholdInviteCreateRequest: {
+            /**
+             * Invite Email
+             * @default
+             */
+            invite_email: string;
+            /** Invite Role */
+            invite_role?: string | null;
+        };
+        /** HouseholdInviteCreateResponse */
+        HouseholdInviteCreateResponse: {
+            /** Delivery Reason */
+            delivery_reason?: string | null;
+            /** Email Sent */
+            email_sent: boolean;
+            /** Fallback Invite Url */
+            fallback_invite_url?: string | null;
+            invite: components["schemas"]["HouseholdInviteResponse"];
+        };
+        /** HouseholdInviteResponse */
+        HouseholdInviteResponse: {
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Email */
+            email: string;
+            /** Expires At */
+            expires_at?: string | null;
+            /** Id */
+            id: number;
+            /** Revoked At */
+            revoked_at?: string | null;
+            /** Role */
+            role: string;
+            /** Status */
+            status: string;
+        };
+        /** HouseholdInviteRevokeRequest */
+        HouseholdInviteRevokeRequest: {
+            /**
+             * Confirm
+             * @default true
+             */
+            confirm: boolean;
+        };
         /** HouseholdInviteTokenResponse */
         HouseholdInviteTokenResponse: {
             /** Email */
@@ -3086,6 +3752,52 @@ export interface components {
             role?: string | null;
             /** Valid */
             valid: boolean;
+        };
+        /** HouseholdMemberResponse */
+        HouseholdMemberResponse: {
+            /** Accepted At */
+            accepted_at?: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Display Name */
+            display_name?: string | null;
+            /** Email */
+            email: string;
+            /** Id */
+            id: number;
+            /** Role */
+            role?: string | null;
+            /** Status */
+            status: string;
+        };
+        /** HouseholdMemberRevokeRequest */
+        HouseholdMemberRevokeRequest: {
+            /**
+             * Confirm
+             * @default true
+             */
+            confirm: boolean;
+        };
+        /** HouseholdMemberRoleUpdateRequest */
+        HouseholdMemberRoleUpdateRequest: {
+            /** Member Role */
+            member_role?: string | null;
+        };
+        /** HouseholdResponse */
+        HouseholdResponse: {
+            /** Household Name */
+            household_name?: string | null;
+        };
+        /** HouseholdUpdateRequest */
+        HouseholdUpdateRequest: {
+            /**
+             * Household Name
+             * @default
+             */
+            household_name: string;
         };
         /** IgnoredRecurringCashScheduleResponse */
         IgnoredRecurringCashScheduleResponse: {
@@ -3374,6 +4086,27 @@ export interface components {
             provisioning_uri: string | null;
             /** Subject Type */
             subject_type?: string | null;
+        };
+        /** MfaPreferenceResponse */
+        MfaPreferenceResponse: {
+            /** Message */
+            message: string;
+            /** Mfa Preferred Method */
+            mfa_preferred_method: string;
+            /** Mfa Push Enabled */
+            mfa_push_enabled: boolean;
+            /** Push */
+            push: {
+                [key: string]: unknown;
+            };
+        };
+        /** MfaPreferenceUpdateRequest */
+        MfaPreferenceUpdateRequest: {
+            /**
+             * Mfa Preferred Method
+             * @default totp
+             */
+            mfa_preferred_method: string;
         };
         /** MfaPushStartRequest */
         MfaPushStartRequest: {
@@ -4003,6 +4736,29 @@ export interface components {
             posted_date: string;
             /** Source Name */
             source_name?: string | null;
+        };
+        /** PasswordChangeRequest */
+        PasswordChangeRequest: {
+            /**
+             * Confirm Password
+             * @default
+             */
+            confirm_password: string;
+            /**
+             * Current Password
+             * @default
+             */
+            current_password: string;
+            /**
+             * New Password
+             * @default
+             */
+            new_password: string;
+        };
+        /** PasswordChangeResponse */
+        PasswordChangeResponse: {
+            /** Updated */
+            updated: boolean;
         };
         /** PasswordResetConfirmRequest */
         PasswordResetConfirmRequest: {
@@ -4747,6 +5503,64 @@ export interface components {
             /** User Id */
             user_id: number;
         };
+        /** SettingsDashboardResponse */
+        SettingsDashboardResponse: {
+            /** Account Classification Options */
+            account_classification_options?: [
+                string,
+                string
+            ][];
+            /** Account Delete Billing Blocked */
+            account_delete_billing_blocked: boolean;
+            /** Account Delete Confirmation */
+            account_delete_confirmation: string;
+            /** Billing Status */
+            billing_status: {
+                [key: string]: unknown;
+            };
+            /** Can Manage Household Access */
+            can_manage_household_access: boolean;
+            /** Category Rows */
+            category_rows: components["schemas"]["CategoryManagerRowResponse"][];
+            /** Display Name */
+            display_name?: string | null;
+            /** Email */
+            email: string;
+            /** Ethics Acknowledged At */
+            ethics_acknowledged_at?: string | null;
+            /** Ethics Policy Version */
+            ethics_policy_version?: string | null;
+            /** Feedback Options */
+            feedback_options: {
+                [key: string]: unknown;
+            };
+            /** Household Access Is Shared */
+            household_access_is_shared: boolean;
+            /** Household Members */
+            household_members: components["schemas"]["HouseholdMemberResponse"][];
+            /** Household Name */
+            household_name?: string | null;
+            /** Household Role Options */
+            household_role_options: {
+                [key: string]: string;
+            };
+            /** Mfa Preferred Method */
+            mfa_preferred_method: string;
+            /** Mfa Push Enabled */
+            mfa_push_enabled: boolean;
+            /** Pending Household Invites */
+            pending_household_invites: components["schemas"]["HouseholdInviteResponse"][];
+            /** Plaid Status */
+            plaid_status: {
+                [key: string]: unknown;
+            };
+            /** Push Mfa */
+            push_mfa: {
+                [key: string]: unknown;
+            };
+            /** Rules Count */
+            rules_count: number;
+        };
         /** SignedInSubjectSummary */
         SignedInSubjectSummary: {
             /** Avatar Initial */
@@ -4763,6 +5577,11 @@ export interface components {
             id: number;
             /** Subject Type */
             subject_type: string;
+        };
+        /** StripeWebhookAckResponse */
+        StripeWebhookAckResponse: {
+            /** Received */
+            received: boolean;
         };
         /** SubscriptionCategoryBreakdownRow */
         SubscriptionCategoryBreakdownRow: {
@@ -5352,6 +6171,36 @@ export interface components {
             /** Splits */
             splits?: components["schemas"]["TransactionSplitInput"][];
         };
+        /** UpgradeTutorialItemResponse */
+        UpgradeTutorialItemResponse: {
+            /** Body */
+            body: string;
+            /** Cta */
+            cta?: string | null;
+            /** Target */
+            target?: string | null;
+            /** Title */
+            title: string;
+        };
+        /** UserBillingStateResponse */
+        UserBillingStateResponse: {
+            /** Billing Price Id */
+            billing_price_id?: string | null;
+            /** Billing Status */
+            billing_status: string;
+            /** Config */
+            config: {
+                [key: string]: unknown;
+            };
+            /** Has Stripe Customer */
+            has_stripe_customer: boolean;
+            /** Has Stripe Subscription */
+            has_stripe_subscription: boolean;
+            /** Selected Plan */
+            selected_plan?: string | null;
+            /** Stripe Current Period End */
+            stripe_current_period_end?: string | null;
+        };
         /** UserSummary */
         UserSummary: {
             /** Billing Status */
@@ -5671,6 +6520,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MfaChallengeResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_mfa_preferences_v1_auth_mfa_preferences_patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MfaPreferenceUpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MfaPreferenceResponse"];
                 };
             };
             /** @description Validation Error */
@@ -6113,6 +6995,178 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_cancellation_v1_billing_cancellation_sessions_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BillingCancellationSessionCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BillingCancellationSessionResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_checkout_v1_billing_checkout_sessions_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BillingCheckoutSessionCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BillingCheckoutSessionResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    select_plan_v1_billing_plan_selection_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BillingPlanSelectionRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BillingPlanSelectionResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_billing_plans_v1_billing_plans_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BillingPlansResponse"];
+                };
+            };
+        };
+    };
+    create_portal_v1_billing_portal_sessions_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BillingPortalSessionCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BillingPortalSessionResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_billing_state_v1_billing_status_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserBillingStateResponse"];
                 };
             };
         };
@@ -6710,6 +7764,59 @@ export interface operations {
             };
         };
     };
+    list_control_evaluations_v1_compliance_control_evaluations_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ControlEvaluationListResponse"];
+                };
+            };
+        };
+    };
+    run_control_evaluations_endpoint_v1_compliance_control_evaluations_run_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ControlEvaluationRunRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ControlEvaluationRunResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_dashboard_v1_dashboard_get: {
         parameters: {
             query?: never;
@@ -6726,6 +7833,59 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DashboardResponse"];
+                };
+            };
+        };
+    };
+    create_feedback_v1_feedback_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FeedbackCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FeedbackResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_feedback_options_v1_feedback_options_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FeedbackOptionsResponse"];
                 };
             };
         };
@@ -7147,6 +8307,177 @@ export interface operations {
             };
         };
     };
+    update_household_v1_households_current_patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["HouseholdUpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HouseholdResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_invite_endpoint_v1_households_current_invites_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["HouseholdInviteCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HouseholdInviteCreateResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    revoke_invite_v1_households_current_invites__invite_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                invite_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["HouseholdInviteRevokeRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HouseholdInviteResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    revoke_member_v1_households_current_members__member_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                member_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["HouseholdMemberRevokeRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HouseholdMemberResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_member_role_v1_households_current_members__member_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                member_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["HouseholdMemberRoleUpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HouseholdMemberResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_loan_plans_v1_loan_plans_get: {
         parameters: {
             query?: never;
@@ -7284,6 +8615,125 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MeResponse"];
+                };
+            };
+        };
+    };
+    delete_account_v1_me_account_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AccountDeleteRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AccountDeleteResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    acknowledge_ethics_policy_v1_me_compliance_acknowledgements_ethics_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EthicsAcknowledgementRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EthicsAcknowledgementResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    change_password_v1_me_password_patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PasswordChangeRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PasswordChangeResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_settings_dashboard_v1_me_settings_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SettingsDashboardResponse"];
                 };
             };
         };
@@ -8702,6 +10152,26 @@ export interface operations {
                     "application/json": {
                         [key: string]: unknown;
                     };
+                };
+            };
+        };
+    };
+    stripe_webhook_v1_webhooks_stripe_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StripeWebhookAckResponse"];
                 };
             };
         };

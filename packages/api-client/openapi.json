@@ -15,6 +15,35 @@
         "title": "AccountCashProjectionRoleUpdateRequest",
         "type": "object"
       },
+      "AccountDeleteRequest": {
+        "properties": {
+          "confirmation": {
+            "default": "",
+            "title": "Confirmation",
+            "type": "string"
+          },
+          "current_password": {
+            "default": "",
+            "title": "Current Password",
+            "type": "string"
+          }
+        },
+        "title": "AccountDeleteRequest",
+        "type": "object"
+      },
+      "AccountDeleteResponse": {
+        "properties": {
+          "deleted": {
+            "title": "Deleted",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "deleted"
+        ],
+        "title": "AccountDeleteResponse",
+        "type": "object"
+      },
       "AccountRemoveResponse": {
         "properties": {
           "ignored_account_id": {
@@ -1019,6 +1048,372 @@
           }
         },
         "title": "BaselineProfileResponse",
+        "type": "object"
+      },
+      "BillingCancellationSessionCreateRequest": {
+        "properties": {
+          "broken_features": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Broken Features",
+            "type": "array"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "feature_expectation_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Feature Expectation Reason"
+          },
+          "notify_when_addressed": {
+            "default": false,
+            "title": "Notify When Addressed",
+            "type": "boolean"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          }
+        },
+        "title": "BillingCancellationSessionCreateRequest",
+        "type": "object"
+      },
+      "BillingCancellationSessionResponse": {
+        "properties": {
+          "feedback_saved": {
+            "title": "Feedback Saved",
+            "type": "boolean"
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Message"
+          },
+          "portal_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Portal Url"
+          }
+        },
+        "required": [
+          "feedback_saved"
+        ],
+        "title": "BillingCancellationSessionResponse",
+        "type": "object"
+      },
+      "BillingCheckoutSessionCreateRequest": {
+        "properties": {
+          "cancel_path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cancel Path"
+          },
+          "plan": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Plan"
+          },
+          "promotion_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Promotion Code"
+          },
+          "success_path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Success Path"
+          }
+        },
+        "title": "BillingCheckoutSessionCreateRequest",
+        "type": "object"
+      },
+      "BillingCheckoutSessionResponse": {
+        "properties": {
+          "checkout_url": {
+            "title": "Checkout Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "checkout_url"
+        ],
+        "title": "BillingCheckoutSessionResponse",
+        "type": "object"
+      },
+      "BillingPlanResponse": {
+        "properties": {
+          "amount_cents": {
+            "title": "Amount Cents",
+            "type": "integer"
+          },
+          "billing_interval": {
+            "title": "Billing Interval",
+            "type": "string"
+          },
+          "currency": {
+            "title": "Currency",
+            "type": "string"
+          },
+          "features": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Features",
+            "type": "array"
+          },
+          "interval_display": {
+            "title": "Interval Display",
+            "type": "string"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "price_configured": {
+            "title": "Price Configured",
+            "type": "boolean"
+          },
+          "price_display": {
+            "title": "Price Display",
+            "type": "string"
+          },
+          "trial_period_days": {
+            "title": "Trial Period Days",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "key",
+          "name",
+          "amount_cents",
+          "currency",
+          "billing_interval",
+          "price_display",
+          "interval_display",
+          "trial_period_days",
+          "price_configured"
+        ],
+        "title": "BillingPlanResponse",
+        "type": "object"
+      },
+      "BillingPlanSelectionRequest": {
+        "properties": {
+          "cancel_path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cancel Path"
+          },
+          "plan": {
+            "default": "",
+            "title": "Plan",
+            "type": "string"
+          },
+          "promotion_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Promotion Code"
+          },
+          "success_path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Success Path"
+          }
+        },
+        "title": "BillingPlanSelectionRequest",
+        "type": "object"
+      },
+      "BillingPlanSelectionResponse": {
+        "properties": {
+          "already_selected": {
+            "default": false,
+            "title": "Already Selected",
+            "type": "boolean"
+          },
+          "billing": {
+            "$ref": "#/components/schemas/UserBillingStateResponse"
+          },
+          "checkout_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Checkout Url"
+          },
+          "plan_name": {
+            "title": "Plan Name",
+            "type": "string"
+          },
+          "selected_plan": {
+            "title": "Selected Plan",
+            "type": "string"
+          },
+          "upgrade_tutorial_items": {
+            "items": {
+              "$ref": "#/components/schemas/UpgradeTutorialItemResponse"
+            },
+            "title": "Upgrade Tutorial Items",
+            "type": "array"
+          }
+        },
+        "required": [
+          "selected_plan",
+          "plan_name",
+          "billing"
+        ],
+        "title": "BillingPlanSelectionResponse",
+        "type": "object"
+      },
+      "BillingPlansResponse": {
+        "properties": {
+          "billing_status": {
+            "additionalProperties": true,
+            "title": "Billing Status",
+            "type": "object"
+          },
+          "free_tier_signups_enabled": {
+            "title": "Free Tier Signups Enabled",
+            "type": "boolean"
+          },
+          "plans": {
+            "items": {
+              "$ref": "#/components/schemas/BillingPlanResponse"
+            },
+            "title": "Plans",
+            "type": "array"
+          },
+          "pricing_policy": {
+            "additionalProperties": true,
+            "title": "Pricing Policy",
+            "type": "object"
+          },
+          "upgrade_tutorials": {
+            "additionalProperties": {
+              "items": {
+                "$ref": "#/components/schemas/UpgradeTutorialItemResponse"
+              },
+              "type": "array"
+            },
+            "title": "Upgrade Tutorials",
+            "type": "object"
+          }
+        },
+        "required": [
+          "plans",
+          "billing_status",
+          "pricing_policy",
+          "free_tier_signups_enabled",
+          "upgrade_tutorials"
+        ],
+        "title": "BillingPlansResponse",
+        "type": "object"
+      },
+      "BillingPortalSessionCreateRequest": {
+        "properties": {
+          "confirm": {
+            "default": true,
+            "title": "Confirm",
+            "type": "boolean"
+          }
+        },
+        "title": "BillingPortalSessionCreateRequest",
+        "type": "object"
+      },
+      "BillingPortalSessionResponse": {
+        "properties": {
+          "portal_url": {
+            "title": "Portal Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "portal_url"
+        ],
+        "title": "BillingPortalSessionResponse",
         "type": "object"
       },
       "BudgetCreateRequest": {
@@ -2711,6 +3106,31 @@
         "title": "CategoryDeleteResponse",
         "type": "object"
       },
+      "CategoryManagerRowResponse": {
+        "properties": {
+          "can_manage": {
+            "title": "Can Manage",
+            "type": "boolean"
+          },
+          "category": {
+            "$ref": "#/components/schemas/CategoryResponse"
+          },
+          "usage": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Usage",
+            "type": "object"
+          }
+        },
+        "required": [
+          "category",
+          "usage",
+          "can_manage"
+        ],
+        "title": "CategoryManagerRowResponse",
+        "type": "object"
+      },
       "CategoryResponse": {
         "properties": {
           "budget_group_key": {
@@ -3038,6 +3458,109 @@
           }
         },
         "title": "CategoryUpdateRequest",
+        "type": "object"
+      },
+      "ControlEvaluationListResponse": {
+        "properties": {
+          "controls": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Controls",
+            "type": "array"
+          },
+          "evaluations": {
+            "items": {
+              "$ref": "#/components/schemas/ControlEvaluationResponse"
+            },
+            "title": "Evaluations",
+            "type": "array"
+          }
+        },
+        "required": [
+          "evaluations",
+          "controls"
+        ],
+        "title": "ControlEvaluationListResponse",
+        "type": "object"
+      },
+      "ControlEvaluationResponse": {
+        "properties": {
+          "control_id": {
+            "title": "Control Id",
+            "type": "string"
+          },
+          "control_name": {
+            "title": "Control Name",
+            "type": "string"
+          },
+          "evaluated_at": {
+            "format": "date-time",
+            "title": "Evaluated At",
+            "type": "string"
+          },
+          "evidence": {
+            "title": "Evidence",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "control_id",
+          "control_name",
+          "status",
+          "evidence",
+          "evaluated_at"
+        ],
+        "title": "ControlEvaluationResponse",
+        "type": "object"
+      },
+      "ControlEvaluationRunRequest": {
+        "properties": {
+          "confirm": {
+            "default": true,
+            "title": "Confirm",
+            "type": "boolean"
+          }
+        },
+        "title": "ControlEvaluationRunRequest",
+        "type": "object"
+      },
+      "ControlEvaluationRunResponse": {
+        "properties": {
+          "evaluated": {
+            "title": "Evaluated",
+            "type": "integer"
+          },
+          "evaluated_at": {
+            "format": "date-time",
+            "title": "Evaluated At",
+            "type": "string"
+          },
+          "results": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Results",
+            "type": "array"
+          }
+        },
+        "required": [
+          "evaluated",
+          "evaluated_at",
+          "results"
+        ],
+        "title": "ControlEvaluationRunResponse",
         "type": "object"
       },
       "DashboardFeatureStateResponse": {
@@ -3425,6 +3948,36 @@
         "title": "DuplicateTransactionMergeResponse",
         "type": "object"
       },
+      "EthicsAcknowledgementRequest": {
+        "properties": {
+          "acknowledged": {
+            "default": true,
+            "title": "Acknowledged",
+            "type": "boolean"
+          }
+        },
+        "title": "EthicsAcknowledgementRequest",
+        "type": "object"
+      },
+      "EthicsAcknowledgementResponse": {
+        "properties": {
+          "ethics_acknowledged_at": {
+            "format": "date-time",
+            "title": "Ethics Acknowledged At",
+            "type": "string"
+          },
+          "ethics_policy_version": {
+            "title": "Ethics Policy Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "ethics_acknowledged_at",
+          "ethics_policy_version"
+        ],
+        "title": "EthicsAcknowledgementResponse",
+        "type": "object"
+      },
       "ExpenseSourceRowResponse": {
         "properties": {
           "amount": {
@@ -3496,6 +4049,152 @@
           "required_plan"
         ],
         "title": "FeatureAccessSummary",
+        "type": "object"
+      },
+      "FeedbackCreateRequest": {
+        "properties": {
+          "broken_features": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Broken Features",
+            "type": "array"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "feature_expectation_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Feature Expectation Reason"
+          },
+          "notify_when_addressed": {
+            "default": false,
+            "title": "Notify When Addressed",
+            "type": "boolean"
+          },
+          "reason": {
+            "default": "",
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "title": "FeedbackCreateRequest",
+        "type": "object"
+      },
+      "FeedbackOptionsResponse": {
+        "properties": {
+          "broken_features": {
+            "items": {
+              "maxItems": 2,
+              "minItems": 2,
+              "prefixItems": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "string"
+                }
+              ],
+              "type": "array"
+            },
+            "title": "Broken Features",
+            "type": "array"
+          },
+          "feature_expectation_reasons": {
+            "items": {
+              "maxItems": 2,
+              "minItems": 2,
+              "prefixItems": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "string"
+                }
+              ],
+              "type": "array"
+            },
+            "title": "Feature Expectation Reasons",
+            "type": "array"
+          },
+          "reasons": {
+            "items": {
+              "maxItems": 2,
+              "minItems": 2,
+              "prefixItems": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "string"
+                }
+              ],
+              "type": "array"
+            },
+            "title": "Reasons",
+            "type": "array"
+          }
+        },
+        "required": [
+          "reasons",
+          "feature_expectation_reasons",
+          "broken_features"
+        ],
+        "title": "FeedbackOptionsResponse",
+        "type": "object"
+      },
+      "FeedbackResponse": {
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "feedback_type": {
+            "title": "Feedback Type",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          },
+          "source": {
+            "title": "Source",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "feedback_type",
+          "source",
+          "reason",
+          "status",
+          "created_at"
+        ],
+        "title": "FeedbackResponse",
         "type": "object"
       },
       "FixedExpenseCreateRequest": {
@@ -4529,6 +5228,136 @@
         "title": "HouseholdInviteAcceptRequest",
         "type": "object"
       },
+      "HouseholdInviteCreateRequest": {
+        "properties": {
+          "invite_email": {
+            "default": "",
+            "title": "Invite Email",
+            "type": "string"
+          },
+          "invite_role": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Invite Role"
+          }
+        },
+        "title": "HouseholdInviteCreateRequest",
+        "type": "object"
+      },
+      "HouseholdInviteCreateResponse": {
+        "properties": {
+          "delivery_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Delivery Reason"
+          },
+          "email_sent": {
+            "title": "Email Sent",
+            "type": "boolean"
+          },
+          "fallback_invite_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fallback Invite Url"
+          },
+          "invite": {
+            "$ref": "#/components/schemas/HouseholdInviteResponse"
+          }
+        },
+        "required": [
+          "invite",
+          "email_sent"
+        ],
+        "title": "HouseholdInviteCreateResponse",
+        "type": "object"
+      },
+      "HouseholdInviteResponse": {
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "email": {
+            "title": "Email",
+            "type": "string"
+          },
+          "expires_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expires At"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "revoked_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Revoked At"
+          },
+          "role": {
+            "title": "Role",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "email",
+          "role",
+          "status",
+          "created_at"
+        ],
+        "title": "HouseholdInviteResponse",
+        "type": "object"
+      },
+      "HouseholdInviteRevokeRequest": {
+        "properties": {
+          "confirm": {
+            "default": true,
+            "title": "Confirm",
+            "type": "boolean"
+          }
+        },
+        "title": "HouseholdInviteRevokeRequest",
+        "type": "object"
+      },
       "HouseholdInviteTokenResponse": {
         "properties": {
           "email": {
@@ -4573,6 +5402,125 @@
           "valid"
         ],
         "title": "HouseholdInviteTokenResponse",
+        "type": "object"
+      },
+      "HouseholdMemberResponse": {
+        "properties": {
+          "accepted_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Accepted At"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "display_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Display Name"
+          },
+          "email": {
+            "title": "Email",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "role": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Role"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "email",
+          "status",
+          "created_at"
+        ],
+        "title": "HouseholdMemberResponse",
+        "type": "object"
+      },
+      "HouseholdMemberRevokeRequest": {
+        "properties": {
+          "confirm": {
+            "default": true,
+            "title": "Confirm",
+            "type": "boolean"
+          }
+        },
+        "title": "HouseholdMemberRevokeRequest",
+        "type": "object"
+      },
+      "HouseholdMemberRoleUpdateRequest": {
+        "properties": {
+          "member_role": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Member Role"
+          }
+        },
+        "title": "HouseholdMemberRoleUpdateRequest",
+        "type": "object"
+      },
+      "HouseholdResponse": {
+        "properties": {
+          "household_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Household Name"
+          }
+        },
+        "title": "HouseholdResponse",
+        "type": "object"
+      },
+      "HouseholdUpdateRequest": {
+        "properties": {
+          "household_name": {
+            "default": "",
+            "title": "Household Name",
+            "type": "string"
+          }
+        },
+        "title": "HouseholdUpdateRequest",
         "type": "object"
       },
       "IgnoredRecurringCashScheduleResponse": {
@@ -5361,6 +6309,46 @@
           "provisioning_uri"
         ],
         "title": "MfaMobileSetupResponse",
+        "type": "object"
+      },
+      "MfaPreferenceResponse": {
+        "properties": {
+          "message": {
+            "title": "Message",
+            "type": "string"
+          },
+          "mfa_preferred_method": {
+            "title": "Mfa Preferred Method",
+            "type": "string"
+          },
+          "mfa_push_enabled": {
+            "title": "Mfa Push Enabled",
+            "type": "boolean"
+          },
+          "push": {
+            "additionalProperties": true,
+            "title": "Push",
+            "type": "object"
+          }
+        },
+        "required": [
+          "mfa_preferred_method",
+          "mfa_push_enabled",
+          "push",
+          "message"
+        ],
+        "title": "MfaPreferenceResponse",
+        "type": "object"
+      },
+      "MfaPreferenceUpdateRequest": {
+        "properties": {
+          "mfa_preferred_method": {
+            "default": "totp",
+            "title": "Mfa Preferred Method",
+            "type": "string"
+          }
+        },
+        "title": "MfaPreferenceUpdateRequest",
         "type": "object"
       },
       "MfaPushStartRequest": {
@@ -7115,6 +8103,40 @@
           "amount"
         ],
         "title": "OnboardingTransactionResponse",
+        "type": "object"
+      },
+      "PasswordChangeRequest": {
+        "properties": {
+          "confirm_password": {
+            "default": "",
+            "title": "Confirm Password",
+            "type": "string"
+          },
+          "current_password": {
+            "default": "",
+            "title": "Current Password",
+            "type": "string"
+          },
+          "new_password": {
+            "default": "",
+            "title": "New Password",
+            "type": "string"
+          }
+        },
+        "title": "PasswordChangeRequest",
+        "type": "object"
+      },
+      "PasswordChangeResponse": {
+        "properties": {
+          "updated": {
+            "title": "Updated",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "updated"
+        ],
+        "title": "PasswordChangeResponse",
         "type": "object"
       },
       "PasswordResetConfirmRequest": {
@@ -9185,6 +10207,172 @@
         "title": "SessionPrincipal",
         "type": "object"
       },
+      "SettingsDashboardResponse": {
+        "properties": {
+          "account_classification_options": {
+            "items": {
+              "maxItems": 2,
+              "minItems": 2,
+              "prefixItems": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "string"
+                }
+              ],
+              "type": "array"
+            },
+            "title": "Account Classification Options",
+            "type": "array"
+          },
+          "account_delete_billing_blocked": {
+            "title": "Account Delete Billing Blocked",
+            "type": "boolean"
+          },
+          "account_delete_confirmation": {
+            "title": "Account Delete Confirmation",
+            "type": "string"
+          },
+          "billing_status": {
+            "additionalProperties": true,
+            "title": "Billing Status",
+            "type": "object"
+          },
+          "can_manage_household_access": {
+            "title": "Can Manage Household Access",
+            "type": "boolean"
+          },
+          "category_rows": {
+            "items": {
+              "$ref": "#/components/schemas/CategoryManagerRowResponse"
+            },
+            "title": "Category Rows",
+            "type": "array"
+          },
+          "display_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Display Name"
+          },
+          "email": {
+            "title": "Email",
+            "type": "string"
+          },
+          "ethics_acknowledged_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ethics Acknowledged At"
+          },
+          "ethics_policy_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ethics Policy Version"
+          },
+          "feedback_options": {
+            "additionalProperties": true,
+            "title": "Feedback Options",
+            "type": "object"
+          },
+          "household_access_is_shared": {
+            "title": "Household Access Is Shared",
+            "type": "boolean"
+          },
+          "household_members": {
+            "items": {
+              "$ref": "#/components/schemas/HouseholdMemberResponse"
+            },
+            "title": "Household Members",
+            "type": "array"
+          },
+          "household_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Household Name"
+          },
+          "household_role_options": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Household Role Options",
+            "type": "object"
+          },
+          "mfa_preferred_method": {
+            "title": "Mfa Preferred Method",
+            "type": "string"
+          },
+          "mfa_push_enabled": {
+            "title": "Mfa Push Enabled",
+            "type": "boolean"
+          },
+          "pending_household_invites": {
+            "items": {
+              "$ref": "#/components/schemas/HouseholdInviteResponse"
+            },
+            "title": "Pending Household Invites",
+            "type": "array"
+          },
+          "plaid_status": {
+            "additionalProperties": true,
+            "title": "Plaid Status",
+            "type": "object"
+          },
+          "push_mfa": {
+            "additionalProperties": true,
+            "title": "Push Mfa",
+            "type": "object"
+          },
+          "rules_count": {
+            "title": "Rules Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "email",
+          "category_rows",
+          "rules_count",
+          "plaid_status",
+          "push_mfa",
+          "mfa_preferred_method",
+          "mfa_push_enabled",
+          "billing_status",
+          "feedback_options",
+          "household_role_options",
+          "household_members",
+          "pending_household_invites",
+          "can_manage_household_access",
+          "household_access_is_shared",
+          "account_delete_confirmation",
+          "account_delete_billing_blocked"
+        ],
+        "title": "SettingsDashboardResponse",
+        "type": "object"
+      },
       "SignedInSubjectSummary": {
         "properties": {
           "avatar_initial": {
@@ -9232,6 +10420,19 @@
           "avatar_initial"
         ],
         "title": "SignedInSubjectSummary",
+        "type": "object"
+      },
+      "StripeWebhookAckResponse": {
+        "properties": {
+          "received": {
+            "title": "Received",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "received"
+        ],
+        "title": "StripeWebhookAckResponse",
         "type": "object"
       },
       "SubscriptionCategoryBreakdownRow": {
@@ -11094,6 +12295,109 @@
         "title": "TransactionSplitsUpdateRequest",
         "type": "object"
       },
+      "UpgradeTutorialItemResponse": {
+        "properties": {
+          "body": {
+            "title": "Body",
+            "type": "string"
+          },
+          "cta": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cta"
+          },
+          "target": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "title",
+          "body"
+        ],
+        "title": "UpgradeTutorialItemResponse",
+        "type": "object"
+      },
+      "UserBillingStateResponse": {
+        "properties": {
+          "billing_price_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Billing Price Id"
+          },
+          "billing_status": {
+            "title": "Billing Status",
+            "type": "string"
+          },
+          "config": {
+            "additionalProperties": true,
+            "title": "Config",
+            "type": "object"
+          },
+          "has_stripe_customer": {
+            "title": "Has Stripe Customer",
+            "type": "boolean"
+          },
+          "has_stripe_subscription": {
+            "title": "Has Stripe Subscription",
+            "type": "boolean"
+          },
+          "selected_plan": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Selected Plan"
+          },
+          "stripe_current_period_end": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stripe Current Period End"
+          }
+        },
+        "required": [
+          "billing_status",
+          "has_stripe_customer",
+          "has_stripe_subscription",
+          "config"
+        ],
+        "title": "UserBillingStateResponse",
+        "type": "object"
+      },
       "UserSummary": {
         "properties": {
           "billing_status": {
@@ -11820,6 +13124,52 @@
         ]
       }
     },
+    "/v1/auth/mfa/preferences": {
+      "patch": {
+        "operationId": "update_mfa_preferences_v1_auth_mfa_preferences_patch",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MfaPreferenceUpdateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MfaPreferenceResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Update Mfa Preferences",
+        "tags": [
+          "settings"
+        ]
+      }
+    },
     "/v1/auth/mfa/push/callback": {
       "get": {
         "operationId": "mfa_push_callback_v1_auth_mfa_push_callback_get",
@@ -12424,6 +13774,237 @@
         "summary": "Logout",
         "tags": [
           "auth"
+        ]
+      }
+    },
+    "/v1/billing/cancellation-sessions": {
+      "post": {
+        "operationId": "create_cancellation_v1_billing_cancellation_sessions_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BillingCancellationSessionCreateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BillingCancellationSessionResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Create Cancellation",
+        "tags": [
+          "billing"
+        ]
+      }
+    },
+    "/v1/billing/checkout-sessions": {
+      "post": {
+        "operationId": "create_checkout_v1_billing_checkout_sessions_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BillingCheckoutSessionCreateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BillingCheckoutSessionResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Create Checkout",
+        "tags": [
+          "billing"
+        ]
+      }
+    },
+    "/v1/billing/plan-selection": {
+      "post": {
+        "operationId": "select_plan_v1_billing_plan_selection_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BillingPlanSelectionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BillingPlanSelectionResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Select Plan",
+        "tags": [
+          "billing"
+        ]
+      }
+    },
+    "/v1/billing/plans": {
+      "get": {
+        "operationId": "get_billing_plans_v1_billing_plans_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BillingPlansResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Billing Plans",
+        "tags": [
+          "billing"
+        ]
+      }
+    },
+    "/v1/billing/portal-sessions": {
+      "post": {
+        "operationId": "create_portal_v1_billing_portal_sessions_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BillingPortalSessionCreateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BillingPortalSessionResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Create Portal",
+        "tags": [
+          "billing"
+        ]
+      }
+    },
+    "/v1/billing/status": {
+      "get": {
+        "operationId": "get_billing_state_v1_billing_status_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserBillingStateResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Billing State",
+        "tags": [
+          "billing"
         ]
       }
     },
@@ -13365,6 +14946,78 @@
         ]
       }
     },
+    "/v1/compliance/control-evaluations": {
+      "get": {
+        "operationId": "list_control_evaluations_v1_compliance_control_evaluations_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ControlEvaluationListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Control Evaluations",
+        "tags": [
+          "compliance"
+        ]
+      }
+    },
+    "/v1/compliance/control-evaluations/run": {
+      "post": {
+        "operationId": "run_control_evaluations_endpoint_v1_compliance_control_evaluations_run_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ControlEvaluationRunRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ControlEvaluationRunResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Run Control Evaluations Endpoint",
+        "tags": [
+          "compliance"
+        ]
+      }
+    },
     "/v1/dashboard": {
       "get": {
         "operationId": "get_dashboard_v1_dashboard_get",
@@ -13389,6 +15042,78 @@
         "tags": [
           "dashboard",
           "analytics"
+        ]
+      }
+    },
+    "/v1/feedback": {
+      "post": {
+        "operationId": "create_feedback_v1_feedback_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FeedbackCreateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FeedbackResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Create Feedback",
+        "tags": [
+          "compliance"
+        ]
+      }
+    },
+    "/v1/feedback/options": {
+      "get": {
+        "operationId": "get_feedback_options_v1_feedback_options_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FeedbackOptionsResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Feedback Options",
+        "tags": [
+          "compliance"
         ]
       }
     },
@@ -14009,6 +15734,267 @@
         ]
       }
     },
+    "/v1/households/current": {
+      "patch": {
+        "operationId": "update_household_v1_households_current_patch",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HouseholdUpdateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HouseholdResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Update Household",
+        "tags": [
+          "settings"
+        ]
+      }
+    },
+    "/v1/households/current/invites": {
+      "post": {
+        "operationId": "create_invite_endpoint_v1_households_current_invites_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HouseholdInviteCreateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HouseholdInviteCreateResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Create Invite Endpoint",
+        "tags": [
+          "settings"
+        ]
+      }
+    },
+    "/v1/households/current/invites/{invite_id}": {
+      "delete": {
+        "operationId": "revoke_invite_v1_households_current_invites__invite_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "invite_id",
+            "required": true,
+            "schema": {
+              "title": "Invite Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HouseholdInviteRevokeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HouseholdInviteResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Revoke Invite",
+        "tags": [
+          "settings"
+        ]
+      }
+    },
+    "/v1/households/current/members/{member_id}": {
+      "delete": {
+        "operationId": "revoke_member_v1_households_current_members__member_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "member_id",
+            "required": true,
+            "schema": {
+              "title": "Member Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HouseholdMemberRevokeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HouseholdMemberResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Revoke Member",
+        "tags": [
+          "settings"
+        ]
+      },
+      "patch": {
+        "operationId": "update_member_role_v1_households_current_members__member_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "member_id",
+            "required": true,
+            "schema": {
+              "title": "Member Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HouseholdMemberRoleUpdateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HouseholdMemberResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Update Member Role",
+        "tags": [
+          "settings"
+        ]
+      }
+    },
     "/v1/loan-plans": {
       "get": {
         "operationId": "list_loan_plans_v1_loan_plans_get",
@@ -14217,6 +16203,170 @@
         "summary": "Me",
         "tags": [
           "auth"
+        ]
+      }
+    },
+    "/v1/me/account": {
+      "delete": {
+        "operationId": "delete_account_v1_me_account_delete",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AccountDeleteRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountDeleteResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Delete Account",
+        "tags": [
+          "settings"
+        ]
+      }
+    },
+    "/v1/me/compliance-acknowledgements/ethics": {
+      "post": {
+        "operationId": "acknowledge_ethics_policy_v1_me_compliance_acknowledgements_ethics_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EthicsAcknowledgementRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EthicsAcknowledgementResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Acknowledge Ethics Policy",
+        "tags": [
+          "settings"
+        ]
+      }
+    },
+    "/v1/me/password": {
+      "patch": {
+        "operationId": "change_password_v1_me_password_patch",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasswordChangeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PasswordChangeResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Change Password",
+        "tags": [
+          "settings"
+        ]
+      }
+    },
+    "/v1/me/settings": {
+      "get": {
+        "operationId": "get_settings_dashboard_v1_me_settings_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SettingsDashboardResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Settings Dashboard",
+        "tags": [
+          "settings"
         ]
       }
     },
@@ -16429,6 +18579,27 @@
         "summary": "Plaid Webhook",
         "tags": [
           "plaid"
+        ]
+      }
+    },
+    "/v1/webhooks/stripe": {
+      "post": {
+        "operationId": "stripe_webhook_v1_webhooks_stripe_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StripeWebhookAckResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Stripe Webhook",
+        "tags": [
+          "billing"
         ]
       }
     }

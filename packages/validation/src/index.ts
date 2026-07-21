@@ -1697,3 +1697,97 @@ export const categoryRuleMutationInputSchema = z.object({
 });
 
 export const categoryRuleDeleteInputSchema = z.object({ confirm: z.literal(true) });
+
+export const householdMemberViewSchema = z.object({
+  id: z.number().int(),
+  email: z.string(),
+  displayName: z.string().nullable(),
+  role: z.string().nullable(),
+  status: z.string(),
+  acceptedAt: z.string().nullable(),
+});
+
+export const householdInviteViewSchema = z.object({
+  id: z.number().int(),
+  email: z.string(),
+  role: z.string(),
+  status: z.string(),
+  expiresAt: z.string().nullable(),
+});
+
+export const settingsViewSchema = z.object({
+  session: signedInSessionSchema,
+  email: z.string(),
+  displayName: z.string().nullable(),
+  householdName: z.string().nullable(),
+  rulesCount: z.number().int(),
+  categoryRows: z.array(z.object({
+    id: z.number().int(),
+    name: z.string(),
+    kind: z.string(),
+    monthlyTarget: z.number(),
+    canManage: z.boolean(),
+    usage: z.record(z.string(), z.number()),
+  })),
+  plaidStatus: z.object({ configured: z.boolean(), ready: z.boolean() }).passthrough(),
+  pushMfa: z.object({ available: z.boolean() }).passthrough(),
+  mfaPreferredMethod: z.string(),
+  mfaPushEnabled: z.boolean(),
+  billingStatus: z.record(z.string(), z.unknown()),
+  feedbackOptions: z.object({
+    reasons: z.array(z.tuple([z.string(), z.string()])),
+    featureExpectationReasons: z.array(z.tuple([z.string(), z.string()])),
+    brokenFeatures: z.array(z.tuple([z.string(), z.string()])),
+  }),
+  householdRoleOptions: z.record(z.string(), z.string()),
+  householdMembers: z.array(householdMemberViewSchema),
+  pendingHouseholdInvites: z.array(householdInviteViewSchema),
+  canManageHouseholdAccess: z.boolean(),
+  householdAccessIsShared: z.boolean(),
+  ethicsAcknowledgedAt: z.string().nullable(),
+  ethicsPolicyVersion: z.string().nullable(),
+  accountDeleteConfirmation: z.string(),
+  accountDeleteBillingBlocked: z.boolean(),
+});
+
+export const passwordChangeInputSchema = z.object({
+  currentPassword: z.string().min(1, "Enter your current password."),
+  newPassword: z.string().min(1, "Enter a new password."),
+  confirmPassword: z.string().min(1, "Confirm the new password."),
+});
+
+export const householdNameInputSchema = z.object({
+  householdName: z.string().trim(),
+});
+
+export const mfaPreferenceInputSchema = z.object({
+  mfaPreferredMethod: z.enum(["totp", "push"]),
+});
+
+export const householdInviteInputSchema = z.object({
+  inviteEmail: z.string().trim().min(1, "Enter an email to invite."),
+  inviteRole: z.enum(["editor", "viewer"]),
+});
+
+export const householdInviteCreateResultSchema = z.object({
+  invite: householdInviteViewSchema,
+  emailSent: z.boolean(),
+  fallbackInviteUrl: z.string().nullable(),
+  deliveryReason: z.string().nullable(),
+});
+
+export const householdMemberRoleInputSchema = z.object({
+  memberRole: z.enum(["editor", "viewer"]),
+});
+
+export const accountDeleteInputSchema = z.object({
+  currentPassword: z.string().min(1, "Enter your current password."),
+  confirmation: z.string().trim().min(1, "Type the confirmation phrase."),
+});
+
+export type SettingsView = z.infer<typeof settingsViewSchema>;
+export type HouseholdMemberView = z.infer<typeof householdMemberViewSchema>;
+export type HouseholdInviteView = z.infer<typeof householdInviteViewSchema>;
+export type PasswordChangeInput = z.infer<typeof passwordChangeInputSchema>;
+export type HouseholdInviteInput = z.infer<typeof householdInviteInputSchema>;
+export type AccountDeleteInput = z.infer<typeof accountDeleteInputSchema>;
