@@ -216,7 +216,65 @@ To close the gap:
 
 ---
 
-## 9. Build & release (later)
+## 9. Accounts, tooling & Windows development
+
+You do **not** need any paid account to build and test the bulk of this app.
+Here's exactly what each account/tool is for and *when* to get it.
+
+### Apple Developer Program — ~$99/year
+Needed for: installing a **custom dev client / native build on a physical
+iPhone**, **TestFlight** beta distribution, and **App Store** submission. NOT
+needed for the iOS Simulator (macOS-only, free) or for **Expo Go on a real
+iPhone** (free). Buy it when you're ready to test native-module features on a
+real iPhone or start a beta. **Start enrollment early** — Apple does identity
+verification and it can take a day to (for a business/D-U-N-S entity) up to a
+couple of weeks; there's no downside to having it ready ahead of time.
+
+### Google Play Developer — $25 one-time
+Needed for: Play Console **test tracks** (internal/closed/open) and **store
+submission**. NOT needed for local/dev-client/APK testing or the Android
+emulator. **Gotcha:** newer *personal* Play accounts must run a **closed test
+with ~20 testers for ~14 days before promoting to production** — a real 2-week
+tax on *launch* (not dev). Verify the current Play policy when you enroll and
+plan the launch timeline around it.
+
+### Expo / EAS — free for development; no paid subscription required
+- The **Expo SDK, Expo Go, Expo Router, and CLI are free/open-source.**
+  Everything in this scaffold runs on that with no account.
+- An **Expo account is free.** You only need it (reactivated) to use **EAS**
+  (cloud Build / Submit / Update). EAS has a **free tier**; a paid EAS plan only
+  matters for build *priority* or higher build volume.
+- You can avoid EAS entirely by building **locally** (`eas build --local` /
+  `expo run:*`) — but see the Windows note for the iOS caveat.
+- **Bottom line:** reactivate the free Expo account when you reach EAS cloud
+  builds; do not pay for a subscription for dev/test.
+
+### Developing on Windows (this repo's dev machine)
+Windows **cannot run the iOS Simulator** (macOS/Xcode only). This shapes the iOS
+path:
+- **iOS dev loop:** use **Expo Go on a physical iPhone** (free; connects to the
+  Windows PC over LAN or an Expo tunnel).
+- **iOS binaries** (dev client, TestFlight, store): use **EAS Build in the
+  cloud** (compiles iOS without a Mac) — which is the point where the **Apple
+  Developer account becomes necessary**. So on Windows the Apple account matters
+  a bit sooner if you want native-module testing on a real iPhone beyond Expo Go.
+- **Android** is unaffected: the emulator runs on Windows; no account needed
+  until Play testing.
+- Optional: a Mac or a cloud-Mac service if you want a local iOS simulator — not
+  required.
+
+### "When to buy" summary
+| Milestone | Apple ($99/yr) | Google Play ($25) | Expo account |
+|---|---|---|---|
+| Scaffold + screen dev (Expo Go / emulator) | no | no | no |
+| First EAS cloud build | no | no | free acct |
+| Native-module test on real iPhone (Windows -> EAS) | **yes** | no | free acct |
+| Beta (TestFlight / Play internal test) | **yes** | **yes** | free acct |
+| Store submission | yes | yes | free acct |
+
+---
+
+## 10. Build & release (later)
 
 - Use **EAS Build** (`eas build`) for store binaries; keep it out of PR CI.
 - Config per environment via EAS profiles / `EXPO_PUBLIC_API_URL`
@@ -229,7 +287,7 @@ To close the gap:
 
 ---
 
-## 10. Decisions & risks (for the drift-check / cutover)
+## 11. Decisions & risks (for the drift-check / cutover)
 
 - **Bearer-token session** (vs web cookies) is the deliberate mobile model; it
   uses only existing API capabilities. If the API ever shortens token lifetime or
