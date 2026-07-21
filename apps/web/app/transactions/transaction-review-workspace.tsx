@@ -1,6 +1,6 @@
 "use client";
 
-import { transactionReviewViewSchema, type TransactionReviewView } from "@clearpath/validation";
+import { transactionReviewViewSchema, transactionViewSchema, type TransactionReviewView } from "@clearpath/validation";
 import { ChevronLeft, ChevronRight, Filter, Plus, RefreshCw, Tags, Upload } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -85,6 +85,24 @@ export function TransactionReviewWorkspace({ query }: { query: TransactionQuery 
     router.push(`/transactions${params.size ? `?${params.toString()}` : ""}`);
   };
 
+  /**
+   * Apply a mutation response's updated row directly to local state.
+   *
+   * Endpoints that return the changed transaction let us show the new value
+   * immediately rather than waiting on a refetch of the entire list. Returns
+   * false when the response carries no usable row, in which case the caller
+   * must fall back to reloading.
+   */
+  const patchTransaction = (body: Record<string, unknown>) => {
+    const parsed = transactionViewSchema.safeParse(body.transaction);
+    if (!parsed.success) return false;
+    const updated = parsed.data;
+    setData((current) => current
+      ? { ...current, items: current.items.map((row) => (row.id === updated.id ? updated : row)) }
+      : current);
+    return true;
+  };
+
   const mutate = async (url: string, options: RequestInit, successMessage: string, redirect?: string) => {
     // The URL identifies the row, so concurrent edits on different rows stay
     // independent instead of sharing one global busy flag.
@@ -96,7 +114,12 @@ export function TransactionReviewWorkspace({ query }: { query: TransactionQuery 
       const body = await response.json().catch(() => ({})) as Record<string, unknown>;
       setStatus(successMessage);
       if (redirect) router.push(redirect.replace(":id", String(body.fixedExpenseItemId ?? "")));
-      else await load(false);
+      else if (patchTransaction(body)) {
+        // The row is already correct from the response, so reconcile derived
+        // data (budget actions, category list, totals) in the background
+        // instead of blocking the user on a full reload.
+        void load(false);
+      } else await load(false);
       return body;
     } catch (mutationError) {
       setError(mutationError instanceof Error ? mutationError.message : "That change could not be saved.");

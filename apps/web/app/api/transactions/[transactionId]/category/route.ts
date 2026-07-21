@@ -2,6 +2,7 @@ import { transactionCategoryUpdateInputSchema } from "@clearpath/validation";
 import { NextResponse } from "next/server";
 
 import { apiErrorMessage, clearPathApiClient, forwardedSessionHeaders } from "@/lib/server-api";
+import { mapTransaction } from "@/lib/transactions";
 
 type Context = { params: Promise<{ transactionId: string }> };
 
@@ -22,7 +23,9 @@ export async function PATCH(request: Request, context: Context) {
       headers: forwardedSessionHeaders(request),
     });
     if (!response.ok || !data) return NextResponse.json({ message: apiErrorMessage(error, "We could not update that transaction.") }, { status: response.status });
-    return NextResponse.json({ transactionId: data.transaction.id, similarUpdatedCount: data.similar_updated_count, ruleCreated: data.rule_created, recurringMessage: data.recurring_message ?? null });
+    // Return the updated row so the client can patch it in place instead of
+    // refetching the whole list for a single-row change.
+    return NextResponse.json({ transactionId: data.transaction.id, transaction: mapTransaction(data.transaction), similarUpdatedCount: data.similar_updated_count, ruleCreated: data.rule_created, recurringMessage: data.recurring_message ?? null });
   } catch {
     return NextResponse.json({ message: "ClearPath is temporarily unavailable. Please try again." }, { status: 503 });
   }

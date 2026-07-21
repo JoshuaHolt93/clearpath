@@ -45,6 +45,10 @@ describe("Transaction Review BFF", () => {
     const response = await updateCategory(new Request("http://localhost/api/transactions/21/category", { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ categoryId: 4, newCategoryName: null, applyToSimilar: true, markRecurring: true, recurringName: "Local Market", recurringStartDate: "2026-08-01", recurringSecondDate: null, recurringFrequency: "biweekly", recurringDaysOfWeek: [4], recurringMonthlyWeekNumbers: [], recurringMonthlyWeekday: null }) }), { params: Promise.resolve({ transactionId: "21" }) });
     expect(response.status).toBe(200);
     expect(apiPatch).toHaveBeenCalledWith("/v1/transactions/{transaction_id}/category", expect.objectContaining({ body: expect.objectContaining({ apply_to_similar: true, mark_recurring: true, recurring_frequency: "biweekly", recurring_days_of_week: [4] }) }));
+    // The workspace patches this row into local state instead of refetching
+    // the whole list, so the response must carry the updated transaction.
+    const body = await response.json();
+    expect(body.transaction).toMatchObject({ id: 21, category: expect.objectContaining({ id: 4, name: "Groceries" }) });
   });
 
   it("forwards exact split lines and duplicate merge identifiers", async () => {
