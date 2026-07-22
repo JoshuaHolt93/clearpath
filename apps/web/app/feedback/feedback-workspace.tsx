@@ -131,7 +131,7 @@ export function FeedbackWorkspace() {
             <textarea name="description" rows={5} disabled={busy} placeholder="Tell us what happened, what you expected, or what would make ClearPath more useful." />
           </label>
 
-          <button type="submit" disabled={busy}>Send Feedback</button>
+          <button type="submit" className={styles.primaryButton} disabled={busy}>Send Feedback</button>
         </form>
       ) : null}
     </div>

@@ -196,3 +196,169 @@
 .loading {
   color: var(--color-text-muted, var(--cp-text-secondary));
 }
+
+/* --------------------------------------------------------------------------
+ * Controls and plan call-to-action.
+ *
+ * Four of the five buttons carried no class, so the plan-selection CTA -- the
+ * most important action on the page -- rendered as a raw browser button.
+ * Matches the control vocabulary used in Settings.
+ * ------------------------------------------------------------------------ */
+
+.primaryButton,
+.secondaryButton,
+.dangerButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  min-height: 40px;
+  padding: 0.5rem 1rem;
+  border: 1px solid transparent;
+  border-radius: var(--cp-radius-sm);
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 700;
+  line-height: 1.2;
+  cursor: pointer;
+  transition: background .15s ease, border-color .15s ease, box-shadow .15s ease;
+}
+
+.primaryButton {
+  border-color: var(--cp-brand);
+  background: var(--cp-gradient-blue-strong, var(--cp-brand));
+  color: var(--cp-surface);
+  box-shadow: 0 8px 18px -12px rgb(37 99 235 / 0.8);
+}
+
+.primaryButton:hover:not(:disabled) {
+  border-color: var(--cp-brand-dark);
+  background: linear-gradient(135deg, var(--cp-brand-dark), var(--cp-brand));
+}
+
+.secondaryButton {
+  border-color: var(--cp-border);
+  background: var(--cp-surface);
+  color: var(--cp-brand-dark);
+}
+
+.secondaryButton:hover:not(:disabled) {
+  border-color: var(--cp-brand);
+  background: var(--cp-brand-light);
+}
+
+.dangerButton {
+  border-color: var(--cp-danger-border);
+  background: var(--cp-surface);
+  color: var(--cp-danger);
+}
+
+.dangerButton:hover:not(:disabled) {
+  background: var(--cp-danger-background);
+  border-color: var(--cp-danger);
+}
+
+.primaryButton:disabled,
+.secondaryButton:disabled,
+.dangerButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+  box-shadow: none;
+}
+
+.primaryButton:focus-visible,
+.secondaryButton:focus-visible,
+.dangerButton:focus-visible,
+.planCard input:focus-visible {
+  outline: 2px solid var(--cp-brand);
+  outline-offset: 2px;
+}
+
+/* The plan CTA spans the card so each card ends in one obvious action. */
+.selectButton {
+  width: 100%;
+  min-height: 44px;
+  margin-top: auto;
+  font-size: 0.9rem;
+}
+
+/* On the active plan the button is a state, not an invitation. */
+.currentPlan .selectButton,
+.selectButton:disabled {
+  border-color: var(--cp-border);
+  background: var(--cp-surface);
+  color: var(--cp-text-secondary);
+  box-shadow: none;
+  opacity: 1;
+}
+
+/* Benefits should read as benefits, not as a bulleted paragraph. */
+.features {
+  list-style: none;
+  padding-left: 0;
+  gap: 0.45rem;
+  color: var(--cp-text);
+}
+
+.features li {
+  position: relative;
+  padding-left: 1.4rem;
+}
+
+.features li::before {
+  content: "";
+  position: absolute;
+  top: 0.35em;
+  left: 0;
+  width: 0.85rem;
+  height: 0.45rem;
+  border-left: 2px solid var(--cp-brand);
+  border-bottom: 2px solid var(--cp-brand);
+  transform: rotate(-45deg);
+}
+
+.price {
+  color: var(--cp-brand-dark);
+  font-size: 1.6rem;
+  font-weight: 800;
+  line-height: 1.1;
+}
+
+.planName {
+  font-size: 1.05rem;
+  font-weight: 750;
+}
+
+.planCard:hover:not(.currentPlan) {
+  border-color: var(--cp-brand);
+  box-shadow: var(--cp-shadow-md);
+}
+
+.planCard input {
+  width: 100%;
+  min-height: 38px;
+  border: 1px solid var(--cp-border);
+  border-radius: var(--cp-radius-sm);
+  background: var(--cp-surface);
+  padding: 0.45rem 0.6rem;
+  font: inherit;
+  font-size: 0.85rem;
+}
+
+.promo {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--cp-text-secondary);
+  text-transform: uppercase;
+}
+
+.error,
+.status {
+  border-left: 4px solid;
+  border-radius: var(--cp-radius-sm);
+  padding: 0.65rem 0.85rem;
+  font-size: 0.9rem;
+}
+
+.error { border-color: var(--cp-danger); background: var(--cp-danger-background); }
+.status { border-color: var(--cp-success, var(--cp-brand)); background: var(--cp-success-light, var(--cp-brand-light)); }

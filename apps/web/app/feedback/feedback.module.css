@@ -82,3 +82,134 @@
 .loading {
   color: var(--color-text-muted, var(--cp-text-secondary));
 }
+
+/* --------------------------------------------------------------------------
+ * Controls.
+ *
+ * The form was raw browser defaults: unstyled radios/checkboxes on bare text,
+ * an unstyled textarea, and an unstyled submit button. Matches the control
+ * vocabulary used in Settings and Billing.
+ * ------------------------------------------------------------------------ */
+
+.primaryButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  min-height: 42px;
+  align-self: flex-start;
+  padding: 0.55rem 1.25rem;
+  border: 1px solid var(--cp-brand);
+  border-radius: var(--cp-radius-sm);
+  background: var(--cp-gradient-blue-strong, var(--cp-brand));
+  color: var(--cp-surface);
+  box-shadow: 0 8px 18px -12px rgb(37 99 235 / 0.8);
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background .15s ease, border-color .15s ease;
+}
+
+.primaryButton:hover:not(:disabled) {
+  border-color: var(--cp-brand-dark);
+  background: linear-gradient(135deg, var(--cp-brand-dark), var(--cp-brand));
+}
+
+.primaryButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+  box-shadow: none;
+}
+
+.primaryButton:focus-visible,
+.choice:focus-within,
+.textField textarea:focus-visible {
+  outline: 2px solid var(--cp-brand);
+  outline-offset: 2px;
+}
+
+/* Each option becomes a target you can click anywhere on, with a visible
+   selected state -- previously they were bare radios beside plain text. */
+.choice {
+  border: 1px solid var(--cp-border);
+  border-radius: var(--cp-radius-sm);
+  background: var(--cp-surface);
+  padding: 0.6rem 0.75rem;
+  cursor: pointer;
+  transition: border-color .15s ease, background .15s ease;
+}
+
+.choice:hover {
+  border-color: var(--cp-brand);
+  background: var(--cp-brand-light);
+}
+
+.choice:has(input:checked) {
+  border-color: var(--cp-brand);
+  background: var(--cp-brand-light);
+  box-shadow: inset 0 0 0 1px var(--cp-brand);
+  font-weight: 650;
+}
+
+.choice input {
+  accent-color: var(--cp-brand);
+  flex: none;
+}
+
+.checkboxRow {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+}
+
+.checkboxRow input {
+  accent-color: var(--cp-brand);
+}
+
+/* Field label reads as a caption; the textarea reads as an input. */
+.textField {
+  color: var(--cp-text-secondary);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  text-transform: uppercase;
+}
+
+.textField textarea {
+  width: 100%;
+  border: 1px solid var(--cp-border);
+  border-radius: var(--cp-radius-sm);
+  background: var(--cp-surface);
+  padding: 0.6rem 0.7rem;
+  color: var(--cp-text);
+  font: inherit;
+  font-size: 0.9rem;
+  line-height: 1.45;
+  resize: vertical;
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 400;
+}
+
+.textField textarea:hover:not(:disabled) {
+  border-color: var(--cp-brand);
+}
+
+.textField textarea:disabled {
+  background: var(--cp-background);
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.error,
+.status {
+  border-left: 4px solid;
+  border-radius: var(--cp-radius-sm);
+  padding: 0.65rem 0.85rem;
+  font-size: 0.9rem;
+}
+
+.error { border-color: var(--cp-danger); background: var(--cp-danger-background); }
+.status { border-color: var(--cp-success, var(--cp-brand)); background: var(--cp-success-light, var(--cp-brand-light)); }

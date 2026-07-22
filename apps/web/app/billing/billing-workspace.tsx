@@ -127,7 +127,7 @@ export function BillingWorkspace() {
           <h1>Billing And Plans</h1>
           <p>Choose the ClearPath experience you want. Payment details are entered only on Stripe-hosted pages.</p>
         </div>
-        <button type="button" onClick={() => void load()} disabled={busy}><RefreshCw size={16} aria-hidden="true" />Refresh</button>
+        <button type="button" className={styles.secondaryButton} onClick={() => void load()} disabled={busy}><RefreshCw size={16} aria-hidden="true" />Refresh</button>
       </header>
 
       {error ? <p role="alert" className={styles.error}>{error}</p> : null}
@@ -164,7 +164,7 @@ export function BillingWorkspace() {
                       <label className={styles.promo}>Promo Code (Optional)
                         <input name="promotion_code" maxLength={80} autoComplete="off" spellCheck={false} placeholder="Enter promo code" disabled={busy || isCurrent} />
                       </label>
-                      <button type="submit" disabled={busy || isCurrent}>{selectLabel(plan, currentPlan)}</button>
+                      <button type="submit" className={`${styles.primaryButton} ${styles.selectButton}`} disabled={busy || isCurrent}>{selectLabel(plan, currentPlan)}</button>
                     </>
                   ) : null}
                 </form>
@@ -183,7 +183,7 @@ export function BillingWorkspace() {
               <p className={styles.meta}>Status: {data.userState.billingStatus}. Plan: {data.session.planDisplayName}.</p>
               {data.userState.hasStripeCustomer ? (
                 <div className={styles.manageActions}>
-                  <button type="button" onClick={() => void openPortal()} disabled={busy}><ExternalLink size={16} aria-hidden="true" />Open Billing Portal</button>
+                  <button type="button" className={styles.secondaryButton} onClick={() => void openPortal()} disabled={busy}><ExternalLink size={16} aria-hidden="true" />Open Billing Portal</button>
                   {data.userState.hasStripeSubscription ? (
                     <button type="button" className={styles.dangerButton} onClick={() => setCancelOpen((open) => !open)} disabled={busy}>Cancel Subscription</button>
                   ) : null}
@@ -204,7 +204,7 @@ export function BillingWorkspace() {
                   <label>Anything else? (Optional)
                     <textarea name="description" rows={3} disabled={busy} />
                   </label>
-                  <button type="submit" disabled={busy}>Continue To Stripe Cancellation</button>
+                  <button type="submit" className={styles.dangerButton} disabled={busy}>Continue To Stripe Cancellation</button>
                 </form>
               ) : null}
             </section>
