@@ -1,0 +1,61 @@
+/*
+ * Canonical workspace page shell.
+ *
+ * Transactions, dashboard, and monthly-plan each defined these rules locally;
+ * settings, billing, and feedback were built against a different convention
+ * (rem-based .layout/.header) and so read as a different app. This is the
+ * shared version -- new workspaces should compose it rather than reinvent it.
+ */
+
+.page {
+  width: min(100%, 1480px);
+  margin: 0 auto;
+  padding: 28px 32px 52px;
+  color: #18221e;
+}
+
+.pageHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding-bottom: 22px;
+  border-bottom: 1px solid #d7dfda;
+}
+
+.pageHeader h1 {
+  margin: 2px 0 4px;
+  font-size: 32px;
+  line-height: 1.1;
+  letter-spacing: 0;
+}
+
+.pageHeader p {
+  margin: 0;
+  color: #607068;
+  font-size: 14px;
+}
+
+.eyebrow {
+  margin: 0;
+  color: #267354;
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.headerActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+/* Body content below the header keeps the same rhythm as the other pages. */
+.pageBody {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  margin-top: 22px;
+}

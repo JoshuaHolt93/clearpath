@@ -2,7 +2,6 @@
   display: flex;
   flex-direction: column;
   gap: 1.25rem;
-  max-width: 46rem;
 }
 
 .header {
@@ -81,4 +80,15 @@
 
 .loading {
   color: var(--color-text-muted, var(--cp-text-secondary));
+}
+
+.headerHeading {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+}
+
+/* The form stays readable rather than stretching the full page width. */
+.form {
+  max-width: 46rem;
 }

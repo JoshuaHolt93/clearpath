@@ -5,6 +5,7 @@ import { CreditCard, ExternalLink, RefreshCw, ShieldCheck } from "lucide-react";
 import { FormEvent, useCallback, useEffect, useState } from "react";
 
 import { AuthenticatedPageFrame } from "../authenticated-shell";
+import shell from "../workspace-shell.module.css";
 import styles from "./billing.module.css";
 
 async function responseMessage(response: Response, fallback: string) {
@@ -121,10 +122,10 @@ export function BillingWorkspace() {
   };
 
   const content = (
-    <div className={styles.layout}>
-      <header className={styles.header}>
+    <div className={`${shell.page} ${styles.layout}`}>
+      <header className={shell.pageHeader}>
         <div>
-          <h1>Billing And Plans</h1>
+          <p className={shell.eyebrow}>Billing</p><h1>Billing And Plans</h1>
           <p>Choose the ClearPath experience you want. Payment details are entered only on Stripe-hosted pages.</p>
         </div>
         <button type="button" onClick={() => void load()} disabled={busy}><RefreshCw size={16} aria-hidden="true" />Refresh</button>

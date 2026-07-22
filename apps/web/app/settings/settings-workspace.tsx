@@ -9,6 +9,7 @@ import { KeyRound, RefreshCw, Send, ShieldCheck, Trash2, UserMinus, Users } from
 import { FormEvent, useCallback, useEffect, useState } from "react";
 
 import { AuthenticatedPageFrame } from "../authenticated-shell";
+import shell from "../workspace-shell.module.css";
 import styles from "./settings.module.css";
 
 async function responseMessage(response: Response, fallback: string) {
@@ -179,10 +180,10 @@ export function SettingsWorkspace() {
   const activeMembers = (data?.householdMembers ?? []).filter((member) => member.status !== "revoked");
 
   const content = (
-      <div className={styles.layout}>
-        <header className={styles.header}>
+      <div className={`${shell.page} ${styles.layout}`}>
+        <header className={shell.pageHeader}>
           <div>
-            <h1>Settings</h1>
+            <p className={shell.eyebrow}>Account</p><h1>Settings</h1>
             <p>Manage the household profile, security, shared access, and account lifecycle.</p>
           </div>
           <button type="button" onClick={() => void load()} disabled={busy}><RefreshCw size={16} aria-hidden="true" />Refresh</button>

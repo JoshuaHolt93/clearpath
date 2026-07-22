@@ -5,6 +5,7 @@ import { MessageSquareText } from "lucide-react";
 import { FormEvent, useCallback, useEffect, useState } from "react";
 
 import { AuthenticatedPageFrame } from "../authenticated-shell";
+import shell from "../workspace-shell.module.css";
 import styles from "./feedback.module.css";
 
 async function responseMessage(response: Response, fallback: string) {
@@ -67,12 +68,14 @@ export function FeedbackWorkspace() {
   };
 
   const content = (
-    <div className={styles.layout}>
-      <header className={styles.header}>
-        <MessageSquareText size={20} aria-hidden="true" />
-        <div>
-          <h1>Share Feedback</h1>
+    <div className={`${shell.page} ${styles.layout}`}>
+      <header className={shell.pageHeader}>
+        <div className={styles.headerHeading}>
+          <MessageSquareText size={20} aria-hidden="true" />
+          <div>
+          <p className={shell.eyebrow}>Product Feedback</p><h1>Share Feedback</h1>
           <p>Tell us what is working, what is not, and what would make ClearPath more useful.</p>
+          </div>
         </div>
       </header>
 
