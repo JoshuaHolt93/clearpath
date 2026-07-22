@@ -344,8 +344,10 @@
 .compactCheck { display: flex; align-items: center; gap: 5px; color: #5e6f66; font-size: 11px; }
 .compactCheck input { margin: 0; }
 .inlineDetails summary { color: #32664f; font-size: 11px; font-weight: 750; cursor: pointer; }
-.inlineCreate { display: grid; grid-template-columns: minmax(0, 1fr) 36px; gap: 5px; margin-top: 6px; }
-.inlineCreate button { display: grid; place-items: center; border: 1px solid #9cb0a5; border-radius: 5px; background: #fff; color: #245f43; }
+.inlineCreate { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 6px; }
+.inlineCreate input { flex: 1 1 130px; min-width: 0; }
+.inlineCreate button { display: inline-flex; align-items: center; gap: 4px; padding: 4px 9px; border: 1px solid #9cb0a5; border-radius: 5px; background: #fff; color: #245f43; font-size: 12px; font-weight: 650; }
+.inlineCreate .ghostButton { border-color: transparent; color: #687870; }
 
 .amountCell { display: grid; justify-items: end; gap: 4px; text-align: right; }
 .amountCell strong { font-size: 15px; }
@@ -361,13 +363,14 @@
   padding: 14px 12px 16px;
 }
 
-.actionStrip { flex-wrap: wrap; gap: 14px; margin-bottom: 14px; }
+.actionStrip { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-top: 8px; }
 .textButton { min-height: 28px; border: 0; background: transparent; padding: 2px 0; color: #29634a; }
 .detailGrid { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(260px, .5fr); gap: 28px; }
 
-.sourceDetail { border-left: 1px solid #dce3df; padding-left: 22px; }
-.sourceDetail h3 { display: flex; align-items: center; gap: 7px; }
-.sourceDetail dl { display: grid; gap: 8px; margin: 0; }
+.contextDetails { margin-top: 6px; }
+.contextDetails summary { display: inline-flex; align-items: center; gap: 5px; cursor: pointer; color: #687870; font-size: 12px; font-weight: 650; }
+.sourceDetail { margin-top: 8px; padding-left: 12px; border-left: 1px solid #dce3df; }
+.sourceDetail { display: grid; gap: 6px; }
 .sourceDetail dl div { display: grid; grid-template-columns: 75px 1fr; gap: 8px; font-size: 12px; }
 .sourceDetail dt { color: #687870; font-weight: 750; }
 .sourceDetail dd { margin: 0; overflow-wrap: anywhere; }

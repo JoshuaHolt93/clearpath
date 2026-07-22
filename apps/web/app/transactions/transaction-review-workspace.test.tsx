@@ -67,6 +67,41 @@ describe("TransactionReviewWorkspace", () => {
     expect(fetchMock.mock.calls.filter((call) => String(call[0]).includes("refresh-stale"))).toHaveLength(1);
   });
 
+  it("creates a category from the dropdown's + New Category option", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+      if (String(input).includes("refresh-stale")) return jsonResponse({ synced: 0, errors: [] });
+      if (init?.method === "PATCH") return jsonResponse({ transactionId: 21, transaction: transaction });
+      return jsonResponse(view());
+    });
+    render(<TransactionReviewWorkspace query={query} />);
+
+    const select = await screen.findByLabelText("Category for Local Market");
+    // The name field only appears once the sentinel option is chosen.
+    expect(screen.queryByLabelText("New category for Local Market")).toBeNull();
+    fireEvent.change(select, { target: { value: "__new__" } });
+
+    const nameInput = screen.getByLabelText("New category for Local Market");
+    fireEvent.change(nameInput, { target: { value: "Farmers Market" } });
+    fireEvent.click(screen.getByRole("button", { name: "Add" }));
+
+    await waitFor(() => {
+      const patch = fetchMock.mock.calls.find((call) => call[1]?.method === "PATCH");
+      expect(JSON.parse(String(patch?.[1]?.body))).toMatchObject({ newCategoryName: "Farmers Market", categoryId: null });
+    });
+  });
+
+  it("cancels category creation without saving", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (input) =>
+      String(input).includes("refresh-stale") ? jsonResponse({ synced: 0, errors: [] }) : jsonResponse(view()));
+    render(<TransactionReviewWorkspace query={query} />);
+
+    fireEvent.change(await screen.findByLabelText("Category for Local Market"), { target: { value: "__new__" } });
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+
+    expect(screen.queryByLabelText("New category for Local Market")).toBeNull();
+    expect(fetchMock.mock.calls.some((call) => call[1]?.method === "PATCH")).toBe(false);
+  });
+
   it("enforces split totals before sending the exact lines", async () => {
     const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
       if (String(input).includes("refresh-stale")) return jsonResponse({ synced: 0, errors: [] });
@@ -74,8 +109,9 @@ describe("TransactionReviewWorkspace", () => {
       return jsonResponse(view());
     });
     render(<TransactionReviewWorkspace query={query} />);
-    fireEvent.click(await screen.findByRole("button", { name: "Details" }));
-    fireEvent.click(screen.getByText("Split Transaction"));
+    // Split now lives in the category cell under Recurring, not behind a
+    // row-level "Details" panel (Flask parity).
+    fireEvent.click(await screen.findByText("Split Transaction"));
     const save = screen.getByRole("button", { name: "Save Split" });
     expect(save.hasAttribute("disabled")).toBe(true);
     fireEvent.change(screen.getByLabelText("Split 1 amount"), { target: { value: "30" } });
