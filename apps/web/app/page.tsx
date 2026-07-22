@@ -4,7 +4,7 @@ import Link from "next/link";
 import styles from "./landing.module.css";
 
 export const metadata: Metadata = {
-  title: "ClearPath Finance — Budget today. See what's coming next.",
+  title: "ClearPath Finance - Budget today. See what's coming next.",
   description:
     "ClearPath Finance helps households organize spending, understand cash flow, and project upcoming balances so money feels less uncertain.",
 };
@@ -29,7 +29,7 @@ export default function LandingPage() {
   return (
     <main className={styles.page}>
       <header className={styles.topbar}>
-        <span className={styles.brand}>ClearPath Finance</span>
+        <Link href="/" className={styles.brand}><span className="logo-mark">C</span><span>ClearPath <small>Finance</small></span></Link>
         <nav className={styles.topnav}>
           <Link href="/pricing">Pricing</Link>
           <Link href="/login">Sign In</Link>
@@ -38,15 +38,18 @@ export default function LandingPage() {
       </header>
 
       <section className={styles.hero}>
-        <h1>Budget today. See what&apos;s coming next.</h1>
-        <p className={styles.heroText}>
-          ClearPath Finance helps households organize spending, understand cash flow, and project upcoming balances so money feels less uncertain.
-        </p>
-        <div className={styles.heroActions}>
-          <Link href="/register" className={styles.cta}>Create Account</Link>
-          <Link href="/login" className={styles.secondary}>Sign In</Link>
+        <div className={styles.heroCopy}>
+          <p className={styles.eyebrow}>Plan today. See what&apos;s next.</p>
+          <h1>ClearPath Finance</h1>
+          <p className={styles.heroText}>
+            A simpler way to organize spending, understand this month, and see what your cash balance looks like next.
+          </p>
+          <div className={styles.heroActions}>
+            <Link href="/register" className={styles.cta}>Create Account</Link>
+            <Link href="/login" className={styles.secondary}>Sign In</Link>
+          </div>
+          <p className={styles.trust}>Practical household planning. No investment advice or financial hype.</p>
         </div>
-        <p className={styles.trust}>No investment advice. No financial hype. Just practical household money planning.</p>
       </section>
 
       <section className={styles.section}>
@@ -89,7 +92,7 @@ export default function LandingPage() {
       </section>
 
       <footer className={styles.footer}>
-        <span>© ClearPath Finance</span>
+        <span>&copy; ClearPath Finance</span>
         <nav>
           <Link href="/pricing">Pricing</Link>
           <Link href="/privacy">Privacy</Link>

@@ -19,7 +19,7 @@
 
 .header p {
   margin: 0.25rem 0 0;
-  color: var(--color-text-muted, #5b6472);
+  color: var(--color-text-muted, var(--cp-text-secondary));
   max-width: 42rem;
 }
 
@@ -36,7 +36,7 @@
 }
 
 .planCard {
-  border: 1px solid var(--color-border, #dde2ea);
+  border: 1px solid var(--color-border, var(--cp-border));
   border-radius: 12px;
   padding: 1.25rem;
   background: var(--color-surface, #fff);
@@ -46,8 +46,8 @@
 }
 
 .currentPlan {
-  border-color: var(--color-success, #1f7a4d);
-  box-shadow: 0 0 0 1px var(--color-success, #1f7a4d) inset;
+  border-color: var(--color-success, var(--cp-success));
+  box-shadow: 0 0 0 1px var(--color-success, var(--cp-success)) inset;
 }
 
 .planHead {
@@ -77,8 +77,8 @@
 .badge {
   font-size: 0.7rem;
   font-weight: 600;
-  color: var(--color-success, #1f7a4d);
-  border: 1px solid var(--color-success, #1f7a4d);
+  color: var(--color-success, var(--cp-success));
+  border: 1px solid var(--color-success, var(--cp-success));
   border-radius: 999px;
   padding: 0.1rem 0.5rem;
 }
@@ -91,7 +91,7 @@
   flex-direction: column;
   gap: 0.35rem;
   font-size: 0.85rem;
-  color: var(--color-text-secondary, #3d4453);
+  color: var(--color-text-secondary, var(--cp-text-secondary));
   flex: 1;
 }
 
@@ -106,10 +106,10 @@
   display: flex;
   align-items: center;
   gap: 0.6rem;
-  border: 1px solid var(--color-border, #dde2ea);
+  border: 1px solid var(--color-border, var(--cp-border));
   border-radius: 10px;
   padding: 0.75rem 1rem;
-  color: var(--color-text-secondary, #3d4453);
+  color: var(--color-text-secondary, var(--cp-text-secondary));
   font-size: 0.9rem;
 }
 
@@ -118,7 +118,7 @@
 }
 
 .manage {
-  border: 1px solid var(--color-border, #dde2ea);
+  border: 1px solid var(--color-border, var(--cp-border));
   border-radius: 12px;
   padding: 1.25rem;
   display: flex;
@@ -150,8 +150,8 @@
 }
 
 .dangerButton {
-  border-color: var(--color-danger, #c2413b);
-  color: var(--color-danger, #c2413b);
+  border-color: var(--color-danger, var(--cp-danger));
+  color: var(--color-danger, var(--cp-danger));
 }
 
 .cancelForm {
@@ -159,7 +159,7 @@
   flex-direction: column;
   gap: 0.6rem;
   align-items: flex-start;
-  border-top: 1px solid var(--color-border, #e3e7ee);
+  border-top: 1px solid var(--color-border, var(--cp-border-light));
   padding-top: 0.75rem;
 }
 
@@ -174,20 +174,20 @@
 
 .meta {
   margin: 0;
-  color: var(--color-text-muted, #5b6472);
+  color: var(--color-text-muted, var(--cp-text-secondary));
   font-size: 0.9rem;
 }
 
 .error {
-  color: var(--color-danger, #c2413b);
+  color: var(--color-danger, var(--cp-danger));
   margin: 0;
 }
 
 .status {
-  color: var(--color-success, #1f7a4d);
+  color: var(--color-success, var(--cp-success));
   margin: 0;
 }
 
 .loading {
-  color: var(--color-text-muted, #5b6472);
+  color: var(--color-text-muted, var(--cp-text-secondary));
 }

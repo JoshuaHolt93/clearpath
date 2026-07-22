@@ -18,7 +18,7 @@ body {
   color: var(--cp-text);
   background: var(--cp-background);
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  font-size: 16px;
+  font-size: 15px;
   line-height: 1.5;
   text-rendering: optimizeLegibility;
 }
@@ -61,7 +61,7 @@ a:hover {
   border: 1px solid var(--cp-border);
   border-radius: var(--cp-radius-md);
   background: var(--cp-surface);
-  box-shadow: var(--cp-shadow-md);
+  box-shadow: var(--cp-shadow-sm);
 }
 
 .auth-logo {
@@ -84,11 +84,11 @@ a:hover {
   height: 42px;
   flex: 0 0 42px;
   place-items: center;
-  border-radius: 50%;
+  border-radius: 8px;
   color: var(--cp-surface);
   background: var(--cp-brand);
   font-size: 22px;
-  font-weight: 800;
+  font-weight: 750;
   line-height: 1;
 }
 
@@ -99,7 +99,7 @@ a:hover {
 
 .auth-logo-text .name {
   font-size: 20px;
-  font-weight: 800;
+  font-weight: 700;
 }
 
 .auth-logo-text .sub {
@@ -113,7 +113,7 @@ a:hover {
   margin: 0;
   text-align: center;
   font-size: 28px;
-  font-weight: 800;
+  font-weight: 750;
   line-height: 1.2;
 }
 
@@ -133,14 +133,14 @@ a:hover {
   margin-bottom: 7px;
   color: var(--cp-text);
   font-size: 14px;
-  font-weight: 700;
+  font-weight: 650;
 }
 
 .form-input {
   width: 100%;
   min-height: 46px;
   padding: 10px 12px;
-  border: 1px solid #d1d5db;
+  border: 1px solid var(--cp-border);
   border-radius: var(--cp-radius-sm);
   outline: none;
   color: var(--cp-text);
@@ -153,7 +153,7 @@ a:hover {
 
 .form-input:focus {
   border-color: var(--cp-brand);
-  box-shadow: 0 0 0 3px rgb(37 99 235 / 0.16);
+  box-shadow: 0 0 0 3px rgb(47 111 85 / 0.14);
 }
 
 .form-input:disabled {
@@ -163,7 +163,7 @@ a:hover {
 
 .form-input:read-only {
   color: var(--cp-text-secondary);
-  background: #f9fafb;
+  background: var(--cp-surface-soft);
 }
 
 .password-input-wrap {
@@ -198,7 +198,7 @@ a:hover {
 .password-toggle:focus-visible,
 .btn:focus-visible,
 .toggle-control input:focus-visible + .toggle-track {
-  outline: 3px solid rgb(37 99 235 / 0.25);
+  outline: 3px solid rgb(47 111 85 / 0.24);
   outline-offset: 2px;
 }
 
@@ -208,7 +208,7 @@ a:hover {
   border: 1px solid var(--cp-border);
   border-radius: var(--cp-radius-sm);
   color: var(--cp-text-secondary);
-  background: #f9fafb;
+  background: var(--cp-surface-soft);
   font-size: 12px;
 }
 
@@ -333,7 +333,7 @@ a:hover {
 
 .alert-error {
   border-color: var(--cp-danger-border);
-  color: #991b1b;
+  color: var(--cp-danger);
   background: var(--cp-danger-background);
 }
 
@@ -368,7 +368,7 @@ a:hover {
   border: 1px solid #bfdbfe;
   border-radius: var(--cp-radius-sm);
   color: #1e40af;
-  background: #eff6ff;
+  background: var(--cp-brand-light);
   font-size: 14px;
 }
 
@@ -474,7 +474,7 @@ a:hover {
 .pending-auth-heading h1 {
   margin: 0;
   font-size: 28px;
-  font-weight: 800;
+  font-weight: 700;
   line-height: 1.25;
 }
 
@@ -501,7 +501,7 @@ a:hover {
 .pending-auth-panel-header h2 {
   margin: 0;
   font-size: 16px;
-  font-weight: 800;
+  font-weight: 700;
   line-height: 1.4;
 }
 
@@ -514,9 +514,9 @@ a:hover {
 }
 
 .alert-warning {
-  border-color: #fde68a;
+  border-color: #e8cc99;
   color: #92400e;
-  background: #fffbeb;
+  background: var(--cp-warning-light);
 }
 
 .panel-intro {
@@ -585,7 +585,7 @@ a:hover {
 .alert-info {
   border-color: #bfdbfe;
   color: #1e40af;
-  background: #eff6ff;
+  background: var(--cp-brand-light);
 }
 
 .mfa-qr-box {
@@ -644,7 +644,7 @@ a:hover {
   padding: 12px;
   border: 1px solid var(--cp-border);
   border-radius: var(--cp-radius-sm);
-  background: #f9fafb;
+  background: var(--cp-surface-soft);
 }
 
 .mfa-secret-box span {
@@ -721,7 +721,7 @@ a:hover {
   border: 1px solid var(--cp-border);
   border-radius: var(--cp-radius-sm);
   overflow-wrap: anywhere;
-  background: #f9fafb;
+  background: var(--cp-surface-soft);
   text-align: center;
   font-size: 13px;
 }

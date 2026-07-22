@@ -1,12 +1,12 @@
 .page { min-height: 100%; background: var(--cp-background); }
 .publicHeader { display: flex; width: min(100%, 72rem); min-height: 4rem; align-items: center; justify-content: space-between; gap: 1rem; margin: 0 auto; padding: 0.75rem 1.5rem; }
-.brand { color: var(--cp-text); font-size: 1.05rem; font-weight: 800; }
+.brand { color: var(--cp-text); font-size: 1.05rem; font-weight: 700; }
 .publicHeader nav, .actions { display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; }
 .main { display: flex; width: min(100%, 72rem); flex-direction: column; gap: 2rem; margin: 0 auto; padding: 2rem 1.5rem 3rem; }
 .intro { display: flex; align-items: flex-start; justify-content: space-between; gap: 1.5rem; }
 .intro h1 { margin: 0; font-size: 1.75rem; line-height: 1.2; }
 .intro p:not(.eyebrow) { max-width: 42rem; margin: 0.5rem 0; color: var(--cp-text-secondary); }
-.eyebrow { margin: 0 0 0.35rem; color: var(--cp-brand); font-size: 0.78rem; font-weight: 800; text-transform: uppercase; }
+.eyebrow { margin: 0 0 0.35rem; color: var(--cp-brand); font-size: 0.78rem; font-weight: 700; text-transform: uppercase; }
 .policyMeta, .accountNote { color: var(--cp-text-muted); font-size: 0.82rem; }
 .hostedBadge, .currentBadge { display: inline-flex; align-items: center; gap: 0.35rem; border: 1px solid var(--cp-border); border-radius: 999px; padding: 0.25rem 0.6rem; color: var(--cp-brand-dark); background: var(--cp-surface); font-size: 0.78rem; font-weight: 750; white-space: nowrap; }
 .planGrid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; }

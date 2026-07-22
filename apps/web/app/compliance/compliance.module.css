@@ -19,7 +19,7 @@
 
 .header p {
   margin: 0.25rem 0 0;
-  color: var(--color-text-muted, #5b6472);
+  color: var(--color-text-muted, var(--cp-text-secondary));
 }
 
 .actions {
@@ -38,10 +38,10 @@
   display: flex;
   align-items: center;
   gap: 0.6rem;
-  border: 1px solid var(--color-border, #dde2ea);
+  border: 1px solid var(--color-border, var(--cp-border));
   border-radius: 10px;
   padding: 1rem;
-  color: var(--color-text-secondary, #3d4453);
+  color: var(--color-text-secondary, var(--cp-text-secondary));
 }
 
 .denied p {
@@ -49,7 +49,7 @@
 }
 
 .panel {
-  border: 1px solid var(--color-border, #dde2ea);
+  border: 1px solid var(--color-border, var(--cp-border));
   border-radius: 12px;
   padding: 1.25rem;
   display: flex;
@@ -76,14 +76,14 @@
 .table td {
   text-align: left;
   padding: 0.5rem 0.6rem;
-  border-bottom: 1px solid var(--color-border, #e3e7ee);
+  border-bottom: 1px solid var(--color-border, var(--cp-border-light));
   vertical-align: top;
 }
 
 .controlId {
   display: block;
   font-size: 0.72rem;
-  color: var(--color-text-muted, #5b6472);
+  color: var(--color-text-muted, var(--cp-text-secondary));
 }
 
 .status {
@@ -94,9 +94,9 @@
   padding: 0.1rem 0.55rem;
 }
 
-.pass { color: var(--color-success, #1f7a4d); border: 1px solid var(--color-success, #1f7a4d); }
+.pass { color: var(--color-success, var(--cp-success)); border: 1px solid var(--color-success, var(--cp-success)); }
 .warn { color: #9a6b00; border: 1px solid #9a6b00; }
-.fail { color: var(--color-danger, #c2413b); border: 1px solid var(--color-danger, #c2413b); }
+.fail { color: var(--color-danger, var(--cp-danger)); border: 1px solid var(--color-danger, var(--cp-danger)); }
 
 .catalog {
   list-style: none;
@@ -109,20 +109,20 @@
 
 .meta {
   margin: 0.15rem 0 0;
-  color: var(--color-text-muted, #5b6472);
+  color: var(--color-text-muted, var(--cp-text-secondary));
   font-size: 0.85rem;
 }
 
 .error {
-  color: var(--color-danger, #c2413b);
+  color: var(--color-danger, var(--cp-danger));
   margin: 0;
 }
 
 .statusMsg {
-  color: var(--color-success, #1f7a4d);
+  color: var(--color-success, var(--cp-success));
   margin: 0;
 }
 
 .loading {
-  color: var(--color-text-muted, #5b6472);
+  color: var(--color-text-muted, var(--cp-text-secondary));
 }

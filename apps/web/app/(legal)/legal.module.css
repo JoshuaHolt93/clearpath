@@ -3,14 +3,14 @@
   padding: 2.5rem 1.25rem;
   display: flex;
   justify-content: center;
-  background: var(--color-background, #f4f6fa);
+  background: var(--color-background, var(--cp-background));
 }
 
 .card {
   width: 100%;
   max-width: 48rem;
   background: var(--color-surface, #fff);
-  border: 1px solid var(--color-border, #dde2ea);
+  border: 1px solid var(--color-border, var(--cp-border));
   border-radius: 16px;
   padding: 2rem;
   display: flex;
@@ -25,27 +25,27 @@
 
 .brand {
   font-weight: 700;
-  color: var(--color-accent, #2d6cdf);
+  color: var(--color-accent, var(--cp-brand));
   text-decoration: none;
   font-size: 0.9rem;
 }
 
 .meta {
   margin: 0;
-  color: var(--color-text-muted, #5b6472);
+  color: var(--color-text-muted, var(--cp-text-secondary));
   font-size: 0.85rem;
 }
 
 .intro {
   margin: 0;
-  color: var(--color-text-secondary, #3d4453);
+  color: var(--color-text-secondary, var(--cp-text-secondary));
   line-height: 1.55;
 }
 
 .contact {
   margin: 0;
   font-size: 0.9rem;
-  color: var(--color-text-secondary, #3d4453);
+  color: var(--color-text-secondary, var(--cp-text-secondary));
 }
 
 .sections {
@@ -61,7 +61,7 @@
 
 .summary {
   margin: 0 0 0.5rem;
-  color: var(--color-text-secondary, #3d4453);
+  color: var(--color-text-secondary, var(--cp-text-secondary));
   font-size: 0.92rem;
   line-height: 1.5;
 }
@@ -72,7 +72,7 @@
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
-  color: var(--color-text-secondary, #3d4453);
+  color: var(--color-text-secondary, var(--cp-text-secondary));
   line-height: 1.5;
 }
 
@@ -80,12 +80,12 @@
   display: flex;
   gap: 1.25rem;
   flex-wrap: wrap;
-  border-top: 1px solid var(--color-border, #e3e7ee);
+  border-top: 1px solid var(--color-border, var(--cp-border-light));
   padding-top: 1rem;
   font-size: 0.9rem;
 }
 
 .footer a {
-  color: var(--color-accent, #2d6cdf);
+  color: var(--color-accent, var(--cp-brand));
   text-decoration: none;
 }
