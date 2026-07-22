@@ -8,6 +8,7 @@ const navigation = vi.hoisted(() => ({ replace: vi.fn(), refresh: vi.fn() }));
 
 vi.mock("next/navigation", () => ({
   usePathname: () => "/dashboard",
+  useSearchParams: () => new URLSearchParams(),
   useRouter: () => navigation,
 }));
 

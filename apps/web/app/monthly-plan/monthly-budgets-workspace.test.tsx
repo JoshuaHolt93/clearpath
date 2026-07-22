@@ -102,6 +102,26 @@ describe("MonthlyBudgetsWorkspace", () => {
     await waitFor(() => expect(fetchMock.mock.calls.some((call) => String(call[0]).includes("refresh-stale"))).toBe(true));
   });
 
+  it("sends return_to on the per-row transactions link so the user can get back", async () => {
+    // This is the link that produces the filtered list from a budget row; it
+    // was the entry point still missing return_to. The sidebar's own
+    // "Review Transactions" nav item is deliberately excluded -- navigating
+    // there is not a detour, so it should not offer a way back.
+    vi.spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(new Response(JSON.stringify(view()), { status: 200, headers: { "content-type": "application/json" } }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ synced: 0, errors: [] }), { status: 200, headers: { "content-type": "application/json" } }));
+    render(<MonthlyBudgetsWorkspace query={query} />);
+
+    // Wait for the budget rows themselves: the sidebar's links resolve
+    // immediately, so querying links first passes before data loads.
+    await screen.findByRole("heading", { name: "Expense Budgets" });
+    const rowLink = (await screen.findAllByRole("link")).find((link) => /^Review \d+ Transaction/.test(link.textContent ?? ""));
+    expect(rowLink, "budget row transactions link").toBeDefined();
+    const href = rowLink!.getAttribute("href") ?? "";
+    expect(href).toContain("return_to=");
+    expect(href).toContain(encodeURIComponent("/monthly-plan?section=budgets"));
+  });
+
   it("saves an inline amount then reloads the canonical budget resource", async () => {
     const fetchMock = vi.spyOn(globalThis, "fetch")
       .mockResolvedValueOnce(new Response(JSON.stringify(view()), { status: 200, headers: { "content-type": "application/json" } }))

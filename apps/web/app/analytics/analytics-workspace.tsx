@@ -3,6 +3,8 @@
 import { analyticsViewSchema, type AnalyticsSnapshotView, type AnalyticsSummaryView, type AnalyticsView } from "@clearpath/validation";
 import { BarChart3, Bot, RefreshCw, Sparkles } from "lucide-react";
 import Link from "next/link";
+
+import { useReturnTo, withReturnTo } from "@/lib/use-return-to";
 import { useRouter } from "next/navigation";
 import { FormEvent, useCallback, useEffect, useState } from "react";
 
@@ -142,8 +144,9 @@ function HistoryChart({ title, badge, summary, kind }: { title: string; badge: s
 }
 
 function CategoryPanel({ summary }: { summary: AnalyticsSummaryView }) {
+  const returnTo = useReturnTo();
   return <section className={styles.panel}>
-    <header><h2>Spending By Category</h2><Link href="/transactions">Review Transactions</Link></header>
+    <header><h2>Spending By Category</h2><Link href={withReturnTo("/transactions", returnTo)}>Review Transactions</Link></header>
     <div className={styles.categoryList}>{summary.categoryRows.length ? summary.categoryRows.map((row) => <div className={styles.categoryRow} key={`${row.categoryId}-${row.category}`}>
       <span>{row.category}</span><div><i style={{ width: percent(row.amount, summary.totalSpending) }} /></div><strong>{currency(row.amount)}</strong><small>{summary.totalSpending ? Math.round(row.amount / summary.totalSpending * 100) : 0}%</small>
     </div>) : <Empty text="No spending data for this period yet." />}</div>

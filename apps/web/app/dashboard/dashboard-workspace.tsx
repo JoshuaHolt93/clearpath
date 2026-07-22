@@ -12,6 +12,8 @@ import {
   Upload,
 } from "lucide-react";
 import Link from "next/link";
+
+import { useReturnTo, withReturnTo } from "@/lib/use-return-to";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
@@ -106,6 +108,7 @@ function PlanTable({ data }: { data: DashboardView }) {
 
 export function DashboardWorkspace({ initialWelcome }: { initialWelcome: boolean }) {
   const router = useRouter();
+  const returnTo = useReturnTo();
   const [data, setData] = useState<DashboardView | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -191,7 +194,7 @@ export function DashboardWorkspace({ initialWelcome }: { initialWelcome: boolean
           <div><h1>Good {greeting}, {data.session.subject.firstName}</h1><p>{data.monthName} - Day {data.elapsedDays} of {data.totalDays}</p></div>
           <div className={styles.headerActions}>
             <span className={`${styles.statusPill} ${styles[data.metrics.onTrackStatus]}`}><span />{statusLabel}</span>
-            <Link href="/transactions?import=csv" className={styles.secondaryButton}><Upload size={16} aria-hidden="true" />Import CSV</Link>
+            <Link href={withReturnTo("/transactions?import=csv", returnTo)} className={styles.secondaryButton}><Upload size={16} aria-hidden="true" />Import CSV</Link>
           </div>
         </header>
 
@@ -207,7 +210,7 @@ export function DashboardWorkspace({ initialWelcome }: { initialWelcome: boolean
                 <div><span>2</span><p><strong>Clean Up Transactions</strong>Review Transactions powers Budgets and Analytics, so categorize anything still sitting in Other.</p></div>
                 <div><span>3</span><p><strong>Use Help Any Time</strong>Short guides cover Today, Budgets, Quick Planning, Rules, Analytics, Goals, and Settings.</p></div>
               </div>
-              <div className={styles.tutorialActions}><Link href="/transactions" className={styles.secondaryButton}>Review Transactions</Link><Link href="/monthly-plan?section=budgets" className={styles.secondaryButton}>Review Budgets</Link></div>
+              <div className={styles.tutorialActions}><Link href={withReturnTo("/transactions", returnTo)} className={styles.secondaryButton}>Review Transactions</Link><Link href="/monthly-plan?section=budgets" className={styles.secondaryButton}>Review Budgets</Link></div>
             </section>
           ) : null}
 
@@ -221,7 +224,7 @@ export function DashboardWorkspace({ initialWelcome }: { initialWelcome: boolean
 
           <div className={styles.statsGrid}>
             <Link href="/monthly-plan?section=budgets" className={styles.stat}><span>Safe To Spend</span><strong className={data.metrics.safeToSpend < 0 ? styles.negative : data.metrics.safeToSpend < 200 ? "" : styles.positive}>{signedCurrency(data.metrics.safeToSpend)}</strong><small>{data.metrics.safeToSpend < 0 ? "Over budget" : "Remaining This Month"}</small></Link>
-            <Link href="/transactions" className={styles.stat}><span>Spent So Far</span><strong>{currency(data.metrics.variableSpend)}</strong><small>Of {currency(data.metrics.safeToSpendTarget)} Plan</small></Link>
+            <Link href={withReturnTo("/transactions", returnTo)} className={styles.stat}><span>Spent So Far</span><strong>{currency(data.metrics.variableSpend)}</strong><small>Of {currency(data.metrics.safeToSpendTarget)} Plan</small></Link>
             <div className={styles.stat}><span>Net Worth</span><strong className={data.netWorth.netWorth < 0 ? styles.negative : styles.positive}>{signedCurrency(data.netWorth.netWorth)}</strong><small>Tracked Assets Minus Debt</small></div>
           </div>
 

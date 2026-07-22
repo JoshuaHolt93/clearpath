@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AnalyticsWorkspace, type AnalyticsQuery } from "./analytics-workspace";
 
 const navigation = vi.hoisted(() => ({ push: vi.fn(), replace: vi.fn(), refresh: vi.fn() }));
-vi.mock("next/navigation", () => ({ useRouter: () => navigation, usePathname: () => "/analytics" }));
+vi.mock("next/navigation", () => ({ useRouter: () => navigation, usePathname: () => "/analytics", useSearchParams: () => new URLSearchParams() }));
 
 const query: AnalyticsQuery = { range: "month", endMonth: "2026-07", historyRange: "quarter", historyEndMonth: "2026-07" };
 

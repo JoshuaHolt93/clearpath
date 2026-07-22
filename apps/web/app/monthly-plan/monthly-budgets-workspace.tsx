@@ -54,10 +54,14 @@ function apiRouteForQuery(query: MonthlyBudgetQuery): string {
   return `/api${routeForQuery(query)}`;
 }
 
-function transactionHref(row: BudgetRow): string {
+function transactionHref(row: BudgetRow, returnTo: string): string {
   const params = new URLSearchParams();
   if (row.transactionIds.length) params.set("ids", row.transactionIds.join(","));
   else if (row.categoryId) params.set("category_id", String(row.categoryId));
+  // Carry the caller's location and the budget being worked so Transactions
+  // can show Flask's workflow-return-strip with the right copy.
+  if (returnTo) params.set("return_to", returnTo);
+  if (row.label) params.set("category_names", row.label);
   return `/transactions${params.size ? `?${params.toString()}` : ""}`;
 }
 
@@ -328,7 +332,7 @@ export function MonthlyBudgetsWorkspace({ query }: { query: MonthlyBudgetQuery }
                         <div className={styles.nameCell}>
                           <div><strong>{row.category}</strong>{canArrange ? <GripVertical size={16} aria-label="Drag to reorder budget category" /> : null}</div>
                           <div className={styles.rowLinks}>
-                            {row.transactionCount || row.categoryId ? <Link href={transactionHref(row)}>{row.transactionCount ? `Review ${row.transactionCount} Transaction${row.transactionCount === 1 ? "" : "s"}` : "Add Transactions"}</Link> : null}
+                            {row.transactionCount || row.categoryId ? <Link href={transactionHref(row, returnTo)}>{row.transactionCount ? `Review ${row.transactionCount} Transaction${row.transactionCount === 1 ? "" : "s"}` : "Add Transactions"}</Link> : null}
                             {row.categoryKind === "income" && !data.budgetHistoryMode ? <Link href="/monthly-plan?section=baseline">{row.adjustLabel || "Adjust Income"}</Link> : null}
                             {row.amortizationAction && !data.budgetHistoryMode ? <button type="button" disabled={busy === `loan-${row.categoryId}`} onClick={() => void openLoanPlan(row)}>{row.amortizationAction.label}</button> : null}
                             {canMutate && row.canRemoveBudget ? <button type="button" className={styles.dangerLink} aria-label={`Remove ${row.category}`} disabled={busy === `delete-${row.categoryId}`} onClick={() => void removeBudget(row)}><Trash2 size={13} aria-hidden="true" />Remove</button> : null}
@@ -346,11 +350,11 @@ export function MonthlyBudgetsWorkspace({ query }: { query: MonthlyBudgetQuery }
             ))}
 
             {data.unassignedBudgetRows.length ? (
-              <section className={`${styles.budgetSection} ${styles.cleanupSection}`} aria-labelledby="cleanup-title"><div className={styles.sectionHeader}><div><h2 id="cleanup-title">Other Spending To Categorize</h2><p>Categorize these transactions or add an active budget.</p></div><strong>{currency(data.unassignedBudgetRows.reduce((sum, row) => sum + row.actual, 0))} needs review</strong></div><div className={styles.tableHeader}><span>Category</span><span>Monthly Budget</span><span>Cleanup</span><span>Amount</span></div>{data.unassignedBudgetRows.map((row) => <article className={styles.budgetRow} key={row.anchorId}><div className={styles.nameCell}><strong>{row.category}</strong><div className={styles.rowLinks}><Link href={transactionHref(row)}>Review {row.transactionCount} Transaction{row.transactionCount === 1 ? "" : "s"}</Link></div></div><div className={styles.amountCell}>Not budgeted</div><div className={styles.progressCell}><div><span>{currency(row.actual)} needs review</span><span>Categorize or add a budget</span></div><div className={styles.progressTrack}><span className={styles.near} style={{ width: "100%" }} /></div></div><div className={`${styles.remainingCell} ${styles.negative}`}>{currency(row.actual)}</div></article>)}</section>
+              <section className={`${styles.budgetSection} ${styles.cleanupSection}`} aria-labelledby="cleanup-title"><div className={styles.sectionHeader}><div><h2 id="cleanup-title">Other Spending To Categorize</h2><p>Categorize these transactions or add an active budget.</p></div><strong>{currency(data.unassignedBudgetRows.reduce((sum, row) => sum + row.actual, 0))} needs review</strong></div><div className={styles.tableHeader}><span>Category</span><span>Monthly Budget</span><span>Cleanup</span><span>Amount</span></div>{data.unassignedBudgetRows.map((row) => <article className={styles.budgetRow} key={row.anchorId}><div className={styles.nameCell}><strong>{row.category}</strong><div className={styles.rowLinks}><Link href={transactionHref(row, returnTo)}>Review {row.transactionCount} Transaction{row.transactionCount === 1 ? "" : "s"}</Link></div></div><div className={styles.amountCell}>Not budgeted</div><div className={styles.progressCell}><div><span>{currency(row.actual)} needs review</span><span>Categorize or add a budget</span></div><div className={styles.progressTrack}><span className={styles.near} style={{ width: "100%" }} /></div></div><div className={`${styles.remainingCell} ${styles.negative}`}>{currency(row.actual)}</div></article>)}</section>
             ) : null}
 
             {data.suggestedBudgetSections.length && canMutate ? (
-              <details className={styles.suggestions}><summary><span>Suggested Categories</span><span>Browse Suggestions</span></summary>{data.suggestedBudgetSections.map((section) => <div className={styles.suggestionGroup} key={section.kind}><h3>{section.label}</h3>{section.rows.map((row) => <div className={styles.suggestionRow} key={row.category}><div><strong>{row.category}</strong><span>{row.suggestionMatchCount} possible transaction{row.suggestionMatchCount === 1 ? "" : "s"} this month - Suggested {currency(row.planned)} / month</span></div><div>{row.transactionIds.length ? <Link href={transactionHref(row)}>Review Matches</Link> : null}<button type="button" disabled={busy === `suggestion-${row.categoryId}`} onClick={() => void activateSuggestion(row)}>Use</button></div></div>)}</div>)}</details>
+              <details className={styles.suggestions}><summary><span>Suggested Categories</span><span>Browse Suggestions</span></summary>{data.suggestedBudgetSections.map((section) => <div className={styles.suggestionGroup} key={section.kind}><h3>{section.label}</h3>{section.rows.map((row) => <div className={styles.suggestionRow} key={row.category}><div><strong>{row.category}</strong><span>{row.suggestionMatchCount} possible transaction{row.suggestionMatchCount === 1 ? "" : "s"} this month - Suggested {currency(row.planned)} / month</span></div><div>{row.transactionIds.length ? <Link href={transactionHref(row, returnTo)}>Review Matches</Link> : null}<button type="button" disabled={busy === `suggestion-${row.categoryId}`} onClick={() => void activateSuggestion(row)}>Use</button></div></div>)}</div>)}</details>
             ) : null}
           </div>
 
