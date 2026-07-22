@@ -285,7 +285,6 @@ export function AuthenticatedShell({ session, activePlanSection, children }: Aut
         </nav>
 
         <div className={styles.sidebarFooter}>
-          <Link href="/feedback" className={styles.feedbackLink} onClick={closeMobile}><MessageSquareText size={17} aria-hidden="true" />Leave Feedback</Link>
           <details className={styles.accountMenu}>
             <summary>
               <span className={styles.avatar}>{session.subject.avatarInitial}</span>
