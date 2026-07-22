@@ -15,7 +15,7 @@ import {
   TriangleAlert,
 } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { type DragEvent, type FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 
 import { AuthenticatedPageFrame } from "../authenticated-shell";
@@ -72,6 +72,11 @@ function featureEnabled(data: MonthlyBudgetsView, feature: string): boolean {
 
 export function MonthlyBudgetsWorkspace({ query }: { query: MonthlyBudgetQuery }) {
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  // Send the caller's location along so Transactions can offer the way back
+  // with the budget filters intact (Flask's workflow-return-strip).
+  const returnTo = `${pathname}${searchParams.toString() ? `?${searchParams.toString()}` : ""}`;
   const [data, setData] = useState<MonthlyBudgetsView | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState<string | null>(null);
@@ -269,7 +274,7 @@ export function MonthlyBudgetsWorkspace({ query }: { query: MonthlyBudgetQuery }
           {busy ? <SavingIndicator /> : null}
 
           {data.onboardingComplete ? (
-            <div className={styles.onboardingNotice}><div><strong>Your first budgets are started.</strong><span>Income is preset from setup, and categorized expenses create budget categories you can review and adjust here.</span></div><Link href="/transactions">Continue Categorizing</Link></div>
+            <div className={styles.onboardingNotice}><div><strong>Your first budgets are started.</strong><span>Income is preset from setup, and categorized expenses create budget categories you can review and adjust here.</span></div><Link href={`/transactions?return_to=${encodeURIComponent(returnTo)}`}>Continue Categorizing</Link></div>
           ) : null}
 
           <section className={styles.toolbar} aria-label="Budget controls">
@@ -312,7 +317,7 @@ export function MonthlyBudgetsWorkspace({ query }: { query: MonthlyBudgetQuery }
             {data.budgetSections.length === 0 ? <div className={styles.empty}>No category budgets yet.</div> : null}
             {data.budgetSections.map((section) => (
               <section className={styles.budgetSection} key={section.kind} aria-labelledby={`budget-section-${section.kind}`}>
-                <div className={styles.sectionHeader}><div><h2 id={`budget-section-${section.kind}`}>{section.label}</h2><p>{section.description}</p></div><div><strong>{currency(section.actual)} / {currency(section.planned)}</strong>{section.transactionCount ? <Link href={`/transactions?ids=${section.transactionIds.join(",")}`}>Review Transactions</Link> : null}</div></div>
+                <div className={styles.sectionHeader}><div><h2 id={`budget-section-${section.kind}`}>{section.label}</h2><p>{section.description}</p></div><div><strong>{currency(section.actual)} / {currency(section.planned)}</strong>{section.transactionCount ? <Link href={`/transactions?ids=${section.transactionIds.join(",")}&return_to=${encodeURIComponent(returnTo)}`}>Review Transactions</Link> : null}</div></div>
                 <div className={styles.tableHeader}><span>Category</span><span>Monthly Budget</span><span>Progress</span><span>Remaining</span></div>
                 <div className={styles.rows}>
                   {section.rows.length === 0 ? <div className={styles.sectionEmpty}>{section.empty}</div> : section.rows.map((row) => {

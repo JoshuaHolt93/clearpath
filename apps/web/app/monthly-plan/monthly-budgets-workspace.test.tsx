@@ -6,7 +6,7 @@ import { MonthlyBudgetsWorkspace, type MonthlyBudgetQuery } from "./monthly-budg
 
 const navigation = vi.hoisted(() => ({ push: vi.fn(), replace: vi.fn(), refresh: vi.fn() }));
 
-vi.mock("next/navigation", () => ({ usePathname: () => "/monthly-plan", useRouter: () => navigation }));
+vi.mock("next/navigation", () => ({ usePathname: () => "/monthly-plan", useSearchParams: () => new URLSearchParams("section=budgets"), useRouter: () => navigation }));
 
 const query: MonthlyBudgetQuery = { budgetView: "list", budgetSort: "custom", budgetMonth: "", onboardingComplete: true };
 

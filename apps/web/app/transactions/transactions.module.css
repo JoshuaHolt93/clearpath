@@ -487,3 +487,28 @@
   .pagination { justify-content: space-between; gap: 7px; }
   .pagination button span { display: none; }
 }
+
+/* Flask's workflow-return-strip: shown when another workspace sent the user
+   here mid-task, offering the way back plus why they came. */
+.returnStrip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin-top: 16px;
+  border: 1px solid #cfe0f5;
+  border-left: 4px solid var(--cp-brand);
+  border-radius: var(--cp-radius-sm);
+  background: var(--cp-gradient-blue, var(--cp-brand-light));
+  padding: 12px 14px;
+}
+
+.returnStrip span {
+  color: var(--cp-text-secondary);
+  font-size: 13px;
+}
+
+.returnStrip .secondaryButton {
+  flex: none;
+  background: var(--cp-surface);
+}

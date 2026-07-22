@@ -22,6 +22,7 @@ export default async function TransactionsPage({ searchParams }: { searchParams:
     sort: typeof params.sort === "string" ? params.sort : "date_desc",
     page: typeof params.page === "string" ? params.page : "1",
     importMode: params.import === "csv",
+    returnTo: typeof params.return_to === "string" ? params.return_to : "",
   };
   return <TransactionReviewWorkspace query={query} />;
 }

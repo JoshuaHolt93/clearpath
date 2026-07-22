@@ -7,7 +7,7 @@ import { TransactionReviewWorkspace, type TransactionQuery } from "./transaction
 const navigation = vi.hoisted(() => ({ push: vi.fn() }));
 vi.mock("next/navigation", () => ({ useRouter: () => navigation, usePathname: () => "/transactions" }));
 
-const query: TransactionQuery = { q: "", categoryIds: [], categoryNames: "", accountIds: [], minAmount: "", maxAmount: "", month: "", ids: "", sort: "date_desc", page: "1", importMode: false };
+const query: TransactionQuery = { q: "", categoryIds: [], categoryNames: "", accountIds: [], minAmount: "", maxAmount: "", month: "", ids: "", sort: "date_desc", page: "1", importMode: false, returnTo: "" };
 
 const groceries = { id: 4, name: "Groceries", kind: "expense", monthlyTarget: 500, isDefault: false, budgetGroupKey: "daily", budgetSortOrder: 2, canManage: true };
 const household = { id: 5, name: "Household", kind: "expense", monthlyTarget: 200, isDefault: false, budgetGroupKey: "daily", budgetSortOrder: 3, canManage: true };
@@ -100,6 +100,27 @@ describe("TransactionReviewWorkspace", () => {
 
     expect(screen.queryByLabelText("New category for Local Market")).toBeNull();
     expect(fetchMock.mock.calls.some((call) => call[1]?.method === "PATCH")).toBe(false);
+  });
+
+  it("offers the way back when another workspace sent the user here", async () => {
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (input) =>
+      String(input).includes("refresh-stale") ? jsonResponse({ synced: 0, errors: [] }) : jsonResponse(view()));
+    render(<TransactionReviewWorkspace query={{ ...query, returnTo: "/monthly-plan?section=budgets", categoryNames: "Groceries" }} />);
+
+    const back = await screen.findByRole("link", { name: /Back to Budgets/ });
+    expect(back.getAttribute("href")).toBe("/monthly-plan?section=budgets");
+    expect(screen.getByText(/Assign transactions to Groceries/)).toBeDefined();
+  });
+
+  it("ignores an off-origin return_to", async () => {
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (input) =>
+      String(input).includes("refresh-stale") ? jsonResponse({ synced: 0, errors: [] }) : jsonResponse(view()));
+    // return_to is attacker-controllable, so the strip must not become an
+    // open redirect.
+    render(<TransactionReviewWorkspace query={{ ...query, returnTo: "https://evil.com/steal" }} />);
+
+    expect(await screen.findByText("Local Market")).toBeDefined();
+    expect(screen.queryByRole("link", { name: /Back to/ })).toBeNull();
   });
 
   it("enforces split totals before sending the exact lines", async () => {

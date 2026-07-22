@@ -12,11 +12,13 @@ import { usePendingMutations } from "@/lib/use-pending-mutations";
 import { AuthenticatedPageFrame } from "../authenticated-shell";
 import { TransactionImportPanel } from "./transaction-import-panel";
 import { TransactionRow } from "./transaction-row";
+import { WorkflowReturnStrip } from "./workflow-return-strip";
 import styles from "./transactions.module.css";
 
 export type TransactionQuery = {
   q: string; categoryIds: string[]; categoryNames: string; accountIds: string[];
   minAmount: string; maxAmount: string; month: string; ids: string; sort: string; page: string; importMode: boolean;
+  returnTo: string;
 };
 
 const sortOptions = {
@@ -43,6 +45,7 @@ function queryParams(query: TransactionQuery) {
   if (query.sort !== "date_desc") params.set("sort", query.sort);
   if (query.page !== "1") params.set("page", query.page);
   if (query.importMode) params.set("import", "csv");
+  if (query.returnTo) params.set("return_to", query.returnTo);
   return params;
 }
 
@@ -164,6 +167,8 @@ export function TransactionReviewWorkspace({ query }: { query: TransactionQuery 
           <button type="button" className={styles.primaryButton} onClick={() => setImportOpen((open) => !open)} disabled={!canEdit}><Upload size={16} aria-hidden="true" />Import & Sync</button>
         </div>
       </header>
+
+      <WorkflowReturnStrip returnTo={query.returnTo} categoryNames={query.categoryNames} />
 
       {error ? <div className={styles.error} role="alert">{error}</div> : null}
       {status ? <div className={styles.status} role="status">{status}</div> : null}
