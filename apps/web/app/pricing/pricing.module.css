@@ -1,4 +1,4 @@
-.page { min-height: 100%; background: var(--cp-background); }
+.page { min-height: 100%; background: transparent; }
 .publicHeader { display: flex; width: min(100%, 72rem); min-height: 4rem; align-items: center; justify-content: space-between; gap: 1rem; margin: 0 auto; padding: 0.75rem 1.5rem; }
 .brand { color: var(--cp-text); font-size: 1.05rem; font-weight: 700; }
 .publicHeader nav, .actions { display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; }
@@ -10,8 +10,8 @@
 .policyMeta, .accountNote { color: var(--cp-text-muted); font-size: 0.82rem; }
 .hostedBadge, .currentBadge { display: inline-flex; align-items: center; gap: 0.35rem; border: 1px solid var(--cp-border); border-radius: 999px; padding: 0.25rem 0.6rem; color: var(--cp-brand-dark); background: var(--cp-surface); font-size: 0.78rem; font-weight: 750; white-space: nowrap; }
 .planGrid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; }
-.planCard { display: flex; min-width: 0; flex-direction: column; gap: 1rem; padding: 1.25rem; border: 1px solid var(--cp-border); border-radius: 8px; background: var(--cp-surface); }
-.currentPlan { border-color: var(--cp-brand); box-shadow: inset 0 0 0 1px var(--cp-brand); }
+.planCard { display: flex; min-width: 0; flex-direction: column; gap: 1rem; padding: 1.25rem; border: 1px solid #dce7f4; border-radius: 8px; background: linear-gradient(145deg, #fff, #fbfdff); box-shadow: var(--cp-shadow-sm); }
+.currentPlan { border-color: #b8d2f3; background: var(--cp-gradient-blue); box-shadow: inset 0 0 0 1px #d5e5f8, var(--cp-shadow-md); }
 .planHead { display: flex; align-items: flex-start; justify-content: space-between; gap: 0.75rem; }
 .planHead h2 { margin: 0; font-size: 1.05rem; }
 .planHead p { margin: 0.2rem 0 0; color: var(--cp-text-muted); font-size: 0.78rem; }

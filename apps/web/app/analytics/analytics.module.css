@@ -1,4 +1,4 @@
-.page { min-height: 100vh; color: var(--cp-text); background: var(--cp-background); }
+.page { min-height: 100vh; color: var(--cp-text); background: transparent; }
 .pageHeader { display: flex; width: min(calc(100% - 64px), 1320px); align-items: flex-end; justify-content: space-between; gap: 28px; margin: 0 auto; padding: 32px 0 24px; }
 .pageHeader h1 { margin: 2px 0 5px; font-size: 27px; line-height: 1.15; }
 .pageHeader p { margin: 0; color: var(--cp-text-secondary); font-size: 13px; }
@@ -13,8 +13,9 @@
 .spin { animation: spin 1s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 .error { display: flex; width: min(calc(100% - 40px), 1320px); align-items: center; justify-content: space-between; gap: 16px; margin: 20px auto 0; border-left: 4px solid #bd3f3f; background: var(--cp-danger-background); padding: 12px 14px; color: #8f2929; font-size: 13px; }
-.stats { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); overflow: hidden; border: 1px solid var(--cp-border); border-radius: 8px; background: #fff; }
+.stats { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); overflow: hidden; border: 1px solid #dce7f4; border-radius: 8px; background: linear-gradient(145deg, #fff, #fbfdff); box-shadow: var(--cp-shadow-sm); }
 .stats article, .subscriptionStats article { display: grid; min-width: 0; align-content: center; gap: 4px; border-right: 1px solid var(--cp-border); padding: 17px 18px; }
+.stats article:first-child { background: var(--cp-gradient-blue); }
 .stats article:last-child, .subscriptionStats article:last-child { border-right: 0; }
 .stats span, .subscriptionStats span { color: var(--cp-text-secondary); font-size: 10px; font-weight: 750; text-transform: uppercase; }
 .stats strong, .subscriptionStats strong { overflow-wrap: anywhere; font-size: 24px; line-height: 1.15; font-variant-numeric: tabular-nums; }
@@ -22,13 +23,13 @@
 .positive { color: #16704b !important; }
 .negative { color: #b23d3d !important; }
 .neutral { color: #9a660e !important; }
-.aiPanel, .upgradePanel { display: flex; align-items: center; justify-content: space-between; gap: 28px; border: 1px solid #cfc4df; border-left: 4px solid #735897; border-radius: 8px; background: #fbf9fd; padding: 19px 21px; }
+.aiPanel, .upgradePanel { display: flex; align-items: center; justify-content: space-between; gap: 28px; border: 1px solid #cfe0f5; border-left: 4px solid var(--cp-brand); border-radius: 8px; background: var(--cp-gradient-blue); box-shadow: var(--cp-shadow-sm); padding: 19px 21px; }
 .aiPanel h2, .upgradePanel h2 { margin: 3px 0 5px; font-size: 16px; }
 .aiPanel p, .upgradePanel p { max-width: 880px; margin: 0; color: #665f70; font-size: 12px; line-height: 1.5; }
-.panelKicker { display: flex; align-items: center; gap: 6px; color: #674d86 !important; font-size: 10px !important; font-weight: 750; text-transform: uppercase; }
+.panelKicker { display: flex; align-items: center; gap: 6px; color: var(--cp-brand-dark) !important; font-size: 10px !important; font-weight: 750; text-transform: uppercase; }
 .aiButton { flex: 0 0 auto; border-color: #735897; color: #fff; background: #735897; }
 .chartGrid { display: grid; grid-template-columns: 1fr 1fr; align-items: start; gap: 20px; }
-.panel { min-width: 0; overflow: hidden; border: 1px solid var(--cp-border); border-radius: 8px; background: #fff; }
+.panel { min-width: 0; overflow: hidden; border: 1px solid #dce7f4; border-radius: 8px; background: #fff; box-shadow: var(--cp-shadow-sm); }
 .panel > header { display: flex; min-height: 58px; align-items: center; justify-content: space-between; gap: 16px; border-bottom: 1px solid #e5eaf0; padding: 15px 18px; }
 .panel > header h2 { margin: 0; font-size: 14px; }
 .panel > header > span { border-radius: 10px; color: #5d6d7e; background: var(--cp-border-light); padding: 4px 8px; font-size: 9px; font-weight: 700; }
@@ -56,7 +57,7 @@
 .categoryRow small { color: #6b7888; }
 .linkRow { display: flex; flex-wrap: wrap; gap: 13px; }
 .subscriptionBody { display: grid; }
-.subscriptionStats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border-bottom: 1px solid #e3e9ef; background: #fbfcfd; }
+.subscriptionStats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border-bottom: 1px solid #e3e9ef; background: var(--cp-gradient-blue); }
 .subscriptionStats strong { font-size: 21px; }
 .subscriptionGrid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .subscriptionGrid > section { min-width: 0; border-right: 1px solid #e3e9ef; padding: 18px; }

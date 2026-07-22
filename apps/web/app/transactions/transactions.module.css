@@ -41,7 +41,7 @@
 }
 
 .eyebrow {
-  color: #267354 !important;
+  color: var(--cp-brand) !important;
   font-size: 12px !important;
   font-weight: 700;
   text-transform: uppercase;
@@ -78,16 +78,16 @@
 }
 
 .primaryButton {
-  border-color: var(--cp-brand-dark);
-  background: var(--cp-brand-dark);
+  border-color: var(--cp-brand);
+  background: var(--cp-gradient-blue-strong);
   color: #fff;
 }
 
 .secondaryButton,
 .pagination button {
-  border-color: #bfcac4;
+  border-color: #b9cbe2;
   background: #fff;
-  color: #263c31;
+  color: #29415f;
 }
 
 .ghostButton,
@@ -95,7 +95,7 @@
 .iconButton {
   border-color: transparent;
   background: transparent;
-  color: #32664f;
+  color: var(--cp-brand-dark);
 }
 
 .dangerButton {
@@ -136,8 +136,11 @@
   grid-template-columns: minmax(210px, 1.6fr) repeat(6, minmax(130px, 1fr));
   gap: 12px;
   margin: 18px 0 0;
-  padding: 16px 0 18px;
-  border-bottom: 1px solid var(--cp-border);
+  padding: 16px;
+  border: 1px solid #dbe7f5;
+  border-radius: 8px;
+  background: var(--cp-gradient-blue);
+  box-shadow: var(--cp-shadow-sm);
 }
 
 .filters label,
@@ -148,7 +151,7 @@
   display: grid;
   align-content: start;
   gap: 5px;
-  color: #4c5f55;
+  color: #4f6077;
   font-size: 12px;
   font-weight: 750;
 }
@@ -169,7 +172,7 @@
 .splitLine select {
   min-width: 0;
   min-height: 38px;
-  border: 1px solid #bdc9c2;
+  border: 1px solid #c5d3e4;
   border-radius: 5px;
   background: #fff;
   padding: 7px 9px;
@@ -186,8 +189,12 @@
 .transactionSection,
 .categoryManager {
   margin-top: 22px;
-  border-top: 1px solid #cfd9d3;
-  padding-top: 18px;
+  border: 1px solid #dce7f4;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: var(--cp-shadow-sm);
+  padding: 18px;
+  overflow: hidden;
 }
 
 .sectionHeading {
@@ -285,11 +292,11 @@
 .tableHeader {
   align-items: center;
   min-height: 36px;
-  border-top: 1px solid #c9d4ce;
-  border-bottom: 1px solid #c9d4ce;
-  background: #f3f6f4;
+  border-top: 1px solid #d7e5f5;
+  border-bottom: 1px solid #d7e5f5;
+  background: var(--cp-brand-light);
   padding: 0 12px;
-  color: #53645b;
+  color: #506681;
   font-size: 11px;
   font-weight: 700;
   text-transform: uppercase;
@@ -343,7 +350,7 @@
 .categoryControl { display: grid; gap: 6px; }
 .compactCheck { display: flex; align-items: center; gap: 5px; color: #5e6f66; font-size: 11px; }
 .compactCheck input { margin: 0; }
-.inlineDetails summary { color: #32664f; font-size: 11px; font-weight: 750; cursor: pointer; }
+.inlineDetails summary { color: var(--cp-brand-dark); font-size: 11px; font-weight: 750; cursor: pointer; }
 .inlineCreate { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 6px; }
 .inlineCreate input { flex: 1 1 130px; min-width: 0; }
 .inlineCreate button { display: inline-flex; align-items: center; gap: 4px; padding: 4px 9px; border: 1px solid #9cb0a5; border-radius: 5px; background: #fff; color: #245f43; font-size: 12px; font-weight: 650; }
@@ -359,12 +366,12 @@
   grid-column: 1 / -1;
   margin: 14px -12px -14px;
   border-top: 1px solid var(--cp-border);
-  background: #fafcfb;
+  background: var(--cp-gradient-blue);
   padding: 14px 12px 16px;
 }
 
 .actionStrip { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-top: 8px; }
-.textButton { min-height: 28px; border: 0; background: transparent; padding: 2px 0; color: #29634a; }
+.textButton { min-height: 28px; border: 0; background: transparent; padding: 2px 0; color: var(--cp-brand-dark); }
 .detailGrid { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(260px, .5fr); gap: 28px; }
 
 .contextDetails { margin-top: 6px; }

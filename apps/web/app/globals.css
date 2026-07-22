@@ -9,14 +9,14 @@
 html {
   min-width: 320px;
   min-height: 100%;
-  background: var(--cp-background);
+  background: #f5f8fc;
 }
 
 body {
   min-height: 100vh;
   margin: 0;
   color: var(--cp-text);
-  background: var(--cp-background);
+  background: var(--cp-gradient-page) fixed;
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   font-size: 15px;
   line-height: 1.5;
@@ -58,10 +58,10 @@ a:hover {
 .auth-card {
   width: 100%;
   padding: 40px;
-  border: 1px solid var(--cp-border);
+  border: 1px solid #d9e6f5;
   border-radius: var(--cp-radius-md);
-  background: var(--cp-surface);
-  box-shadow: var(--cp-shadow-sm);
+  background: var(--cp-gradient-blue);
+  box-shadow: var(--cp-shadow-md);
 }
 
 .auth-logo {
@@ -86,7 +86,8 @@ a:hover {
   place-items: center;
   border-radius: 8px;
   color: var(--cp-surface);
-  background: var(--cp-brand);
+  background: var(--cp-gradient-blue-strong);
+  box-shadow: 0 8px 18px -10px rgb(37 99 235 / 0.8);
   font-size: 22px;
   font-weight: 750;
   line-height: 1;
@@ -153,7 +154,7 @@ a:hover {
 
 .form-input:focus {
   border-color: var(--cp-brand);
-  box-shadow: 0 0 0 3px rgb(47 111 85 / 0.14);
+  box-shadow: 0 0 0 3px rgb(37 99 235 / 0.14);
 }
 
 .form-input:disabled {
@@ -198,7 +199,7 @@ a:hover {
 .password-toggle:focus-visible,
 .btn:focus-visible,
 .toggle-control input:focus-visible + .toggle-track {
-  outline: 3px solid rgb(47 111 85 / 0.24);
+  outline: 3px solid rgb(37 99 235 / 0.24);
   outline-offset: 2px;
 }
 
@@ -302,12 +303,13 @@ a:hover {
 .btn-primary {
   border-color: var(--cp-brand);
   color: var(--cp-surface);
-  background: var(--cp-brand);
+  background: var(--cp-gradient-blue-strong);
+  box-shadow: 0 8px 18px -12px rgb(37 99 235 / 0.8);
 }
 
 .btn-primary:hover:not(:disabled) {
   border-color: var(--cp-brand-dark);
-  background: var(--cp-brand-dark);
+  background: linear-gradient(135deg, var(--cp-brand-dark), var(--cp-brand));
 }
 
 .btn:disabled {
@@ -429,7 +431,7 @@ a:hover {
 
 .pending-auth-page {
   min-height: 100vh;
-  background: var(--cp-background);
+  background: var(--cp-gradient-page);
 }
 
 .pending-auth-header {
@@ -486,10 +488,10 @@ a:hover {
 
 .pending-auth-panel {
   width: min(100%, 520px);
-  border: 1px solid var(--cp-border);
+  border: 1px solid #d9e6f5;
   border-radius: var(--cp-radius-sm);
-  background: var(--cp-surface);
-  box-shadow: var(--cp-shadow-sm);
+  background: var(--cp-gradient-blue);
+  box-shadow: var(--cp-shadow-md);
 }
 
 .pending-auth-panel-header {
@@ -576,9 +578,9 @@ a:hover {
 }
 
 .btn-secondary:hover:not(:disabled) {
-  border-color: #9ca3af;
+  border-color: #9ebce5;
   color: var(--cp-text);
-  background: #f3f4f6;
+  background: var(--cp-brand-light);
   text-decoration: none;
 }
 

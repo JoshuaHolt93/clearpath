@@ -1,9 +1,9 @@
-.page { min-height: 100vh; color: var(--cp-text); background: var(--cp-background); }
+.page { min-height: 100vh; color: var(--cp-text); background: transparent; }
 .pageHeader { display: flex; width: min(calc(100% - 64px), 1180px); align-items: flex-end; justify-content: space-between; gap: 24px; margin: 0 auto; padding: 32px 0 24px; }
 .pageHeader > div { min-width: 0; }
 .pageHeader h1 { margin: 0; color: #142033; font-size: 24px; line-height: 1.2; letter-spacing: 0; }
 .pageHeader p { max-width: 780px; margin: 6px 0 0; color: var(--cp-text-secondary); font-size: 13px; line-height: 1.55; }
-.pageHeader > span { display: inline-flex; flex: 0 0 auto; align-items: center; gap: 7px; border: 1px solid #b8d4c3; border-radius: 999px; color: var(--cp-brand-dark); background: #eff9f3; padding: 7px 11px; font-size: 11px; font-weight: 700; }
+.pageHeader > span { display: inline-flex; flex: 0 0 auto; align-items: center; gap: 7px; border: 1px solid #c7dbf5; border-radius: 999px; color: var(--cp-brand-dark); background: var(--cp-brand-light); padding: 7px 11px; font-size: 11px; font-weight: 700; }
 .content { display: grid; width: min(calc(100% - 64px), 1180px); margin: 0 auto; gap: 16px; padding: 0 0 48px; }
 .warning, .error, .notice, .viewerBand { display: flex; align-items: center; gap: 9px; border: 1px solid; border-radius: 6px; padding: 10px 12px; font-size: 12px; font-weight: 700; }
 .warning { border-color: #e7c36c; color: #6f4c08; background: #fff8e6; }
@@ -13,7 +13,7 @@
 .intro { border-left: 4px solid #2f7a58; border-radius: 4px; background: #edf7f1; padding: 15px 18px; }
 .intro strong { color: #19553c; font-size: 13px; }
 .intro p { margin: 5px 0 0; color: #48695a; font-size: 12px; line-height: 1.55; }
-.currentPanel, .futurePanel { min-width: 0; border: 1px solid var(--cp-border); border-radius: 8px; background: #fff; overflow: hidden; }
+.currentPanel, .futurePanel { min-width: 0; border: 1px solid #dce7f4; border-radius: 8px; background: #fff; box-shadow: var(--cp-shadow-sm); overflow: hidden; }
 .currentPanel > summary, .sectionTitle { display: flex; min-height: 72px; align-items: center; justify-content: space-between; gap: 18px; padding: 16px 18px; }
 .currentPanel > summary { cursor: pointer; list-style: none; }
 .currentPanel > summary::-webkit-details-marker { display: none; }
@@ -65,11 +65,11 @@
 .modalHeader p { margin: 3px 0 0; color: #6d7c8f; font-size: 11px; }
 .modalHeader button { width: 34px; min-width: 34px; padding: 0; border-color: #c9d3dc; color: var(--cp-text-secondary); background: #fff; }
 .modalBody { display: grid; gap: 18px; padding: 18px; }
-.taxStats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border: 1px solid #dbe3e9; border-radius: 7px; overflow: hidden; }
+.taxStats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border: 1px solid #dbe7f5; border-radius: 7px; background: var(--cp-gradient-blue); overflow: hidden; }
 .taxStats > div { display: grid; gap: 4px; border-left: 1px solid #e2e8ed; padding: 14px; }
 .taxStats > div:first-child { border-left: 0; }
 .taxStats span { color: #6a788b; font-size: 9px; font-weight: 700; text-transform: uppercase; }
-.taxStats strong { color: #1d5d42; font-size: 20px; letter-spacing: 0; }
+.taxStats strong { color: var(--cp-brand-dark); font-size: 20px; letter-spacing: 0; }
 .taxStats small { color: #7a8899; font-size: 9px; }
 .taxColumns { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
 .taxColumns > section, .taxSection { min-width: 0; border: 1px solid #dbe3e9; border-radius: 7px; padding: 15px; }
@@ -87,7 +87,7 @@
 .tableWrap th, .tableWrap td { border-bottom: 1px solid var(--cp-border); padding: 8px 9px; text-align: right; white-space: nowrap; }
 .tableWrap th:first-child, .tableWrap td:first-child { text-align: left; }
 .tableWrap th { color: #66768a; background: #f5f7f9; font-size: 9px; text-transform: uppercase; }
-.loadingPage { display: grid; min-height: 100vh; place-content: center; justify-items: center; gap: 12px; color: #44566c; background: var(--cp-background); }
+.loadingPage { display: grid; min-height: 100vh; place-content: center; justify-items: center; gap: 12px; color: #44566c; background: var(--cp-gradient-page); }
 .loadError { display: grid; width: min(420px, calc(100vw - 40px)); justify-items: center; gap: 12px; border: 1px solid #e0b0b0; border-radius: 8px; color: #922525; background: #fff; padding: 24px; text-align: center; }
 .loadError p { margin: 0; font-size: 12px; line-height: 1.55; }
 

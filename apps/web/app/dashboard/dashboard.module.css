@@ -8,28 +8,28 @@
 .statusPill.green { border-color: #b9d8c4; color: var(--cp-brand-dark); background: var(--cp-brand-light); }
 .statusPill.yellow { border-color: #e8cc99; color: var(--cp-warning); background: var(--cp-warning-light); }
 .statusPill.red { border-color: var(--cp-danger-border); color: var(--cp-danger); background: var(--cp-danger-background); }
-.content { display: grid; width: min(calc(100% - 64px), 1260px); min-width: 0; gap: 18px; margin: 0 auto; padding: 0 0 48px; }
-.panel, .monthProgress, .tutorial { min-width: 0; border: 1px solid var(--cp-border); border-radius: 8px; background: var(--cp-surface); box-shadow: var(--cp-shadow-sm); }
+.content { display: grid; width: min(calc(100% - 64px), 1260px); min-width: 0; gap: 22px; margin: 0 auto; padding: 0 0 52px; }
+.panel, .monthProgress, .tutorial { min-width: 0; border: 1px solid #dce7f4; border-radius: 8px; background: var(--cp-surface); box-shadow: var(--cp-shadow-md); }
 .panelHeader { display: flex; min-height: 60px; align-items: flex-start; justify-content: space-between; gap: 18px; border-bottom: 1px solid var(--cp-border-light); padding: 16px 18px; }
 .panelHeader h2, .progressTop h2 { margin: 0; font-size: 15px; line-height: 1.3; }
 .panelHeader p, .progressTop p { margin: 4px 0 0; color: var(--cp-text-secondary); font-size: 12px; }
 .secondaryButton { display: inline-flex; min-height: 35px; align-items: center; justify-content: center; gap: 7px; border: 1px solid var(--cp-border); border-radius: 7px; color: var(--cp-text-secondary); background: var(--cp-surface); padding: 7px 11px; font-size: 12px; font-weight: 650; white-space: nowrap; }
-.secondaryButton:hover { border-color: #9fb6a8; color: var(--cp-brand-dark); background: var(--cp-brand-light); text-decoration: none; }
+.secondaryButton:hover { border-color: #9ebce5; color: var(--cp-brand-dark); background: var(--cp-brand-light); text-decoration: none; }
 .textLink { color: var(--cp-brand); font-size: 12px; font-weight: 700; white-space: nowrap; }
 .warning, .error { display: flex; align-items: center; gap: 10px; border: 1px solid; border-radius: 7px; padding: 12px 14px; font-size: 13px; }
 .warning { border-color: #e8cc99; color: #854d0e; background: var(--cp-warning-light); }
 .error { border-color: var(--cp-danger-border); color: var(--cp-danger); background: var(--cp-danger-background); }
 .tutorial { overflow: hidden; }
 .tutorialSteps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1px; background: var(--cp-border-light); }
-.tutorialSteps > div { display: grid; grid-template-columns: 30px 1fr; gap: 10px; background: #ffffff; padding: 18px 20px; }
-.tutorialSteps > div > span { display: grid; width: 28px; height: 28px; place-items: center; border-radius: 50%; color: #ffffff; background: var(--cp-brand); font-size: 12px; font-weight: 750; }
+.tutorialSteps > div { display: grid; grid-template-columns: 30px 1fr; gap: 10px; background: linear-gradient(135deg, #ffffff, #f8fbff); padding: 18px 20px; }
+.tutorialSteps > div > span { display: grid; width: 28px; height: 28px; place-items: center; border-radius: 50%; color: #ffffff; background: var(--cp-gradient-blue-strong); box-shadow: 0 7px 14px -9px rgb(37 99 235 / 0.9); font-size: 12px; font-weight: 750; }
 .tutorialSteps p { display: grid; gap: 4px; margin: 0; color: var(--cp-text-secondary); font-size: 12px; }
 .tutorialSteps strong { color: var(--cp-text); font-size: 13px; }
 .tutorialActions { justify-content: flex-end; border-top: 1px solid var(--cp-border-light); padding: 14px 20px; }
-.monthProgress { border-color: #c7dacf; background: #f8fbf8; padding: 18px 20px; }
+.monthProgress { border-color: #cfe0f5; background: var(--cp-gradient-blue); padding: 18px 20px; }
 .progressTop { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; }
 .progressTop > div:last-child > span { color: var(--cp-text-secondary); font-size: 12px; }
-.progressTrack { position: relative; height: 10px; margin: 19px 0 10px; border-radius: 5px; background: #dfe8e2; }
+.progressTrack { position: relative; height: 10px; margin: 19px 0 10px; border-radius: 5px; background: #dbe9fa; }
 .progressFill { display: block; height: 100%; border-radius: 6px; }
 .progressFill.green { background: var(--cp-success); }
 .progressFill.yellow { background: #c68a2d; }
@@ -47,26 +47,26 @@
 .planDetails[open] summary .planRow strong::before { transform: rotate(90deg); }
 .detailRows { background: var(--cp-surface-soft); }
 .detailRow { min-height: 37px; padding-left: 24px; color: var(--cp-text-secondary); font-size: 12px; }
-.planSummary { display: grid; gap: 7px; margin-top: 14px; border-radius: 7px; background: var(--cp-surface-soft); padding: 12px 14px; }
+.planSummary { display: grid; gap: 7px; margin-top: 14px; border: 1px solid #deebf9; border-radius: 7px; background: var(--cp-gradient-blue); padding: 12px 14px; }
 .planSummary > div { display: flex; align-items: center; justify-content: space-between; gap: 18px; font-size: 13px; }
 .planSummary strong { font-size: 15px; font-variant-numeric: tabular-nums; }
 .statsGrid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
-.stat { display: grid; min-height: 112px; align-content: center; gap: 4px; border: 1px solid var(--cp-border); border-radius: 8px; color: var(--cp-text); background: var(--cp-surface); padding: 18px 20px; }
-.stat:first-child { border-color: #bed5c7; background: var(--cp-brand-light); }
-a.stat:hover { border-color: #8fb39d; color: var(--cp-text); text-decoration: none; }
+.stat { display: grid; min-height: 112px; align-content: center; gap: 4px; border: 1px solid #dce7f4; border-radius: 8px; color: var(--cp-text); background: linear-gradient(145deg, #ffffff 0%, #fbfdff 100%); box-shadow: var(--cp-shadow-sm); padding: 18px 20px; transition: transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease; }
+.stat:first-child { border-color: #bfd6f5; background: var(--cp-gradient-blue); }
+a.stat:hover { transform: translateY(-2px); border-color: #9dbce8; color: var(--cp-text); box-shadow: var(--cp-shadow-md); text-decoration: none; }
 .stat > span { color: var(--cp-text-secondary); font-size: 11px; font-weight: 700; text-transform: uppercase; }
 .stat strong { overflow-wrap: anywhere; font-size: 26px; line-height: 1.15; font-variant-numeric: tabular-nums; }
 .stat small { color: var(--cp-text-secondary); font-size: 11px; }
 .positive { color: var(--cp-success) !important; }
 .negative { color: var(--cp-danger) !important; }
 .setupGrid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
-.setupTile { display: flex; min-height: 142px; flex-direction: column; justify-content: space-between; gap: 16px; border: 1px solid var(--cp-border); border-radius: 8px; color: var(--cp-text); background: var(--cp-surface-soft); padding: 18px; }
-.setupTile:hover { border-color: #91b19d; color: var(--cp-text); background: #f7faf7; text-decoration: none; }
+.setupTile { display: flex; min-height: 142px; flex-direction: column; justify-content: space-between; gap: 16px; border: 1px solid #d7e5f6; border-radius: 8px; color: var(--cp-text); background: var(--cp-gradient-blue); box-shadow: var(--cp-shadow-sm); padding: 18px; transition: transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease; }
+.setupTile:hover { transform: translateY(-2px); border-color: #95b9ea; color: var(--cp-text); background: linear-gradient(135deg, #ffffff, #e9f3ff); box-shadow: var(--cp-shadow-md); text-decoration: none; }
 .setupTile p { margin: 8px 0 0; color: var(--cp-text-secondary); font-size: 12px; }
 .setupTile > strong { display: flex; align-items: center; gap: 5px; color: var(--cp-brand); font-size: 12px; }
 .setupTitle { display: flex; align-items: flex-start; justify-content: space-between; gap: 9px; font-size: 14px; font-weight: 700; }
 .setupTitle > span { flex: 0 0 auto; border-radius: 10px; color: #92400e; background: #fef3c7; padding: 3px 7px; font-size: 9px; text-transform: uppercase; }
-.upgradeTile { border-color: #e8cc99; background: var(--cp-warning-light); }
+.upgradeTile { border-color: #bfe1dc; background: var(--cp-gradient-aqua); }
 .focusGrid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1px; background: var(--cp-border-light); }
 .focusGrid article { background: #ffffff; padding: 18px 20px; }
 .focusGrid small { color: var(--cp-brand); font-size: 10px; font-weight: 700; text-transform: uppercase; }
@@ -88,7 +88,7 @@ a.stat:hover { border-color: #8fb39d; color: var(--cp-text); text-decoration: no
 .categoryList { display: grid; padding: 8px 20px 14px; }
 .categoryRow { display: grid; grid-template-columns: minmax(120px, 1fr) minmax(80px, .8fr) 62px 38px; align-items: center; gap: 9px; min-height: 40px; font-size: 12px; }
 .categoryRow > a { overflow: hidden; color: var(--cp-text); text-overflow: ellipsis; white-space: nowrap; }
-.categoryRow > div { height: 7px; overflow: hidden; border-radius: 4px; background: #dfe8e2; }
+.categoryRow > div { height: 7px; overflow: hidden; border-radius: 4px; background: #dce9f8; }
 .categoryRow > div > span { display: block; height: 100%; border-radius: 4px; background: var(--cp-brand); }
 .categoryRow strong, .categoryRow small { text-align: right; font-variant-numeric: tabular-nums; }
 .categoryRow small { color: var(--cp-text-secondary); }
@@ -100,7 +100,7 @@ a.stat:hover { border-color: #8fb39d; color: var(--cp-text); text-decoration: no
 .goalTop > span { color: var(--cp-text-secondary); }
 .goalTop button { display: grid; width: 28px; height: 28px; place-items: center; border: 0; border-radius: 6px; color: #94a3b8; background: transparent; cursor: pointer; }
 .goalTop button:hover { color: var(--cp-danger); background: var(--cp-danger-background); }
-.goalProgress { height: 7px; overflow: hidden; margin: 8px 0 5px; border-radius: 4px; background: #dfe8e2; }
+.goalProgress { height: 7px; overflow: hidden; margin: 8px 0 5px; border-radius: 4px; background: #dce9f8; }
 .goalProgress span { display: block; height: 100%; border-radius: 4px; background: var(--cp-brand); }
 .goalMeta { display: flex; justify-content: space-between; gap: 12px; color: var(--cp-text-secondary); font-size: 11px; }
 .goalList article > small { display: block; margin-top: 4px; color: var(--cp-text-secondary); font-size: 10px; }
@@ -110,7 +110,7 @@ a.stat:hover { border-color: #8fb39d; color: var(--cp-text); text-decoration: no
 .transactionRow time, .transactionRow > span { overflow: hidden; color: var(--cp-text-secondary); text-overflow: ellipsis; white-space: nowrap; }
 .transactionRow > strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .transactionRow > b { text-align: right; font-variant-numeric: tabular-nums; }
-.loadingPage { display: grid; min-height: 100vh; place-items: center; align-content: center; gap: 12px; color: var(--cp-text-secondary); background: var(--cp-background); }
+.loadingPage { display: grid; min-height: 100vh; place-items: center; align-content: center; gap: 12px; color: var(--cp-text-secondary); background: var(--cp-gradient-page); }
 .loadError { width: min(100% - 32px, 420px); border: 1px solid var(--cp-danger-border); border-radius: 8px; background: #ffffff; padding: 24px; text-align: center; }
 .loadError p { color: var(--cp-text-secondary); }
 .loadError button { min-height: 40px; border: 0; border-radius: 7px; color: #ffffff; background: var(--cp-brand); padding: 8px 15px; cursor: pointer; font-weight: 700; }

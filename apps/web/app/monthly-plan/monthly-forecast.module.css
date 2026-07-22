@@ -1,4 +1,4 @@
-.page { min-height: 100vh; color: var(--cp-text); background: var(--cp-background); }
+.page { min-height: 100vh; color: var(--cp-text); background: transparent; }
 .pageHeader { display: flex; width: min(calc(100% - 64px), 1280px); align-items: flex-end; justify-content: space-between; gap: 24px; margin: 0 auto; padding: 32px 0 24px; }
 .pageHeader > div:first-child { min-width: 0; }
 .pageHeader h1 { margin: 0; color: #142033; font-size: 24px; line-height: 1.2; letter-spacing: 0; }
@@ -14,7 +14,7 @@
 .upgradeBand strong { color: #3c3421; font-size: 13px; }
 .upgradeBand p { margin: 4px 0 0; color: #746846; font-size: 12px; line-height: 1.5; }
 .upgradeBand a, .sectionActions a { display: inline-flex; min-height: 34px; align-items: center; justify-content: center; gap: 6px; border: 1px solid #b69a42; border-radius: 6px; color: #5d4812; background: #fff; padding: 7px 11px; font-size: 11px; font-weight: 700; text-decoration: none; white-space: nowrap; }
-.forecastPanel, .expenseSection { min-width: 0; border: 1px solid var(--cp-border); border-radius: 8px; background: #fff; }
+.forecastPanel, .expenseSection { min-width: 0; border: 1px solid #dce7f4; border-radius: 8px; background: #fff; box-shadow: var(--cp-shadow-sm); }
 .sectionHeader { display: flex; align-items: center; justify-content: space-between; gap: 18px; border-bottom: 1px solid var(--cp-border-light); padding: 16px 18px; }
 .sectionHeader > div:first-child { min-width: 0; }
 .sectionHeader h2 { margin: 0; color: var(--cp-text); font-size: 15px; line-height: 1.25; letter-spacing: 0; }
@@ -22,7 +22,7 @@
 .sectionActions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
 .sectionActions a:first-child { border-color: #a8bfd5; color: #234e75; }
 .monthGrid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; padding: 18px; }
-.monthCard { min-width: 0; border: 1px solid #d7e0e7; border-radius: 7px; background: #fbfcfd; overflow: hidden; }
+.monthCard { min-width: 0; border: 1px solid #d7e5f5; border-radius: 7px; background: var(--cp-gradient-blue); overflow: hidden; }
 .monthCard > header { display: flex; min-height: 48px; align-items: center; justify-content: space-between; gap: 12px; border-bottom: 1px solid var(--cp-border); background: #fff; padding: 10px 12px; }
 .monthCard h3 { margin: 0; font-size: 14px; letter-spacing: 0; }
 .monthCard > header span { display: inline-flex; align-items: center; gap: 6px; border: 1px solid; border-radius: 999px; padding: 4px 8px; font-size: 9px; font-weight: 700; text-transform: uppercase; }
@@ -74,7 +74,7 @@
 .modalHeader h2 { margin: 0; font-size: 15px; letter-spacing: 0; }
 .modalHeader p { margin: 3px 0 0; color: #6d7c8f; font-size: 11px; }
 .modalHeader button { width: 34px; min-width: 34px; padding: 0; border-color: #c9d3dc; color: var(--cp-text-secondary); background: #fff; }
-.loadingPage { display: grid; min-height: 100vh; place-content: center; justify-items: center; gap: 12px; color: #44566c; background: var(--cp-background); }
+.loadingPage { display: grid; min-height: 100vh; place-content: center; justify-items: center; gap: 12px; color: #44566c; background: var(--cp-gradient-page); }
 .loadError { display: grid; width: min(420px, calc(100vw - 40px)); justify-items: center; gap: 12px; border: 1px solid #e0b0b0; border-radius: 8px; color: #922525; background: #fff; padding: 24px; text-align: center; }
 .loadError p { margin: 0; font-size: 12px; line-height: 1.55; }
 

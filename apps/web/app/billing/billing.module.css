@@ -36,18 +36,20 @@
 }
 
 .planCard {
-  border: 1px solid var(--color-border, var(--cp-border));
-  border-radius: 12px;
+  border: 1px solid #dce7f4;
+  border-radius: 8px;
   padding: 1.25rem;
-  background: var(--color-surface, #fff);
+  background: linear-gradient(145deg, #fff, #fbfdff);
+  box-shadow: var(--cp-shadow-sm);
   display: flex;
   flex-direction: column;
   gap: 0.9rem;
 }
 
 .currentPlan {
-  border-color: var(--color-success, var(--cp-success));
-  box-shadow: 0 0 0 1px var(--color-success, var(--cp-success)) inset;
+  border-color: #b9d2f2;
+  background: var(--cp-gradient-blue);
+  box-shadow: inset 0 0 0 1px #d2e3f8, var(--cp-shadow-md);
 }
 
 .planHead {
@@ -106,9 +108,10 @@
   display: flex;
   align-items: center;
   gap: 0.6rem;
-  border: 1px solid var(--color-border, var(--cp-border));
-  border-radius: 10px;
+  border: 1px solid #dce7f4;
+  border-radius: 8px;
   padding: 0.75rem 1rem;
+  background: var(--cp-gradient-blue);
   color: var(--color-text-secondary, var(--cp-text-secondary));
   font-size: 0.9rem;
 }
@@ -118,9 +121,11 @@
 }
 
 .manage {
-  border: 1px solid var(--color-border, var(--cp-border));
-  border-radius: 12px;
+  border: 1px solid #dce7f4;
+  border-radius: 8px;
   padding: 1.25rem;
+  background: #fff;
+  box-shadow: var(--cp-shadow-sm);
   display: flex;
   flex-direction: column;
   gap: 0.75rem;

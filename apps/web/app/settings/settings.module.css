@@ -34,10 +34,11 @@
 }
 
 .panel {
-  border: 1px solid var(--color-border, var(--cp-border));
-  border-radius: 12px;
+  border: 1px solid #dce7f4;
+  border-radius: 8px;
   padding: 1.25rem;
-  background: var(--color-surface, #fff);
+  background: linear-gradient(145deg, #fff, #fbfdff);
+  box-shadow: var(--cp-shadow-sm);
   display: flex;
   flex-direction: column;
   gap: 0.9rem;
@@ -48,6 +49,7 @@
   align-items: center;
   gap: 0.5rem;
 }
+.panel header svg { color: var(--cp-brand); }
 
 .panel h2 {
   margin: 0;
@@ -112,9 +114,10 @@
   justify-content: space-between;
   gap: 0.75rem;
   flex-wrap: wrap;
-  border: 1px solid var(--color-border, var(--cp-border-light));
+  border: 1px solid #e0e9f4;
   border-radius: 8px;
   padding: 0.5rem 0.75rem;
+  background: var(--cp-surface-soft);
 }
 
 .rowActions {

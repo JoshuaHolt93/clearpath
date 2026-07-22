@@ -1,4 +1,4 @@
-.page { min-height: 100vh; color: var(--cp-text); background: var(--cp-background); }
+.page { min-height: 100vh; color: var(--cp-text); background: transparent; }
 .pageHeader { display: flex; width: min(calc(100% - 64px), 1320px); align-items: flex-end; justify-content: space-between; gap: 24px; margin: 0 auto; padding: 32px 0 24px; }
 .pageHeader h1 { margin: 0; font-size: 25px; line-height: 1.2; }
 .pageHeader p { margin: 6px 0 0; color: var(--cp-text-secondary); font-size: 14px; }
@@ -11,7 +11,7 @@
 .viewerBand { border-color: var(--cp-border); color: var(--cp-text-secondary); background: var(--cp-surface-soft); }
 .layout { display: grid; grid-template-columns: minmax(0, 1fr) 250px; align-items: start; gap: 18px; }
 .main { display: grid; min-width: 0; gap: 18px; }
-.workspace, .baseline, .side { min-width: 0; border: 1px solid var(--cp-border); border-radius: 8px; background: #fff; }
+.workspace, .baseline, .side { min-width: 0; border: 1px solid #dce7f4; border-radius: 8px; background: #fff; box-shadow: var(--cp-shadow-sm); }
 .workspace { overflow: hidden; }
 .sectionHeader { display: flex; min-height: 84px; align-items: center; justify-content: space-between; gap: 20px; border-bottom: 1px solid var(--cp-border); padding: 16px 18px; }
 .sectionHeader h2, .baseline h2, .side h2 { margin: 0; font-size: 15px; }
@@ -25,7 +25,7 @@
 .cashIntro { display: flex; align-items: baseline; gap: 12px; margin-bottom: 13px; }
 .cashIntro span { flex: 0 0 auto; font-size: 10px; font-weight: 700; text-transform: uppercase; }
 .cashIntro p { margin: 0; color: var(--cp-text-secondary); font-size: 11px; }
-.cashEquation { display: grid; grid-template-columns: minmax(125px, 1fr) 20px minmax(125px, 1fr) 20px minmax(125px, 1fr) 20px minmax(145px, 1.15fr); align-items: stretch; border: 1px solid var(--cp-border); border-radius: 8px; overflow: hidden; }
+.cashEquation { display: grid; grid-template-columns: minmax(125px, 1fr) 20px minmax(125px, 1fr) 20px minmax(125px, 1fr) 20px minmax(145px, 1.15fr); align-items: stretch; border: 1px solid #dce7f4; border-radius: 8px; background: var(--cp-gradient-blue); overflow: hidden; }
 .cashEquation > div { display: grid; min-width: 0; align-content: center; gap: 4px; padding: 14px; }
 .cashEquation > b { display: grid; place-items: center; color: #94a3b8; font-size: 18px; }
 .cashEquation span, .supportGrid span { color: var(--cp-text-secondary); font-size: 9px; font-weight: 700; text-transform: uppercase; }
@@ -38,7 +38,7 @@
 .supportGrid > div { display: grid; min-width: 0; align-content: center; gap: 4px; border-right: 1px solid var(--cp-border-light); padding: 12px 14px; }
 .supportGrid > div:last-child { border-right: 0; }
 .supportGrid strong { font-size: 16px; font-variant-numeric: tabular-nums; }
-.forecastCta { background: var(--cp-surface-soft); }
+.forecastCta { background: var(--cp-gradient-blue); }
 .forecastCta > strong { font-size: 11px; }
 .forecastCta a { display: flex; align-items: center; gap: 3px; color: var(--cp-brand); font-size: 10px; font-weight: 700; }
 .accountChips { display: flex; flex-wrap: wrap; gap: 6px; border-bottom: 1px solid var(--cp-border); padding: 10px 18px; }
@@ -129,7 +129,7 @@
 .existingItems button span { display: grid; gap: 2px; }
 .existingItems small { color: var(--cp-text-secondary); font-size: 9px; }
 .viewerNote { margin: 0; color: var(--cp-text-secondary); font-size: 10px; }
-.loadingPage { display: grid; min-height: 100vh; place-items: center; align-content: center; gap: 12px; color: var(--cp-text-secondary); background: var(--cp-background); }
+.loadingPage { display: grid; min-height: 100vh; place-items: center; align-content: center; gap: 12px; color: var(--cp-text-secondary); background: var(--cp-gradient-page); }
 .loadError { display: grid; width: min(calc(100% - 32px), 420px); justify-items: center; border: 1px solid var(--cp-danger-border); border-radius: 8px; background: #fff; padding: 24px; text-align: center; }
 .loadError p { color: var(--cp-text-secondary); }
 .loadError button { min-height: 38px; border: 0; border-radius: 6px; color: #fff; background: var(--cp-brand); padding: 7px 13px; cursor: pointer; font-weight: 700; }
