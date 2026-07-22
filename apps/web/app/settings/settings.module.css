@@ -155,3 +155,180 @@
 .loading {
   color: var(--color-text-muted, var(--cp-text-secondary));
 }
+
+/* --------------------------------------------------------------------------
+ * Controls.
+ *
+ * Every button and input in this workspace previously rendered as a raw
+ * browser default, so nothing signalled what was a button, a field, or a
+ * label. These use the shared design tokens so Settings reads as the same
+ * app as the rest of the workspaces.
+ * ------------------------------------------------------------------------ */
+
+.primaryButton,
+.secondaryButton,
+.dangerButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  min-height: 40px;
+  padding: 0.5rem 1rem;
+  border: 1px solid transparent;
+  border-radius: var(--cp-radius-sm);
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 700;
+  line-height: 1.2;
+  cursor: pointer;
+  transition: background .15s ease, border-color .15s ease, box-shadow .15s ease;
+}
+
+.primaryButton {
+  border-color: var(--cp-brand);
+  background: var(--cp-gradient-blue-strong, var(--cp-brand));
+  color: var(--cp-surface);
+  box-shadow: 0 8px 18px -12px rgb(37 99 235 / 0.8);
+}
+
+.primaryButton:hover:not(:disabled) {
+  border-color: var(--cp-brand-dark);
+  background: linear-gradient(135deg, var(--cp-brand-dark), var(--cp-brand));
+}
+
+.secondaryButton {
+  border-color: var(--cp-border);
+  background: var(--cp-surface);
+  color: var(--cp-brand-dark);
+}
+
+.secondaryButton:hover:not(:disabled) {
+  border-color: var(--cp-brand);
+  background: var(--cp-brand-light);
+}
+
+.dangerButton {
+  border-color: var(--cp-danger-border);
+  background: var(--cp-surface);
+  color: var(--cp-danger);
+}
+
+.dangerButton:hover:not(:disabled) {
+  background: var(--cp-danger-background);
+  border-color: var(--cp-danger);
+}
+
+/* Row-level revoke actions read as secondary to the panel's main action. */
+.rows .dangerButton {
+  min-height: 32px;
+  padding: 0.3rem 0.65rem;
+  font-size: 0.8rem;
+}
+
+.primaryButton:disabled,
+.secondaryButton:disabled,
+.dangerButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+  box-shadow: none;
+}
+
+.primaryButton:focus-visible,
+.secondaryButton:focus-visible,
+.dangerButton:focus-visible,
+.panel input:focus-visible,
+.panel select:focus-visible {
+  outline: 2px solid var(--cp-brand);
+  outline-offset: 2px;
+}
+
+/* Fields: everything except the radio group, which stays inline. */
+.panel input:not([type="radio"]):not([type="checkbox"]),
+.panel select {
+  width: 100%;
+  min-height: 40px;
+  border: 1px solid var(--cp-border);
+  border-radius: var(--cp-radius-sm);
+  background: var(--cp-surface);
+  padding: 0.5rem 0.65rem;
+  color: var(--cp-text);
+  font: inherit;
+  font-size: 0.875rem;
+}
+
+.panel input:not([type="radio"]):not([type="checkbox"]):hover:not(:disabled),
+.panel select:hover:not(:disabled) {
+  border-color: var(--cp-brand);
+}
+
+.panel input:disabled,
+.panel select:disabled {
+  background: var(--cp-background);
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+/* Labels read as labels, not as body copy sitting above a box. */
+.panel label {
+  color: var(--cp-text-secondary);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  text-transform: uppercase;
+}
+
+/* The radio choices are prose, not field labels. */
+.mfaForm fieldset label {
+  color: var(--cp-text);
+  font-size: 0.9rem;
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.mfaForm legend {
+  color: var(--cp-text-secondary);
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+/* Status messaging reads as a banner rather than a stray coloured line. */
+.error,
+.status {
+  border-left: 4px solid;
+  border-radius: var(--cp-radius-sm);
+  padding: 0.65rem 0.85rem;
+  font-size: 0.9rem;
+}
+
+.error {
+  border-color: var(--cp-danger);
+  background: var(--cp-danger-background);
+}
+
+.status {
+  border-color: var(--cp-success, var(--cp-brand));
+  background: var(--cp-success-light, var(--cp-brand-light));
+}
+
+.fallback code {
+  display: inline-block;
+  margin-top: 0.2rem;
+  border: 1px solid var(--cp-border);
+  border-radius: var(--cp-radius-sm);
+  background: var(--cp-background);
+  padding: 0.2rem 0.4rem;
+  font-size: 0.8rem;
+}
+
+/* The delete panel should look consequential. */
+.danger {
+  border-color: var(--cp-danger-border);
+  background: linear-gradient(145deg, #fff, var(--cp-danger-background));
+}
+
+.danger header svg,
+.danger h2 {
+  color: var(--cp-danger);
+}

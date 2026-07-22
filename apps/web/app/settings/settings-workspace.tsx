@@ -185,7 +185,7 @@ export function SettingsWorkspace() {
             <h1>Settings</h1>
             <p>Manage the household profile, security, shared access, and account lifecycle.</p>
           </div>
-          <button type="button" onClick={() => void load()} disabled={busy}><RefreshCw size={16} aria-hidden="true" />Refresh</button>
+          <button type="button" className={styles.secondaryButton} onClick={() => void load()} disabled={busy}><RefreshCw size={16} aria-hidden="true" />Refresh</button>
         </header>
 
         {error ? <p role="alert" className={styles.error}>{error}</p> : null}
@@ -200,7 +200,7 @@ export function SettingsWorkspace() {
               {isPrimary ? (
                 <form onSubmit={(event) => void submitHousehold(event)}>
                   <label>Household Name<input name="household_name" defaultValue={data.householdName ?? ""} disabled={busy} /></label>
-                  <button type="submit" disabled={busy}>Save Household</button>
+                  <button type="submit" className={styles.primaryButton} disabled={busy}>Save Household</button>
                 </form>
               ) : (
                 <p className={styles.meta}>Shared household access: the primary account holder manages household settings.</p>
@@ -216,7 +216,7 @@ export function SettingsWorkspace() {
                     <label>New Password<input name="new_password" type="password" autoComplete="new-password" disabled={busy} required /></label>
                     <label>Confirm New Password<input name="confirm_password" type="password" autoComplete="new-password" disabled={busy} required /></label>
                   </div>
-                  <button type="submit" disabled={busy}>Update Password</button>
+                  <button type="submit" className={styles.primaryButton} disabled={busy}>Update Password</button>
                 </form>
                 <form onSubmit={(event) => void submitMfaPreference(event)} className={styles.mfaForm}>
                   <fieldset disabled={busy}>
@@ -224,7 +224,7 @@ export function SettingsWorkspace() {
                     <label><input type="radio" name="mfa_preferred_method" value="totp" defaultChecked={data.mfaPreferredMethod !== "push"} />Authenticator codes</label>
                     <label><input type="radio" name="mfa_preferred_method" value="push" defaultChecked={data.mfaPreferredMethod === "push"} />Duo Push approval{data.pushMfa.available ? "" : " (not configured)"}</label>
                   </fieldset>
-                  <button type="submit" disabled={busy}>Save MFA Preference</button>
+                  <button type="submit" className={styles.primaryButton} disabled={busy}>Save MFA Preference</button>
                 </form>
               </section>
             ) : null}
@@ -236,7 +236,7 @@ export function SettingsWorkspace() {
               ) : (
                 <>
                   <p className={styles.meta}>The current policy version has not been acknowledged yet.</p>
-                  <button type="button" onClick={() => void acknowledgeEthics()} disabled={busy}>Acknowledge Policy</button>
+                  <button type="button" className={styles.primaryButton} onClick={() => void acknowledgeEthics()} disabled={busy}>Acknowledge Policy</button>
                 </>
               )}
             </section>
@@ -251,7 +251,7 @@ export function SettingsWorkspace() {
                       {Object.entries(data.householdRoleOptions).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
                     </select></label>
                   </div>
-                  <button type="submit" disabled={busy}>Send Invite</button>
+                  <button type="submit" className={styles.primaryButton} disabled={busy}>Send Invite</button>
                 </form>
                 {fallbackInviteUrl ? <p className={styles.fallback}>Fallback invite link: <code>{fallbackInviteUrl}</code></p> : null}
 
@@ -261,7 +261,7 @@ export function SettingsWorkspace() {
                     {data.pendingHouseholdInvites.map((invite) => (
                       <li key={invite.id}>
                         <span>{invite.email} — {data.householdRoleOptions[invite.role] ?? invite.role}</span>
-                        <button type="button" disabled={busy} onClick={() => void revoke(`/api/settings/invites/${invite.id}`, "Pending invite revoked.", "We could not revoke that invite.")}>
+                        <button type="button" className={styles.dangerButton} disabled={busy} onClick={() => void revoke(`/api/settings/invites/${invite.id}`, "Pending invite revoked.", "We could not revoke that invite.")}>
                           <Trash2 size={14} aria-hidden="true" />Revoke
                         </button>
                       </li>
@@ -279,7 +279,7 @@ export function SettingsWorkspace() {
                           <select aria-label={`Role for ${member.email}`} value={member.role ?? "editor"} disabled={busy} onChange={(event) => void changeMemberRole(member.id, event.target.value)}>
                             {Object.entries(data.householdRoleOptions).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
                           </select>
-                          <button type="button" disabled={busy} onClick={() => void revoke(`/api/settings/members/${member.id}`, "Shared household access revoked.", "We could not revoke that member.")}>
+                          <button type="button" className={styles.dangerButton} disabled={busy} onClick={() => void revoke(`/api/settings/members/${member.id}`, "Shared household access revoked.", "We could not revoke that member.")}>
                             <UserMinus size={14} aria-hidden="true" />Revoke
                           </button>
                         </span>
@@ -302,7 +302,7 @@ export function SettingsWorkspace() {
                       <label>Current Password<input name="delete_current_password" type="password" autoComplete="current-password" disabled={busy} required /></label>
                       <label>Confirmation Phrase<input name="delete_confirmation" disabled={busy} required /></label>
                     </div>
-                    <button type="submit" disabled={busy}>Delete My Account</button>
+                    <button type="submit" className={styles.dangerButton} disabled={busy}>Delete My Account</button>
                   </form>
                 )}
               </section>
