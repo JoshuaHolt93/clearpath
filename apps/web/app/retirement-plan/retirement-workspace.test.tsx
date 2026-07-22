@@ -34,7 +34,7 @@ function view(overrides: Partial<RetirementView> = {}): RetirementView {
     },
     retirementContribution: 550,
     accounts: [{ id: 3, name: "401k", accountType: "investment", institution: "Fidelity", currentBalance: 82000, isManual: false }],
-    plaidStatus: { configured: true, ready: true },
+    plaidStatus: { ready: true, sdkInstalled: true, environment: "sandbox" },
     ...overrides,
   };
 }

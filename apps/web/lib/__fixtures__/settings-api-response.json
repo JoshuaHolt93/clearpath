@@ -1,0 +1,1432 @@
+{
+  "settings": {
+    "email": "contract-probe@example.com",
+    "display_name": "Settings User",
+    "household_name": "Settings Household",
+    "category_rows": [
+      {
+        "category": {
+          "id": 51,
+          "name": "Alimony/Child Care",
+          "kind": "expense",
+          "monthly_target": 0.0,
+          "is_default": true,
+          "budget_group_key": "debt_obligations",
+          "budget_sort_order": null,
+          "can_manage": null
+        },
+        "usage": {
+          "transactions": 0,
+          "splits": 0,
+          "fixed": 0,
+          "variable": 0,
+          "forecast": 0,
+          "recurring": 0
+        },
+        "can_manage": true
+      },
+      {
+        "category": {
+          "id": 10,
+          "name": "Auto Insurance",
+          "kind": "expense",
+          "monthly_target": 150.0,
+          "is_default": true,
+          "budget_group_key": "transportation",
+          "budget_sort_order": null,
+          "can_manage": null
+        },
+        "usage": {
+          "transactions": 0,
+          "splits": 0,
+          "fixed": 0,
+          "variable": 0,
+          "forecast": 0,
+          "recurring": 0
+        },
+        "can_manage": true
+      },
+      {
+        "category": {
+          "id": 54,
+          "name": "Bank Fees",
+          "kind": "expense",
+          "monthly_target": 0.0,
+          "is_default": true,
+          "budget_group_key": "miscellaneous",
+          "budget_sort_order": null,
+          "can_manage": null
+        },
+        "usage": {
+          "transactions": 0,
+          "splits": 0,
+          "fixed": 0,
+          "variable": 0,
+          "forecast": 0,
+          "recurring": 0
+        },
+        "can_manage": true
+      },
+      {
+        "category": {
+          "id": 36,
+          "name": "Books",
+          "kind": "expense",
+          "monthly_target": 25.0,
+          "is_default": true,
+          "budget_group_key": "entertainment",
+          "budget_sort_order": null,
+          "can_manage": null
+        },
+        "usage": {
+          "transactions": 0,
+          "splits": 0,
+          "fixed": 0,
+          "variable": 0,
+          "forecast": 0,
+          "recurring": 0
+        },
+        "can_manage": true
+      },
+      {
+        "category": {
+          "id": 12,
+          "name": "Bus/Taxi",
+          "kind": "expense",
+          "monthly_target": 0.0,
+          "is_default": true,
+          "budget_group_key": "transportation",
+          "budget_sort_order": null,
+          "can_manage": null
+        },
+        "usage": {
+          "transactions": 0,
+          "splits": 0,
+          "fixed": 0,
+          "variable": 0,
+          "forecast": 0,
+          "recurring": 0
+        },
+        "can_manage": true
+      },
+      {
+        "category": {
+          "id": 16,
+          "name": "Charitable Donations",
+          "kind": "expense",
+          "monthly_target": 0.0,
+          "is_default": true,
+          "budget_group_key": "charity_gifts",
+          "budget_sort_order": null,
+          "can_manage": null
+        },
+        "usage": {
+          "transactions": 0,
+          "splits": 0,
+          "fixed": 0,
+          "variable": 0,
+          "forecast": 0,
+          "recurring": 0
+        },
+        "can_manage": true
+      },
+      {
+        "category": {
+          "id": 28,
+          "name": "Cleaning",
+          "kind": "expense",
+          "monthly_target": 40.0,
+          "is_default": true,
+          "budget_group_key": "daily_living",
+          "budget_sort_order": null,
+          "can_manage": null
+        },
+        "usage": {
+          "transactions": 0,
+          "splits": 0,
+          "fixed": 0,
+          "variable": 0,
+          "forecast": 0,
+          "recurring": 0
+        },
+        "can_manage": true
+      },
+      {
+        "category": {
+          "id": 27,
+          "name": "Clothing",
+          "kind": "expense",
+          "monthly_target": 100.0,
+          "is_default": true,
+          "budget_group_key": "daily_living",
+          "budget_sort_order": null,
+          "can_manage": null
+        },
+        "usage": {
+          "transactions": 0,
+          "splits": 0,
+          "fixed": 0,
+          "variable": 0,
+          "forecast": 0,
+          "recurring": 0
+        },
+        "can_manage": true
+      },
+      {
+        "category": {
+          "id": 24,
+          "name": "Consumer Subscriptions",
+          "kind": "expense",
+          "monthly_target": 0.0,
+          "is_default": true,
+          "budget_group_key": "consumer_subscriptions",
+          "budget_sort_order": null,
+          "can_manage": null
+        },
+        "usage": {
+          "transactions": 0,
+          "splits": 0,
+          "fixed": 0,
+          "variable": 0,
+          "forecast": 0,
+          "recurring": 0
+        },
+        "can_manage": true
+      },
+      {
+        "category": {
+          "id": 50,
+          "name": "Credit Card Payments",
+          "kind": "transfer",
+          "monthly_target": 0.0,
+          "is_default": true,
+          "budget_group_key": "debt_obligations",
+          "budget_sort_order": null,
+          "can_manage": null
+        },
+        "usage": {
+          "transactions": 0,
+          "splits": 0,
+          "fixed": 0,
+          "variable": 0,
+          "forecast": 0,
+          "recurring": 0
+        },
+        "can_manage": true
+      },
+      {
+        "category": {
+          "id": 49,
+          "name": "Credit Cards",
+          "kind": "expense",
+          "monthly_target": 0.0,
+          "is_default": true,
+          "budget_group_key": "debt_obligations",
+          "budget_sort_order": null,
+          "can_manage": null
+        },
+        "usage": {
+          "transactions": 0,
+          "splits": 0,
+          "fixed": 0,
+          "variable": 0,
+          "forecast": 0,
+          "recurring": 0
+        },
+        "can_manage": true
+      },
+      {
+        "category": {
+          "id": 30,
+          "name": "Dining/Eating Out",
+          "kind": "expense",
+          "monthly_target": 300.0,
+          "is_default": true,
+          "budget_group_key": "daily_living",
+          "budget_sort_order": null,
+          "can_manage": null
+        },
+        "usage": {
+          "transactions": 0,
+          "splits": 0,
+          "fixed": 0,
+          "variable": 0,
+          "forecast": 0,
+          "recurring": 0
+        },
+        "can_manage": true
+      },
+      {
+        "category": {
+          "id": 19,
+          "name": "Doctor/Dentist",
+          "kind": "expense",
+          "monthly_target": 100.0,
+          "is_default": true,
+          "budget_group_key": "health_wellness",
+          "budget_sort_order": null,
+          "can_manage": null
+        },
+        "usage": {
+          "transactions": 0,
+          "splits": 0,
+          "fixed": 0,
+          "variable": 0,
+          "forecast": 0,
+          "recurring": 0
+        },
+        "can_manage": true
+      },
+      {
+        "category": {
+          "id": 46,
+          "name": "Education Savings",
+          "kind": "expense",
+          "monthly_target": 0.0,
+          "is_default": true,
+          "budget_group_key": "savings",
+          "budget_sort_order": null,
+          "can_manage": null
+        },
+        "usage": {
+          "transactions": 0,
+          "splits": 0,
+          "fixed": 0,
+          "variable": 0,
+          "forecast": 0,
+          "recurring": 0
+        },
+        "can_manage": true
+      },
+      {
+        "category": {
+          "id": 29,
+          "name": "Education/Lessons",
+          "kind": "expense",
+          "monthly_target": 100.0,
+          "is_default": true,
+          "budget_group_key": "daily_living",
+          "budget_sort_order": null,
+          "can_manage": null
+        },
+        "usage": {
+          "transactions": 0,
+          "splits": 0,
+          "fixed": 0,
+          "variable": 0,
+          "forecast": 0,
+          "recurring": 0
+        },
+        "can_manage": true
+      },
+      {
+        "category": {
+          "id": 3,
+          "name": "Electricity",
+          "kind": "expense",
+          "monthly_target": 150.0,
+          "is_default": true,
+          "budget_group_key": "home_expenses",
+          "budget_sort_order": null,
+          "can_manage": null
+        },
+        "usage": {
+          "transactions": 0,
+          "splits": 0,
+          "fixed": 0,
+          "variable": 0,
+          "forecast": 0,
+          "recurring": 0
+        },
+        "can_manage": true
+      },
+      {
+        "category": {
+          "id": 42,
+          "name": "Emergency Fund",
+          "kind": "expense",
+          "monthly_target": 0.0,
+          "is_default": true,
+          "budget_group_key": "savings",
+          "budget_sort_order": null,
+          "can_manage": null
+        },
+        "usage": {
+          "transactions": 0,
+          "splits": 0,
+          "fixed": 0,
+          "variable": 0,
+          "forecast": 0,
+          "recurring": 0
+        },
+        "can_manage": true
+      },
+      {
+        "category": {
+          "id": 52,
+          "name": "Federal Taxes",
+          "kind": "expense",
+          "monthly_target": 0.0,
+          "is_default": true,
+          "budget_group_key": "debt_obligations",
+          "budget_sort_order": null,
+          "can_manage": null
+        },
+        "usage": {
+          "transactions": 0,
+          "splits": 0,
+          "fixed": 0,
+          "variable": 0,
+          "forecast": 0,
+          "recurring": 0
+        },
+        "can_manage": true
+      },
+      {
+        "category": {
+          "id": 11,
+          "name": "Fuel/Gasoline",
+          "kind": "expense",
+          "monthly_target": 220.0,
+          "is_default": true,
+          "budget_group_key": "transportation",
+          "budget_sort_order": null,
+          "can_manage": null
+        },
+        "usage": {
+          "transactions": 0,
+          "splits": 0,
+          "fixed": 0,
+          "variable": 0,
+          "forecast": 0,
+          "recurring": 0
+        },
+        "can_manage": true
+      },
+      {
+        "category": {
+          "id": 4,
+          "name": "Gas",
+          "kind": "expense",
+          "monthly_target": 100.0,
+          "is_default": true,
+          "budget_group_key": "home_expenses",
+          "budget_sort_order": null,
+          "can_manage": null
+        },
+        "usage": {
+          "transactions": 0,
+          "splits": 0,
+          "fixed": 0,
+          "variable": 0,
+          "forecast": 0,
+          "recurring": 0
+        },
+        "can_manage": true
+      },
+      {
+        "category": {
+          "id": 17,
+          "name": "Gifts Given",
+          "kind": "expense",
+          "monthly_target": 0.0,
+          "is_default": true,
+          "budget_group_key": "charity_gifts",
+          "budget_sort_order": null,
+          "can_manage": null
+        },
+        "usage": {
+          "transactions": 0,
+          "splits": 0,
+          "fixed": 0,
+          "variable": 0,
+          "forecast": 0,
+          "recurring": 0
+        },
+        "can_manage": true
+      },
+      {
+        "category": {
+          "id": 25,
+          "name": "Groceries",
+          "kind": "expense",
+          "monthly_target": 600.0,
+          "is_default": true,
+          "budget_group_key": "daily_living",
+          "budget_sort_order": null,
+          "can_manage": null
+        },
+        "usage": {
+          "transactions": 0,
+          "splits": 0,
+          "fixed": 0,
+          "variable": 0,
+          "forecast": 0,
+          "recurring": 0
+        },
+        "can_manage": true
+      },
+      {
+        "category": {
+          "id": 22,
+          "name": "Gym/Fitness",
+          "kind": "expense",
+          "monthly_target": 50.0,
+          "is_default": true,
+          "budget_group_key": "health_wellness",
+          "budget_sort_order": null,
+          "can_manage": null
+        },
+        "usage": {
+          "transactions": 0,
+          "splits": 0,
+          "fixed": 0,
+          "variable": 0,
+          "forecast": 0,
+          "recurring": 0
+        },
+        "can_manage": true
+      },
+      {
+        "category": {
+          "id": 23,
+          "name": "Health Club Dues",
+          "kind": "expense",
+          "monthly_target": 0.0,
+          "is_default": true,
+          "budget_group_key": "health_wellness",
+          "budget_sort_order": null,
+          "can_manage": null
+        },
+        "usage": {
+          "transactions": 0,
+          "splits": 0,
+          "fixed": 0,
+          "variable": 0,
+          "forecast": 0,
+          "recurring": 0
+        },
+        "can_manage": true
+      },
+      {
+        "category": {
+          "id": 18,
+          "name": "Health Insurance",
+          "kind": "expense",
+          "monthly_target": 250.0,
+          "is_default": true,
+          "budget_group_key": "health_wellness",
+          "budget_sort_order": null,
+          "can_manage": null
+        },
+        "usage": {
+          "transactions": 0,
+          "splits": 0,
+          "fixed": 0,
+          "variable": 0,
+          "forecast": 0,
+          "recurring": 0
+        },
+        "can_manage": true
+      },
+      {
+        "category": {
+          "id": 39,
+          "name": "Hobbies",
+          "kind": "expense",
+          "monthly_target": 75.0,
+          "is_default": true,
+          "budget_group_key": "entertainment",
+          "budget_sort_order": null,
+          "can_manage": null
+        },
+        "usage": {
+          "transactions": 0,
+          "splits": 0,
+          "fixed": 0,
+          "variable": 0,
+          "forecast": 0,
+          "recurring": 0
+        },
+        "can_manage": true
+      },
+      {
+        "category": {
+          "id": 2,
+          "name": "Home/Rental Insurance",
+          "kind": "expense",
+          "monthly_target": 150.0,
+          "is_default": true,
+          "budget_group_key": "home_expenses",
+          "budget_sort_order": null,
+          "can_manage": null
+        },
+        "usage": {
+          "transactions": 0,
+          "splits": 0,
+          "fixed": 0,
+          "variable": 0,
+          "forecast": 0,
+          "recurring": 0
+        },
+        "can_manage": true
+      },
+      {
+        "category": {
+          "id": 56,
+          "name": "Income",
+          "kind": "income",
+          "monthly_target": 0.0,
+          "is_default": true,
+          "budget_group_key": "miscellaneous",
+          "budget_sort_order": null,
+          "can_manage": null
+        },
+        "usage": {
+          "transactions": 0,
+          "splits": 0,
+          "fixed": 0,
+          "variable": 0,
+          "forecast": 0,
+          "recurring": 0
+        },
+        "can_manage": true
+      },
+      {
+        "category": {
+          "id": 7,
+          "name": "Internet",
+          "kind": "expense",
+          "monthly_target": 80.0,
+          "is_default": true,
+          "budget_group_key": "home_expenses",
+          "budget_sort_order": null,
+          "can_manage": null
+        },
+        "usage": {
+          "transactions": 0,
+          "splits": 0,
+          "fixed": 0,
+          "variable": 0,
+          "forecast": 0,
+          "recurring": 0
+        },
+        "can_manage": true
+      },
+      {
+        "category": {
+          "id": 45,
+          "name": "Investments",
+          "kind": "expense",
+          "monthly_target": 0.0,
+          "is_default": true,
+          "budget_group_key": "savings",
+          "budget_sort_order": null,
+          "can_manage": null
+        },
+        "usage": {
+          "transactions": 0,
+          "splits": 0,
+          "fixed": 0,
+          "variable": 0,
+          "forecast": 0,
+          "recurring": 0
+        },
+        "can_manage": true
+      },
+      {
+        "category": {
+          "id": 33,
+          "name": "Laundry",
+          "kind": "expense",
+          "monthly_target": 25.0,
+          "is_default": true,
+          "budget_group_key": "daily_living",
+          "budget_sort_order": null,
+          "can_manage": null
+        },
+        "usage": {
+          "transactions": 0,
+          "splits": 0,
+          "fixed": 0,
+          "variable": 0,
+          "forecast": 0,
+          "recurring": 0
+        },
+        "can_manage": true
+      },
+      {
+        "category": {
+          "id": 21,
+          "name": "Life Insurance",
+          "kind": "expense",
+          "monthly_target": 75.0,
+          "is_default": true,
+          "budget_group_key": "health_wellness",
+          "budget_sort_order": null,
+          "can_manage": null
+        },
+        "usage": {
+          "transactions": 0,
+          "splits": 0,
+          "fixed": 0,
+          "variable": 0,
+          "forecast": 0,
+          "recurring": 0
+        },
+        "can_manage": true
+      },
+      {
+        "category": {
+          "id": 8,
+          "name": "Maintenance",
+          "kind": "expense",
+          "monthly_target": 100.0,
+          "is_default": true,
+          "budget_group_key": "home_expenses",
+          "budget_sort_order": null,
+          "can_manage": null
+        },
+        "usage": {
+          "transactions": 0,
+          "splits": 0,
+          "fixed": 0,
+          "variable": 0,
+          "forecast": 0,
+          "recurring": 0
+        },
+        "can_manage": true
+      },
+      {
+        "category": {
+          "id": 20,
+          "name": "Medicine/Prescriptions",
+          "kind": "expense",
+          "monthly_target": 75.0,
+          "is_default": true,
+          "budget_group_key": "health_wellness",
+          "budget_sort_order": null,
+          "can_manage": null
+        },
+        "usage": {
+          "transactions": 0,
+          "splits": 0,
+          "fixed": 0,
+          "variable": 0,
+          "forecast": 0,
+          "recurring": 0
+        },
+        "can_manage": true
+      },
+      {
+        "category": {
+          "id": 1,
+          "name": "Mortgage/Rent",
+          "kind": "expense",
+          "monthly_target": 1800.0,
+          "is_default": true,
+          "budget_group_key": "home_expenses",
+          "budget_sort_order": null,
+          "can_manage": null
+        },
+        "usage": {
+          "transactions": 0,
+          "splits": 0,
+          "fixed": 0,
+          "variable": 0,
+          "forecast": 0,
+          "recurring": 0
+        },
+        "can_manage": true
+      },
+      {
+        "category": {
+          "id": 38,
+          "name": "Movies/Theater/Concerts/Plays",
+          "kind": "expense",
+          "monthly_target": 75.0,
+          "is_default": true,
+          "budget_group_key": "entertainment",
+          "budget_sort_order": null,
+          "can_manage": null
+        },
+        "usage": {
+          "transactions": 0,
+          "splits": 0,
+          "fixed": 0,
+          "variable": 0,
+          "forecast": 0,
+          "recurring": 0
+        },
+        "can_manage": true
+      },
+      {
+        "category": {
+          "id": 35,
+          "name": "Music",
+          "kind": "expense",
+          "monthly_target": 25.0,
+          "is_default": true,
+          "budget_group_key": "entertainment",
+          "budget_sort_order": null,
+          "can_manage": null
+        },
+        "usage": {
+          "transactions": 0,
+          "splits": 0,
+          "fixed": 0,
+          "variable": 0,
+          "forecast": 0,
+          "recurring": 0
+        },
+        "can_manage": true
+      },
+      {
+        "category": {
+          "id": 55,
+          "name": "Other",
+          "kind": "expense",
+          "monthly_target": 200.0,
+          "is_default": true,
+          "budget_group_key": "miscellaneous",
+          "budget_sort_order": null,
+          "can_manage": null
+        },
+        "usage": {
+          "transactions": 0,
+          "splits": 0,
+          "fixed": 0,
+          "variable": 0,
+          "forecast": 0,
+          "recurring": 0
+        },
+        "can_manage": true
+      },
+      {
+        "category": {
+          "id": 48,
+          "name": "Other Loan",
+          "kind": "expense",
+          "monthly_target": 0.0,
+          "is_default": true,
+          "budget_group_key": "debt_obligations",
+          "budget_sort_order": null,
+          "can_manage": null
+        },
+        "usage": {
+          "transactions": 0,
+          "splits": 0,
+          "fixed": 0,
+          "variable": 0,
+          "forecast": 0,
+          "recurring": 0
+        },
+        "can_manage": true
+      },
+      {
+        "category": {
+          "id": 26,
+          "name": "Personal Supplies",
+          "kind": "expense",
+          "monthly_target": 75.0,
+          "is_default": true,
+          "budget_group_key": "daily_living",
+          "budget_sort_order": null,
+          "can_manage": null
+        },
+        "usage": {
+          "transactions": 0,
+          "splits": 0,
+          "fixed": 0,
+          "variable": 0,
+          "forecast": 0,
+          "recurring": 0
+        },
+        "can_manage": true
+      },
+      {
+        "category": {
+          "id": 32,
+          "name": "Pet Food",
+          "kind": "expense",
+          "monthly_target": 75.0,
+          "is_default": true,
+          "budget_group_key": "daily_living",
+          "budget_sort_order": null,
+          "can_manage": null
+        },
+        "usage": {
+          "transactions": 0,
+          "splits": 0,
+          "fixed": 0,
+          "variable": 0,
+          "forecast": 0,
+          "recurring": 0
+        },
+        "can_manage": true
+      },
+      {
+        "category": {
+          "id": 6,
+          "name": "Phone",
+          "kind": "expense",
+          "monthly_target": 120.0,
+          "is_default": true,
+          "budget_group_key": "home_expenses",
+          "budget_sort_order": null,
+          "can_manage": null
+        },
+        "usage": {
+          "transactions": 0,
+          "splits": 0,
+          "fixed": 0,
+          "variable": 0,
+          "forecast": 0,
+          "recurring": 0
+        },
+        "can_manage": true
+      },
+      {
+        "category": {
+          "id": 14,
+          "name": "Registration/License",
+          "kind": "expense",
+          "monthly_target": 25.0,
+          "is_default": true,
+          "budget_group_key": "transportation",
+          "budget_sort_order": null,
+          "can_manage": null
+        },
+        "usage": {
+          "transactions": 0,
+          "splits": 0,
+          "fixed": 0,
+          "variable": 0,
+          "forecast": 0,
+          "recurring": 0
+        },
+        "can_manage": true
+      },
+      {
+        "category": {
+          "id": 34,
+          "name": "Rentals",
+          "kind": "expense",
+          "monthly_target": 0.0,
+          "is_default": true,
+          "budget_group_key": "entertainment",
+          "budget_sort_order": null,
+          "can_manage": null
+        },
+        "usage": {
+          "transactions": 0,
+          "splits": 0,
+          "fixed": 0,
+          "variable": 0,
+          "forecast": 0,
+          "recurring": 0
+        },
+        "can_manage": true
+      },
+      {
+        "category": {
+          "id": 13,
+          "name": "Repairs",
+          "kind": "expense",
+          "monthly_target": 75.0,
+          "is_default": true,
+          "budget_group_key": "transportation",
+          "budget_sort_order": null,
+          "can_manage": null
+        },
+        "usage": {
+          "transactions": 0,
+          "splits": 0,
+          "fixed": 0,
+          "variable": 0,
+          "forecast": 0,
+          "recurring": 0
+        },
+        "can_manage": true
+      },
+      {
+        "category": {
+          "id": 44,
+          "name": "Retirement (401k, IRA)",
+          "kind": "expense",
+          "monthly_target": 0.0,
+          "is_default": true,
+          "budget_group_key": "savings",
+          "budget_sort_order": null,
+          "can_manage": null
+        },
+        "usage": {
+          "transactions": 0,
+          "splits": 0,
+          "fixed": 0,
+          "variable": 0,
+          "forecast": 0,
+          "recurring": 0
+        },
+        "can_manage": true
+      },
+      {
+        "category": {
+          "id": 31,
+          "name": "Salon/Barber",
+          "kind": "expense",
+          "monthly_target": 50.0,
+          "is_default": true,
+          "budget_group_key": "daily_living",
+          "budget_sort_order": null,
+          "can_manage": null
+        },
+        "usage": {
+          "transactions": 0,
+          "splits": 0,
+          "fixed": 0,
+          "variable": 0,
+          "forecast": 0,
+          "recurring": 0
+        },
+        "can_manage": true
+      },
+      {
+        "category": {
+          "id": 40,
+          "name": "Sports/Outdoor Recreation",
+          "kind": "expense",
+          "monthly_target": 75.0,
+          "is_default": true,
+          "budget_group_key": "entertainment",
+          "budget_sort_order": null,
+          "can_manage": null
+        },
+        "usage": {
+          "transactions": 0,
+          "splits": 0,
+          "fixed": 0,
+          "variable": 0,
+          "forecast": 0,
+          "recurring": 0
+        },
+        "can_manage": true
+      },
+      {
+        "category": {
+          "id": 53,
+          "name": "State/Local Taxes",
+          "kind": "expense",
+          "monthly_target": 0.0,
+          "is_default": true,
+          "budget_group_key": "debt_obligations",
+          "budget_sort_order": null,
+          "can_manage": null
+        },
+        "usage": {
+          "transactions": 0,
+          "splits": 0,
+          "fixed": 0,
+          "variable": 0,
+          "forecast": 0,
+          "recurring": 0
+        },
+        "can_manage": true
+      },
+      {
+        "category": {
+          "id": 37,
+          "name": "Streaming Services",
+          "kind": "expense",
+          "monthly_target": 50.0,
+          "is_default": true,
+          "budget_group_key": "entertainment",
+          "budget_sort_order": null,
+          "can_manage": null
+        },
+        "usage": {
+          "transactions": 0,
+          "splits": 0,
+          "fixed": 0,
+          "variable": 0,
+          "forecast": 0,
+          "recurring": 0
+        },
+        "can_manage": true
+      },
+      {
+        "category": {
+          "id": 47,
+          "name": "Student Loans",
+          "kind": "expense",
+          "monthly_target": 0.0,
+          "is_default": true,
+          "budget_group_key": "debt_obligations",
+          "budget_sort_order": null,
+          "can_manage": null
+        },
+        "usage": {
+          "transactions": 0,
+          "splits": 0,
+          "fixed": 0,
+          "variable": 0,
+          "forecast": 0,
+          "recurring": 0
+        },
+        "can_manage": true
+      },
+      {
+        "category": {
+          "id": 15,
+          "name": "Tithing",
+          "kind": "expense",
+          "monthly_target": 0.0,
+          "is_default": true,
+          "budget_group_key": "charity_gifts",
+          "budget_sort_order": null,
+          "can_manage": null
+        },
+        "usage": {
+          "transactions": 0,
+          "splits": 0,
+          "fixed": 0,
+          "variable": 0,
+          "forecast": 0,
+          "recurring": 0
+        },
+        "can_manage": true
+      },
+      {
+        "category": {
+          "id": 43,
+          "name": "Transfer to Savings",
+          "kind": "transfer",
+          "monthly_target": 0.0,
+          "is_default": true,
+          "budget_group_key": "savings",
+          "budget_sort_order": null,
+          "can_manage": null
+        },
+        "usage": {
+          "transactions": 0,
+          "splits": 0,
+          "fixed": 0,
+          "variable": 0,
+          "forecast": 0,
+          "recurring": 0
+        },
+        "can_manage": true
+      },
+      {
+        "category": {
+          "id": 57,
+          "name": "Transfers",
+          "kind": "transfer",
+          "monthly_target": 0.0,
+          "is_default": true,
+          "budget_group_key": "miscellaneous",
+          "budget_sort_order": null,
+          "can_manage": null
+        },
+        "usage": {
+          "transactions": 0,
+          "splits": 0,
+          "fixed": 0,
+          "variable": 0,
+          "forecast": 0,
+          "recurring": 0
+        },
+        "can_manage": true
+      },
+      {
+        "category": {
+          "id": 41,
+          "name": "Vacation/Travel",
+          "kind": "expense",
+          "monthly_target": 150.0,
+          "is_default": true,
+          "budget_group_key": "entertainment",
+          "budget_sort_order": null,
+          "can_manage": null
+        },
+        "usage": {
+          "transactions": 0,
+          "splits": 0,
+          "fixed": 0,
+          "variable": 0,
+          "forecast": 0,
+          "recurring": 0
+        },
+        "can_manage": true
+      },
+      {
+        "category": {
+          "id": 9,
+          "name": "Vehicle Payments",
+          "kind": "expense",
+          "monthly_target": 0.0,
+          "is_default": true,
+          "budget_group_key": "transportation",
+          "budget_sort_order": null,
+          "can_manage": null
+        },
+        "usage": {
+          "transactions": 0,
+          "splits": 0,
+          "fixed": 0,
+          "variable": 0,
+          "forecast": 0,
+          "recurring": 0
+        },
+        "can_manage": true
+      },
+      {
+        "category": {
+          "id": 5,
+          "name": "Water/Sewage/Trash",
+          "kind": "expense",
+          "monthly_target": 100.0,
+          "is_default": true,
+          "budget_group_key": "home_expenses",
+          "budget_sort_order": null,
+          "can_manage": null
+        },
+        "usage": {
+          "transactions": 0,
+          "splits": 0,
+          "fixed": 0,
+          "variable": 0,
+          "forecast": 0,
+          "recurring": 0
+        },
+        "can_manage": true
+      }
+    ],
+    "rules_count": 0,
+    "plaid_status": {
+      "ready": true,
+      "sdk_installed": true,
+      "crypto_installed": true,
+      "has_credentials": true,
+      "has_encryption_key": true,
+      "environment": "sandbox"
+    },
+    "push_mfa": {
+      "provider": "none",
+      "configured": false,
+      "available": false,
+      "missing": [],
+      "dependency_installed": true
+    },
+    "mfa_preferred_method": "none",
+    "mfa_push_enabled": false,
+    "billing_status": {
+      "enabled": false,
+      "sdk_installed": false,
+      "has_secret_key": false,
+      "has_price_id": false,
+      "has_at_cost_price_id": false,
+      "has_basic_price_id": false,
+      "has_premium_price_id": false,
+      "has_webhook_secret": false
+    },
+    "feedback_options": {
+      "reasons": [
+        [
+          "feature_expectations",
+          "Feature expectations"
+        ],
+        [
+          "broken",
+          "Something is not working"
+        ],
+        [
+          "too_expensive",
+          "Too expensive"
+        ],
+        [
+          "other",
+          "Other"
+        ]
+      ],
+      "feature_expectation_reasons": [
+        [
+          "not_enough_features",
+          "Not enough features"
+        ],
+        [
+          "features_not_as_expected",
+          "Features did not work as expected"
+        ],
+        [
+          "missing_desired_features",
+          "Features I wish existed"
+        ]
+      ],
+      "broken_features": [
+        [
+          "dashboard",
+          "Dashboard"
+        ],
+        [
+          "monthly_plan",
+          "Budgets and monthly plan"
+        ],
+        [
+          "transactions",
+          "Transactions"
+        ],
+        [
+          "plaid_sync",
+          "Bank connection or Plaid sync"
+        ],
+        [
+          "subscriptions",
+          "Subscriptions"
+        ],
+        [
+          "forecasting",
+          "Forecasting"
+        ],
+        [
+          "cash_projection",
+          "Cash Balance Projections"
+        ],
+        [
+          "ai_coach",
+          "AI Planner or AI Coach"
+        ],
+        [
+          "billing",
+          "Billing"
+        ],
+        [
+          "onboarding",
+          "Setup or onboarding"
+        ]
+      ]
+    },
+    "household_role_options": {
+      "editor": "Can Edit",
+      "viewer": "View Only"
+    },
+    "household_members": [],
+    "pending_household_invites": [],
+    "can_manage_household_access": true,
+    "household_access_is_shared": false,
+    "ethics_acknowledged_at": "2026-07-22T13:14:03.014613",
+    "ethics_policy_version": "2026-01",
+    "account_delete_confirmation": "DELETE MY ACCOUNT",
+    "account_delete_billing_blocked": false,
+    "account_classification_options": [
+      [
+        "checking",
+        "Checking / Cash"
+      ],
+      [
+        "savings",
+        "Savings"
+      ],
+      [
+        "depository",
+        "Depository / Bank Account"
+      ],
+      [
+        "money market",
+        "Money Market"
+      ],
+      [
+        "credit",
+        "Credit Account"
+      ],
+      [
+        "credit card",
+        "Credit Card"
+      ],
+      [
+        "line of credit",
+        "Line of Credit"
+      ],
+      [
+        "loan",
+        "Loan"
+      ],
+      [
+        "mortgage",
+        "Mortgage"
+      ],
+      [
+        "investment",
+        "Investment"
+      ],
+      [
+        "other",
+        "Other Asset"
+      ]
+    ]
+  },
+  "me": {
+    "id": 1,
+    "email": "contract-probe@example.com",
+    "display_name": "Settings User",
+    "household_name": "Settings Household",
+    "selected_plan": "",
+    "billing_status": "free",
+    "is_admin": false,
+    "session_subject": {
+      "id": 1,
+      "subject_type": "user",
+      "email": "contract-probe@example.com",
+      "display_name": "Settings User",
+      "first_name": "Settings",
+      "avatar_initial": "S",
+      "household_role": null
+    },
+    "primary_account_holder": true,
+    "plan_display_name": "Not Selected",
+    "feature_access": [
+      {
+        "feature": "income_planning",
+        "enabled": false,
+        "hidden": false,
+        "required_plan": "Plus"
+      },
+      {
+        "feature": "cash_projection",
+        "enabled": false,
+        "hidden": false,
+        "required_plan": "Plus"
+      },
+      {
+        "feature": "subscriptions",
+        "enabled": false,
+        "hidden": false,
+        "required_plan": "Plus"
+      },
+      {
+        "feature": "ai_planner",
+        "enabled": false,
+        "hidden": false,
+        "required_plan": "Premier"
+      },
+      {
+        "feature": "ai_coach",
+        "enabled": false,
+        "hidden": false,
+        "required_plan": "Premier"
+      },
+      {
+        "feature": "mortgage_loan_planning",
+        "enabled": false,
+        "hidden": false,
+        "required_plan": "Plus"
+      },
+      {
+        "feature": "retirement_planning",
+        "enabled": false,
+        "hidden": false,
+        "required_plan": "Premier"
+      }
+    ]
+  }
+}

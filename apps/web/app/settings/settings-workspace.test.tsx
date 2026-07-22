@@ -23,7 +23,7 @@ function view(overrides: Partial<SettingsView> = {}): SettingsView {
     householdName: "Holt Household",
     rulesCount: 3,
     categoryRows: [{ id: 10, name: "Groceries", kind: "expense", monthlyTarget: 600, canManage: true, usage: { transactions: 4 } }],
-    plaidStatus: { configured: true, ready: true },
+    plaidStatus: { ready: true, sdkInstalled: true, environment: "sandbox" },
     pushMfa: { available: false },
     mfaPreferredMethod: "totp",
     mfaPushEnabled: false,

@@ -1729,7 +1729,11 @@ export const settingsViewSchema = z.object({
     canManage: z.boolean(),
     usage: z.record(z.string(), z.number()),
   })),
-  plaidStatus: z.object({ configured: z.boolean(), ready: z.boolean() }).passthrough(),
+  // PlaidStatusResponse is {ready, sdk_installed, crypto_installed,
+  // has_credentials, has_encryption_key, environment} -- there is no
+  // `configured`. Requiring it made every real response fail validation, so the
+  // tab rendered only "data did not match the expected contract".
+  plaidStatus: z.object({ ready: z.boolean() }).passthrough(),
   pushMfa: z.object({ available: z.boolean() }).passthrough(),
   mfaPreferredMethod: z.string(),
   mfaPushEnabled: z.boolean(),
@@ -1952,7 +1956,11 @@ export const retirementViewSchema = z.object({
   profile: retirementProfileSchema,
   retirementContribution: z.number(),
   accounts: z.array(retirementAccountSchema),
-  plaidStatus: z.object({ configured: z.boolean(), ready: z.boolean() }).passthrough(),
+  // PlaidStatusResponse is {ready, sdk_installed, crypto_installed,
+  // has_credentials, has_encryption_key, environment} -- there is no
+  // `configured`. Requiring it made every real response fail validation, so the
+  // tab rendered only "data did not match the expected contract".
+  plaidStatus: z.object({ ready: z.boolean() }).passthrough(),
 });
 
 export const retirementSurveyInputSchema = z.object({
