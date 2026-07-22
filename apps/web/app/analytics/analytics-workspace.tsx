@@ -6,7 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, useCallback, useEffect, useState } from "react";
 
-import { AuthenticatedShell } from "../authenticated-shell";
+import { AuthenticatedPageFrame } from "../authenticated-shell";
 import styles from "./analytics.module.css";
 
 export type AnalyticsQuery = { range: string; endMonth: string; historyRange: string; historyEndMonth: string };
@@ -97,7 +97,7 @@ export function AnalyticsWorkspace({ query }: { query: AnalyticsQuery }) {
     </div> : null}
   </main>;
 
-  return data ? <AuthenticatedShell session={data.session}>{content}</AuthenticatedShell> : content;
+  return <AuthenticatedPageFrame session={data?.session}>{content}</AuthenticatedPageFrame>;
 }
 
 function SummaryStats({ data }: { data: AnalyticsView }) {

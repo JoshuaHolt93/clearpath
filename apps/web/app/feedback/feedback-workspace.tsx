@@ -4,7 +4,7 @@ import { feedbackViewSchema, type FeedbackView } from "@clearpath/validation";
 import { MessageSquareText } from "lucide-react";
 import { FormEvent, useCallback, useEffect, useState } from "react";
 
-import { AuthenticatedShell } from "../authenticated-shell";
+import { AuthenticatedPageFrame } from "../authenticated-shell";
 import styles from "./feedback.module.css";
 
 async function responseMessage(response: Response, fallback: string) {
@@ -137,5 +137,5 @@ export function FeedbackWorkspace() {
     </div>
   );
 
-  return data ? <AuthenticatedShell session={data.session}>{content}</AuthenticatedShell> : content;
+  return <AuthenticatedPageFrame session={data?.session}>{content}</AuthenticatedPageFrame>;
 }

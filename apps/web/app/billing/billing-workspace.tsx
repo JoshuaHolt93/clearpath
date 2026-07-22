@@ -4,7 +4,7 @@ import { billingViewSchema, type BillingPlan, type BillingView } from "@clearpat
 import { CreditCard, ExternalLink, RefreshCw, ShieldCheck } from "lucide-react";
 import { FormEvent, useCallback, useEffect, useState } from "react";
 
-import { AuthenticatedShell } from "../authenticated-shell";
+import { AuthenticatedPageFrame } from "../authenticated-shell";
 import styles from "./billing.module.css";
 
 async function responseMessage(response: Response, fallback: string) {
@@ -214,5 +214,5 @@ export function BillingWorkspace() {
     </div>
   );
 
-  return data ? <AuthenticatedShell session={data.session}>{content}</AuthenticatedShell> : content;
+  return <AuthenticatedPageFrame session={data?.session}>{content}</AuthenticatedPageFrame>;
 }

@@ -17,7 +17,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { type FormEvent, type ReactNode, useCallback, useEffect, useMemo, useState } from "react";
 
-import { AuthenticatedShell } from "../authenticated-shell";
+import { AuthenticatedPageFrame } from "../authenticated-shell";
 import { refreshLiveBankData } from "@/lib/live-bank-refresh";
 
 import { SavingIndicator } from "../saving-indicator";
@@ -405,7 +405,7 @@ export function MonthlyQuickPlanningWorkspace({ query }: { query: MonthlyQuickPl
     await runMutation(`account-${accountId}`, `/api/accounts/${accountId}/cash-projection-role`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ cashProjectionRole: form.get("role") }) }, "Operating cash account updated.");
   };
 
-  if (loading && !data) return <div className={styles.loadingPage}><span className="logo-mark">C</span><strong>Loading Quick Planning...</strong></div>;
+  if (loading && !data) return <AuthenticatedPageFrame activePlanSection="tools"><div className={styles.loadingPage}><span className="logo-mark">C</span><strong>Loading Quick Planning...</strong></div></AuthenticatedPageFrame>;
   if (!data) return <div className={styles.loadingPage}><div className={styles.loadError}><TriangleAlert size={24} /><p>{error ?? "We could not load Quick Planning."}</p><button type="button" onClick={() => void loadPlan()}>Try Again</button></div></div>;
 
   const incomePlanning = featureEnabled(data, "income_planning");
@@ -413,7 +413,7 @@ export function MonthlyQuickPlanningWorkspace({ query }: { query: MonthlyQuickPl
   const editorTitle = editor?.kind === "fixed" ? `${editor.item ? "Edit" : "Add"} Fixed Expense` : editor?.kind === "variable" ? `${editor.item ? "Edit" : "Add"} Flexible Budget` : editor?.kind === "forecast" ? `${editor.item ? "Edit" : "Plan"} One-Time Expense` : "Edit Recurring Item";
 
   return (
-    <AuthenticatedShell session={data.session} activePlanSection="tools">
+    <AuthenticatedPageFrame session={data.session} activePlanSection="tools">
       <div className={styles.page}>
         <header className={styles.pageHeader}><div><h1>Quick Planning</h1><p>{data.monthName} current-month cash worksheet.</p></div><div className={styles.monthPill}><CalendarClock size={15} />{data.monthName}</div></header>
         <div className={styles.content}>
@@ -507,6 +507,6 @@ export function MonthlyQuickPlanningWorkspace({ query }: { query: MonthlyQuickPl
           {editor.kind === "recurring" ? <RecurringTemplateForm key={`recurring-${editor.item.id}`} data={data} item={editor.item} busy={Boolean(busy)} onSave={saveEditor} onDelete={deleteEditor} /> : null}
         </Modal>
       ) : null}
-    </AuthenticatedShell>
+    </AuthenticatedPageFrame>
   );
 }

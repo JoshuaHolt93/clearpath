@@ -6,7 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 
-import { AuthenticatedShell } from "../authenticated-shell";
+import { AuthenticatedPageFrame } from "../authenticated-shell";
 import styles from "./subscriptions.module.css";
 
 export type SubscriptionQuery = { q: string; status: string; sort: string };
@@ -156,7 +156,7 @@ export function SubscriptionsWorkspace({ query }: { query: SubscriptionQuery }) 
     </main>
   );
 
-  return data ? <AuthenticatedShell session={data.session}>{content}</AuthenticatedShell> : content;
+  return <AuthenticatedPageFrame session={data?.session}>{content}</AuthenticatedPageFrame>;
 }
 
 function SubscriptionRow({ subscription, data, canEdit, busy, onMutate }: { subscription: SubscriptionView; data: SubscriptionsView; canEdit: boolean; busy: boolean; onMutate: (url: string, options: RequestInit, message: string) => Promise<Record<string, unknown> | null> }) {

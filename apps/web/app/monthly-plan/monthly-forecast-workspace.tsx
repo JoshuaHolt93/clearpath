@@ -7,7 +7,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { type FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 
-import { AuthenticatedShell } from "../authenticated-shell";
+import { AuthenticatedPageFrame } from "../authenticated-shell";
 import { refreshLiveBankData } from "@/lib/live-bank-refresh";
 
 import { SavingIndicator } from "../saving-indicator";
@@ -217,14 +217,14 @@ export function MonthlyForecastWorkspace() {
     );
   };
 
-  if (loading && !data) return <div className={styles.loadingPage}><span className="logo-mark">C</span><strong>Loading 3-Month Forecast...</strong></div>;
+  if (loading && !data) return <AuthenticatedPageFrame activePlanSection="forecast"><div className={styles.loadingPage}><span className="logo-mark">C</span><strong>Loading 3-Month Forecast...</strong></div></AuthenticatedPageFrame>;
   if (!data) return <div className={styles.loadingPage}><div className={styles.loadError}><TriangleAlert size={24} /><p>{error ?? "We could not load the three-month forecast."}</p><button type="button" onClick={() => void loadForecast()}>Try Again</button></div></div>;
 
   const cashProjection = featureEnabled(data, "cash_projection");
   const requiredPlan = featurePlan(data, "cash_projection");
 
   return (
-    <AuthenticatedShell session={data.session} activePlanSection="forecast">
+    <AuthenticatedPageFrame session={data.session} activePlanSection="forecast">
       <div className={styles.page}>
         <header className={styles.pageHeader}>
           <div><h1>3-Month Forecast</h1><p>Look ahead across the next three months, then use cash balance projections when timing needs more precision.</p></div>
@@ -307,6 +307,6 @@ export function MonthlyForecastWorkspace() {
       </div>
 
       {editing ? <EditModal data={data} item={editing} busy={Boolean(busy)} onSave={saveEditing} onDelete={deleteEditing} onClose={() => setEditing(null)} /> : null}
-    </AuthenticatedShell>
+    </AuthenticatedPageFrame>
   );
 }

@@ -9,7 +9,7 @@ import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "re
 import { refreshLiveBankData } from "@/lib/live-bank-refresh";
 import { usePendingMutations } from "@/lib/use-pending-mutations";
 
-import { AuthenticatedShell } from "../authenticated-shell";
+import { AuthenticatedPageFrame } from "../authenticated-shell";
 import { TransactionImportPanel } from "./transaction-import-panel";
 import { TransactionRow } from "./transaction-row";
 import styles from "./transactions.module.css";
@@ -223,7 +223,7 @@ export function TransactionReviewWorkspace({ query }: { query: TransactionQuery 
     </main>
   );
 
-  return data ? <AuthenticatedShell session={data.session}>{content}</AuthenticatedShell> : content;
+  return <AuthenticatedPageFrame session={data?.session}>{content}</AuthenticatedPageFrame>;
 }
 
 function CategoryManagerRow({ category, categories, busy, onMutate }: { category: TransactionReviewView["categories"][number]; categories: TransactionReviewView["categories"]; busy: boolean; onMutate: (url: string, options: RequestInit, message: string) => Promise<Record<string, unknown> | null> }) {

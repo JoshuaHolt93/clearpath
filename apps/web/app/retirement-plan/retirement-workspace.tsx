@@ -4,7 +4,7 @@ import { retirementViewSchema, type RetirementView } from "@clearpath/validation
 import { Landmark, RefreshCw } from "lucide-react";
 import { FormEvent, useCallback, useEffect, useState } from "react";
 
-import { AuthenticatedShell } from "../authenticated-shell";
+import { AuthenticatedPageFrame } from "../authenticated-shell";
 import styles from "./retirement.module.css";
 
 const currency = (value: number) => new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(value);
@@ -180,5 +180,5 @@ export function RetirementWorkspace() {
     </div>
   );
 
-  return data ? <AuthenticatedShell session={data.session}>{content}</AuthenticatedShell> : content;
+  return <AuthenticatedPageFrame session={data?.session}>{content}</AuthenticatedPageFrame>;
 }

@@ -8,7 +8,7 @@ import { usePendingMutations } from "@/lib/use-pending-mutations";
 
 import { SavingIndicator } from "../saving-indicator";
 
-import { AuthenticatedShell } from "../authenticated-shell";
+import { AuthenticatedPageFrame } from "../authenticated-shell";
 import styles from "./category-rules.module.css";
 
 export type RulePrefill = { field: string; operator: string; value: string; categoryId: number | null };
@@ -131,7 +131,7 @@ export function CategoryRulesWorkspace({ prefill }: { prefill: RulePrefill }) {
     </>}
   </main>;
 
-  return data ? <AuthenticatedShell session={data.session}>{content}</AuthenticatedShell> : content;
+  return <AuthenticatedPageFrame session={data?.session}>{content}</AuthenticatedPageFrame>;
 }
 
 function RuleBuilder({ initialConditions, initialCategoryId, categories, canEdit, busy, submitLabel, resetAfterSave = false, onManageCategories, onSubmit }: {

@@ -6,7 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { type FormEvent, useCallback, useEffect, useState } from "react";
 
-import { AuthenticatedShell } from "../authenticated-shell";
+import { AuthenticatedPageFrame } from "../authenticated-shell";
 import styles from "./loan-plans.module.css";
 
 const currency = (value: number, decimals = 0) => new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", minimumFractionDigits: decimals, maximumFractionDigits: decimals }).format(value);
@@ -107,5 +107,5 @@ export function LoanDirectoryWorkspace() {
       <section className={styles.panel}><header><div><h2>Tracked Loans</h2><p>{data.items.length} mortgage or loan item{data.items.length === 1 ? "" : "s"}</p></div><Link href="/monthly-plan?section=budgets#budget-mortgage-rent">Review Loan Budgets</Link></header>{data.items.length ? <div className={styles.loanList}>{data.items.map((row) => <article key={row.fixedExpenseItemId}><div><div className={styles.loanTitle}><h3>{row.name}</h3><span>{row.loanKind === "mortgage" ? "Mortgage" : "Loan"}</span></div><p>Scheduled {currency(row.monthlyPayment, 2)} / Month{row.selectedExtra ? ` - Extra Principal ${currency(row.selectedExtra, 2)} / Month` : ""}{row.principalBalance ? ` - Current Balance ${currency(row.currentBalance, 2)}${row.collateralValue ? ` - Asset Value ${currency(row.collateralValue, 2)}` : ""} - ${row.selectedScenario.replaceAll("_", " ")} Payoff Plan` : " - Amortization Details Not Set Up Yet"}</p></div><div><strong>{currency(row.totalMonthly, 2)} / Month</strong><Link href={`/loan-plans/${row.fixedExpenseItemId}`}>Open Full Schedule</Link></div></article>)}</div> : <div className={styles.empty}><Landmark size={23} aria-hidden="true" /><strong>No Mortgage Or Loan Items Yet</strong><p>Add a loan above, then open its schedule to compare payoff scenarios and amortization details.</p></div>}</section>
     </div> : null}
   </main>;
-  return data ? <AuthenticatedShell session={data.session}>{content}</AuthenticatedShell> : content;
+  return <AuthenticatedPageFrame session={data?.session}>{content}</AuthenticatedPageFrame>;
 }

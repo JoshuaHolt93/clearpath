@@ -91,11 +91,11 @@
   .mobileHeader { position: sticky; z-index: 35; top: 0; display: flex; min-height: 60px; align-items: center; justify-content: space-between; border-bottom: 1px solid #dbe3ed; background: rgb(255 255 255 / 96%); padding: 9px 14px; }
   .mobileBrand { display: flex; align-items: center; gap: 8px; color: #111827; }
   .mobileBrand :global(.logo-mark) { width: 34px; height: 34px; flex-basis: 34px; font-size: 17px; }
-  .sidebar { width: min(86vw, 286px); transform: translateX(-102%); box-shadow: 18px 0 40px rgb(15 23 42 / 16%); transition: transform 180ms ease; }
-  .sidebarOpen { transform: translateX(0); }
+  .sidebar { width: min(86vw, 286px); visibility: hidden; opacity: 0; pointer-events: none; box-shadow: 18px 0 40px rgb(15 23 42 / 16%); transition: opacity 140ms ease, visibility 0s linear 140ms; }
+  .sidebarOpen { visibility: visible; opacity: 1; pointer-events: auto; transition-delay: 0s; }
   .mobileClose { display: grid; }
   .backdrop { position: fixed; z-index: 38; inset: 0; display: block; width: 100%; border: 0; background: rgb(15 23 42 / 45%); }
-  .main { width: 100%; margin-left: 0; }
+  .main { width: auto; margin-left: 0; }
   .coachFloatingButton { right: 14px; bottom: 14px; }
   .coachDrawer { right: 12px; bottom: 66px; width: calc(100vw - 24px); max-height: calc(100vh - 84px); }
 }

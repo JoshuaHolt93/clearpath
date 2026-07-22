@@ -18,7 +18,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { type DragEvent, type FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 
-import { AuthenticatedShell } from "../authenticated-shell";
+import { AuthenticatedPageFrame } from "../authenticated-shell";
 import { refreshLiveBankData } from "@/lib/live-bank-refresh";
 
 import { SavingIndicator } from "../saving-indicator";
@@ -248,14 +248,14 @@ export function MonthlyBudgetsWorkspace({ query }: { query: MonthlyBudgetQuery }
     }
   };
 
-  if (loading && !data) return <div className={styles.loadingPage}><span className="logo-mark">C</span><strong>Loading Budgets...</strong></div>;
+  if (loading && !data) return <AuthenticatedPageFrame activePlanSection="budgets"><div className={styles.loadingPage}><span className="logo-mark">C</span><strong>Loading Budgets...</strong></div></AuthenticatedPageFrame>;
   if (!data) return <div className={styles.loadingPage}><div className={styles.loadError}><TriangleAlert size={24} aria-hidden="true" /><p>{error ?? "We could not load your budgets."}</p><button type="button" onClick={() => void loadBudgets()}>Try Again</button></div></div>;
 
   const firstActiveIndex = activeRows.length ? 0 : -1;
   const lastActiveIndex = activeRows.length - 1;
 
   return (
-    <AuthenticatedShell session={data.session} activePlanSection="budgets">
+    <AuthenticatedPageFrame session={data.session} activePlanSection="budgets">
       <div className={styles.page}>
         <header className={styles.pageHeader}>
           <div><h1>Budgets</h1><p>{data.budgetMonthLabel} - Review budget history or adjust the current month.</p></div>
@@ -352,6 +352,6 @@ export function MonthlyBudgetsWorkspace({ query }: { query: MonthlyBudgetQuery }
           {!data.budgetHistoryMode && data.session.primaryAccountHolder && !featureEnabled(data, "subscriptions") ? <div className={styles.upgradeBand}><div><strong>Turn recurring budget categories into managed subscriptions.</strong><span>Upgrade to add subscription management and subscription analytics.</span></div><Link href="/select-plan">View Plans</Link></div> : null}
         </div>
       </div>
-    </AuthenticatedShell>
+    </AuthenticatedPageFrame>
   );
 }

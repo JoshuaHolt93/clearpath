@@ -1,0 +1,31 @@
+.page { min-height: 100%; background: var(--cp-background); }
+.publicHeader { display: flex; width: min(100%, 72rem); min-height: 4rem; align-items: center; justify-content: space-between; gap: 1rem; margin: 0 auto; padding: 0.75rem 1.5rem; }
+.brand { color: var(--cp-text); font-size: 1.05rem; font-weight: 800; }
+.publicHeader nav, .actions { display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; }
+.main { display: flex; width: min(100%, 72rem); flex-direction: column; gap: 2rem; margin: 0 auto; padding: 2rem 1.5rem 3rem; }
+.intro { display: flex; align-items: flex-start; justify-content: space-between; gap: 1.5rem; }
+.intro h1 { margin: 0; font-size: 1.75rem; line-height: 1.2; }
+.intro p:not(.eyebrow) { max-width: 42rem; margin: 0.5rem 0; color: var(--cp-text-secondary); }
+.eyebrow { margin: 0 0 0.35rem; color: var(--cp-brand); font-size: 0.78rem; font-weight: 800; text-transform: uppercase; }
+.policyMeta, .accountNote { color: var(--cp-text-muted); font-size: 0.82rem; }
+.hostedBadge, .currentBadge { display: inline-flex; align-items: center; gap: 0.35rem; border: 1px solid var(--cp-border); border-radius: 999px; padding: 0.25rem 0.6rem; color: var(--cp-brand-dark); background: var(--cp-surface); font-size: 0.78rem; font-weight: 750; white-space: nowrap; }
+.planGrid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; }
+.planCard { display: flex; min-width: 0; flex-direction: column; gap: 1rem; padding: 1.25rem; border: 1px solid var(--cp-border); border-radius: 8px; background: var(--cp-surface); }
+.currentPlan { border-color: var(--cp-brand); box-shadow: inset 0 0 0 1px var(--cp-brand); }
+.planHead { display: flex; align-items: flex-start; justify-content: space-between; gap: 0.75rem; }
+.planHead h2 { margin: 0; font-size: 1.05rem; }
+.planHead p { margin: 0.2rem 0 0; color: var(--cp-text-muted); font-size: 0.78rem; }
+.planHead strong { font-size: 1.3rem; white-space: nowrap; }
+.planCard ul, .terms ul { display: flex; flex-direction: column; gap: 0.55rem; margin: 0; padding: 0; list-style: none; }
+.planCard li { display: flex; align-items: flex-start; gap: 0.45rem; color: var(--cp-text-secondary); font-size: 0.88rem; }
+.planCard li svg { flex: 0 0 15px; margin-top: 0.2rem; color: var(--cp-success); }
+.planAction { margin-top: auto; text-align: center; }
+.terms { display: flex; flex-direction: column; gap: 1rem; padding-top: 1.5rem; border-top: 1px solid var(--cp-border); }
+.terms h2 { margin: 0; font-size: 1.15rem; }
+.terms ul { padding-left: 1.2rem; list-style: disc; color: var(--cp-text-secondary); }
+.primaryLink, .secondaryLink, .planAction { display: inline-flex; min-height: 2.5rem; align-items: center; justify-content: center; border-radius: 7px; padding: 0.5rem 0.9rem; text-decoration: none; }
+.primaryLink, .planAction { color: #fff; background: var(--cp-brand); }
+.secondaryLink { border: 1px solid var(--cp-border); color: var(--cp-text-secondary); background: var(--cp-surface); }
+.state { display: grid; min-height: 18rem; place-items: center; padding: 2rem; color: var(--cp-text-secondary); }
+@media (max-width: 800px) { .planGrid { grid-template-columns: 1fr; } .intro { flex-direction: column; } }
+@media (max-width: 520px) { .publicHeader { align-items: flex-start; padding-inline: 1rem; } .publicHeader nav { justify-content: flex-end; } .main { padding: 1.25rem 1rem 2rem; } .planHead { align-items: baseline; } }

@@ -6,7 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 
-import { AuthenticatedShell } from "../authenticated-shell";
+import { AuthenticatedPageFrame } from "../authenticated-shell";
 import styles from "./planner.module.css";
 
 const targets: Record<string, string> = {
@@ -157,5 +157,5 @@ export function PlannerWorkspace() {
     </div> : null}
   </main>;
 
-  return view ? <AuthenticatedShell session={view.session}>{content}</AuthenticatedShell> : content;
+  return <AuthenticatedPageFrame session={view?.session}>{content}</AuthenticatedPageFrame>;
 }

@@ -7,7 +7,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { type FormEvent, type ReactNode, useCallback, useEffect, useMemo, useState } from "react";
 
-import { AuthenticatedShell } from "../authenticated-shell";
+import { AuthenticatedPageFrame } from "../authenticated-shell";
 import { refreshLiveBankData } from "@/lib/live-bank-refresh";
 
 import { SavingIndicator } from "../saving-indicator";
@@ -330,11 +330,11 @@ export function MonthlyIncomePlanningWorkspace() {
     await runMutation(`delete-${editing.id}`, `/api/recurring-templates/${editing.id}`, { method: "DELETE", headers: { "content-type": "application/json" }, body: JSON.stringify({ confirm: true }) }, "Income adjustment removed.");
   };
 
-  if (loading && !data) return <div className={styles.loadingPage}><span className="logo-mark">C</span><strong>Loading Income Planning...</strong></div>;
+  if (loading && !data) return <AuthenticatedPageFrame activePlanSection="baseline"><div className={styles.loadingPage}><span className="logo-mark">C</span><strong>Loading Income Planning...</strong></div></AuthenticatedPageFrame>;
   if (!data) return <div className={styles.loadingPage}><div className={styles.loadError}><TriangleAlert size={24} /><p>{error ?? "We could not load Income Planning."}</p><button type="button" onClick={() => void loadPlan()}>Try Again</button></div></div>;
 
   return (
-    <AuthenticatedShell session={data.session} activePlanSection="baseline">
+    <AuthenticatedPageFrame session={data.session} activePlanSection="baseline">
       <div className={styles.page}>
         <header className={styles.pageHeader}><div><h1>Income Planning</h1><p>Plan future raises, job changes, bonuses, or side income while keeping setup income as the baseline.</p></div><span><CalendarClock size={16} />Future-Aware</span></header>
         <main className={styles.content}>
@@ -361,6 +361,6 @@ export function MonthlyIncomePlanningWorkspace() {
       </div>
       {editing ? <Modal title="Edit Future Income" description={editing.name} onClose={() => setEditing(null)} wide><FutureIncomeForm data={data} item={editing} busy={Boolean(busy)} onSave={saveFuture} onDelete={deleteFuture} /></Modal> : null}
       {taxOpen ? <TaxPlanningModule data={data} busy={busy === "tax"} onSave={saveTax} onClose={() => setTaxOpen(false)} /> : null}
-    </AuthenticatedShell>
+    </AuthenticatedPageFrame>
   );
 }

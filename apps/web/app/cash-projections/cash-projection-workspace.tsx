@@ -30,7 +30,7 @@ import { useRouter } from "next/navigation";
 import QRCode from "qrcode";
 import { type FormEvent, type ReactNode, useCallback, useEffect, useMemo, useState } from "react";
 
-import { AuthenticatedShell } from "../authenticated-shell";
+import { AuthenticatedPageFrame } from "../authenticated-shell";
 import styles from "./cash-projection.module.css";
 
 export type CashProjectionQuery = {
@@ -442,7 +442,7 @@ export function CashProjectionWorkspace({ query }: { query: CashProjectionQuery 
     setCopied(true); window.setTimeout(() => setCopied(false), 2000);
   };
 
-  if (!data || !plan) return <div className={styles.loadingPage}><span className="logo-mark">C</span>{error ? <div><TriangleAlert size={22} /><p>{error}</p><button type="button" onClick={() => void load()}>Try Again</button></div> : <strong>Loading Cash Balance Projections...</strong>}</div>;
+  if (!data || !plan) return <AuthenticatedPageFrame activePlanSection="tools"><div className={styles.loadingPage}><span className="logo-mark">C</span>{error ? <div><TriangleAlert size={22} /><p>{error}</p><button type="button" onClick={() => void load()}>Try Again</button></div> : <strong>Loading Cash Balance Projections...</strong>}</div></AuthenticatedPageFrame>;
 
   const range = data.projectionRange;
   const monthValue = range.startMonth.slice(0, 7);
@@ -450,7 +450,7 @@ export function CashProjectionWorkspace({ query }: { query: CashProjectionQuery 
   const nextQuery = { ...currentQuery, month: data.nextMonth.slice(0, 7) };
 
   return (
-    <AuthenticatedShell session={plan.session}>
+    <AuthenticatedPageFrame session={plan.session}>
       <div className={styles.page}>
         <header className={styles.pageHeader}><div><h1>Cash Balance Projections</h1><p>Scheduled cash movement with separate foresight signals for variable-spend risk.</p></div><div className={styles.headerActions}>{canEdit ? <button type="button" disabled={busy === "refresh"} onClick={() => void refreshBalances()}><RefreshCw size={16} className={busy === "refresh" ? styles.spinning : ""} />{busy === "refresh" ? "Refreshing..." : "Refresh Balances"}</button> : null}<Link href={routeForQuery(previousQuery)} aria-label="Previous projection period"><ArrowLeft size={16} />Previous</Link><Link href={routeForQuery(nextQuery)} aria-label="Next projection period">Next<ArrowRight size={16} /></Link></div></header>
         <div className={styles.content}>
@@ -490,6 +490,6 @@ export function CashProjectionWorkspace({ query }: { query: CashProjectionQuery 
       {editing?.kind === "forecast" ? <Modal title="Edit Planned Cash Item" subtitle={editing.item.description} onClose={() => setEditing(null)}><ForecastEditor plan={plan} item={editing.item} busy={Boolean(busy)} onSave={(payload) => resourceMutation(`/api/forecast-items/${editing.item.id}`, "PATCH", payload, "Planned cash item updated.")} onDelete={async () => { if (window.confirm("Remove this planned cash item from Cash Balance Projections?")) await resourceMutation(`/api/forecast-items/${editing.item.id}`, "DELETE", { confirm: true }, "Planned cash item removed."); }} /></Modal> : null}
       {editing?.kind === "recurring" ? <Modal title="Edit Recurring Forecast Schedule" subtitle={editing.item.name} wide onClose={() => setEditing(null)}><RecurringEditor plan={plan} item={editing.item} busy={Boolean(busy)} onSave={(payload) => resourceMutation(`/api/recurring-templates/${editing.item.id}`, "PATCH", payload, "Recurring forecast schedule updated.")} onDelete={async () => { if (window.confirm("Remove this recurring forecast schedule and its future projected cash items?")) await resourceMutation(`/api/recurring-templates/${editing.item.id}`, "DELETE", { confirm: true }, "Recurring forecast schedule removed."); }} /></Modal> : null}
       {editing?.kind === "auto" ? <Modal title="Edit Detected Recurring Expense" subtitle={editing.item.name} wide onClose={() => setEditing(null)}><AutoRecurringEditor plan={plan} item={editing.item} busy={Boolean(busy)} onSave={(payload) => updateAuto(editing.item, payload)} onIgnore={() => updateAuto(editing.item, { action: "ignore" })} /></Modal> : null}
-    </AuthenticatedShell>
+    </AuthenticatedPageFrame>
   );
 }

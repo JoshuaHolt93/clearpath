@@ -6,7 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { type FormEvent, useCallback, useEffect, useState } from "react";
 
-import { AuthenticatedShell } from "../../authenticated-shell";
+import { AuthenticatedPageFrame } from "../../authenticated-shell";
 import styles from "../loan-plans.module.css";
 
 const currency = (value: number) => new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value);
@@ -83,5 +83,5 @@ export function LoanPlanWorkspace({ itemId }: { itemId: string }) {
       <section className={styles.panel}><header><div><h2>Full Amortization Schedule</h2><p>{plan ? `${plan.selectedScenario.replaceAll("_", " ")} selected` : "Enter loan assumptions to generate the schedule."}</p></div></header>{resource.selectedSchedule.length ? <div className={styles.tableWrap}><table className={styles.scheduleTable}><thead><tr><th>Month</th><th>Date</th><th>Beginning Balance</th><th>Payment</th><th>Principal</th><th>Interest</th><th>Ending Balance</th></tr></thead><tbody>{resource.selectedSchedule.map((row) => <tr key={row.month}><td>{row.month}</td><td>{new Date(`${row.paymentDate}T12:00:00`).toLocaleDateString("en-US")}</td><td>{currency(row.beginningBalance)}</td><td>{currency(row.payment)}</td><td>{currency(row.principal)}</td><td>{currency(row.interest)}</td><td>{currency(row.endingBalance)}</td></tr>)}</tbody></table></div> : <div className={styles.empty}><strong>No amortization schedule yet</strong><p>Enter principal, interest rate, term, and monthly payment to generate the full schedule.</p></div>}</section>
     </div> : null}
   </main>;
-  return data ? <AuthenticatedShell session={data.session}>{content}</AuthenticatedShell> : content;
+  return <AuthenticatedPageFrame session={data?.session}>{content}</AuthenticatedPageFrame>;
 }

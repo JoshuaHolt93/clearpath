@@ -8,7 +8,7 @@ import {
 import { KeyRound, RefreshCw, Send, ShieldCheck, Trash2, UserMinus, Users } from "lucide-react";
 import { FormEvent, useCallback, useEffect, useState } from "react";
 
-import { AuthenticatedShell } from "../authenticated-shell";
+import { AuthenticatedPageFrame } from "../authenticated-shell";
 import styles from "./settings.module.css";
 
 async function responseMessage(response: Response, fallback: string) {
@@ -312,5 +312,5 @@ export function SettingsWorkspace() {
       </div>
   );
 
-  return data ? <AuthenticatedShell session={data.session}>{content}</AuthenticatedShell> : content;
+  return <AuthenticatedPageFrame session={data?.session}>{content}</AuthenticatedPageFrame>;
 }

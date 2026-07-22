@@ -4,7 +4,7 @@ import { complianceViewSchema, type ComplianceView } from "@clearpath/validation
 import { RefreshCw, ShieldAlert } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 
-import { AuthenticatedShell } from "../authenticated-shell";
+import { AuthenticatedPageFrame } from "../authenticated-shell";
 import styles from "./compliance.module.css";
 
 async function responseMessage(response: Response, fallback: string) {
@@ -119,5 +119,5 @@ export function ComplianceWorkspace() {
     </div>
   );
 
-  return data ? <AuthenticatedShell session={data.session}>{content}</AuthenticatedShell> : content;
+  return <AuthenticatedPageFrame session={data?.session}>{content}</AuthenticatedPageFrame>;
 }

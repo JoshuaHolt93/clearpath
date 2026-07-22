@@ -1,5 +1,5 @@
 import type { components } from "@clearpath/api-client";
-import { billingViewSchema } from "@clearpath/validation";
+import { billingViewSchema, pricingViewSchema } from "@clearpath/validation";
 
 type ApiPlans = components["schemas"]["BillingPlansResponse"];
 type ApiUserState = components["schemas"]["UserBillingStateResponse"];
@@ -10,7 +10,7 @@ type ApiMe = components["schemas"]["MeResponse"];
 type ApiPlan = components["schemas"]["BillingPlanResponse"];
 type ApiTutorial = components["schemas"]["UpgradeTutorialItemResponse"];
 
-function mapPlan(plan: ApiPlan) {
+export function mapPlan(plan: ApiPlan) {
   return {
     key: plan.key,
     name: plan.name,
@@ -23,6 +23,47 @@ function mapPlan(plan: ApiPlan) {
     features: plan.features ?? [],
     priceConfigured: plan.price_configured,
   };
+}
+
+export function mapSession(me: ApiMe) {
+  return {
+    ownerUserId: me.id,
+    householdName: me.household_name ?? null,
+    selectedPlan: me.selected_plan,
+    billingStatus: me.billing_status,
+    planDisplayName: me.plan_display_name,
+    primaryAccountHolder: me.primary_account_holder,
+    subject: {
+      id: me.session_subject.id,
+      subjectType: me.session_subject.subject_type,
+      email: me.session_subject.email,
+      displayName: me.session_subject.display_name,
+      firstName: me.session_subject.first_name,
+      avatarInitial: me.session_subject.avatar_initial,
+      householdRole: me.session_subject.household_role ?? null,
+    },
+    featureAccess: (me.feature_access ?? []).map((row) => ({
+      feature: row.feature,
+      enabled: row.enabled,
+      hidden: row.hidden,
+      requiredPlan: row.required_plan,
+    })),
+  };
+}
+
+export function mapPricing(plans: ApiPlans, me: ApiMe | null) {
+  const policy = plans.pricing_policy;
+  return pricingViewSchema.safeParse({
+    session: me ? mapSession(me) : null,
+    plans: (plans.plans ?? []).map(mapPlan),
+    pricingPolicy: {
+      title: policy.title,
+      version: policy.version,
+      effectiveDate: policy.effective_date,
+      cancellationTerms: policy.cancellation_terms,
+      paymentCollection: policy.payment_collection,
+    },
+  });
 }
 
 function mapTutorial(item: ApiTutorial) {
@@ -48,24 +89,7 @@ export function mapBilling(
   feedbackOptions: ApiFeedbackOptions | null,
 ) {
   return billingViewSchema.safeParse({
-    session: {
-      ownerUserId: me.id,
-      householdName: me.household_name ?? null,
-      selectedPlan: me.selected_plan,
-      billingStatus: me.billing_status,
-      planDisplayName: me.plan_display_name,
-      primaryAccountHolder: me.primary_account_holder,
-      subject: {
-        id: me.session_subject.id,
-        subjectType: me.session_subject.subject_type,
-        email: me.session_subject.email,
-        displayName: me.session_subject.display_name,
-        firstName: me.session_subject.first_name,
-        avatarInitial: me.session_subject.avatar_initial,
-        householdRole: me.session_subject.household_role ?? null,
-      },
-      featureAccess: (me.feature_access ?? []).map((row) => ({ feature: row.feature, enabled: row.enabled, hidden: row.hidden, requiredPlan: row.required_plan })),
-    },
+    session: mapSession(me),
     plans: (plans.plans ?? []).map(mapPlan),
     billingConfig: plans.billing_status,
     pricingPolicy: plans.pricing_policy,

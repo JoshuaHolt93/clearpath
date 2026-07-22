@@ -5,7 +5,7 @@ import { Pencil, Plus, RefreshCw, Target, Trash2, X } from "lucide-react";
 import Link from "next/link";
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 
-import { AuthenticatedShell } from "../authenticated-shell";
+import { AuthenticatedPageFrame } from "../authenticated-shell";
 import styles from "./goals.module.css";
 
 const currency = (value: number) => new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(value);
@@ -129,7 +129,7 @@ export function GoalsWorkspace() {
     {editGoal && data ? <div className={styles.modal} role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setEditGoal(null); }}><section role="dialog" aria-modal="true" aria-labelledby="edit-goal-title"><header><div><h2 id="edit-goal-title">Edit Goal</h2><p>{editGoal.name}</p></div><button type="button" aria-label="Close Edit Goal" title="Close" onClick={() => setEditGoal(null)}><X size={18} /></button></header><div className={styles.formBody}><GoalForm goal={editGoal} loanOptions={data.loanOptions} canEdit={canEdit} busy={busy} onSubmit={update} submitLabel="Save Goal" /></div></section></div> : null}
   </main>;
 
-  return data ? <AuthenticatedShell session={data.session}>{content}</AuthenticatedShell> : content;
+  return <AuthenticatedPageFrame session={data?.session}>{content}</AuthenticatedPageFrame>;
 }
 
 function GoalForm({ goal, loanOptions, canEdit, busy, onSubmit, submitLabel }: { goal?: GoalView; loanOptions: GoalsView["loanOptions"]; canEdit: boolean; busy: boolean; onSubmit(event: FormEvent<HTMLFormElement>): void; submitLabel: string }) {

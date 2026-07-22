@@ -33,6 +33,20 @@ type AuthenticatedShellProps = {
   children: ReactNode;
 };
 
+let navigationSession: SignedInSession | null = null;
+
+export function clearNavigationSession() {
+  navigationSession = null;
+}
+
+export function AuthenticatedPageFrame({ session, activePlanSection, children }: Omit<AuthenticatedShellProps, "session"> & { session?: SignedInSession | null }) {
+  if (session) navigationSession = session;
+  const activeSession = session ?? navigationSession;
+  return activeSession
+    ? <AuthenticatedShell session={activeSession} activePlanSection={activePlanSection}>{children}</AuthenticatedShell>
+    : <>{children}</>;
+}
+
 function featureEnabled(session: SignedInSession, key: string): boolean {
   return session.featureAccess.some((row) => row.feature === key && row.enabled && !row.hidden);
 }
@@ -175,6 +189,7 @@ function AiCoach({ session }: { session: SignedInSession }) {
 }
 
 export function AuthenticatedShell({ session, activePlanSection, children }: AuthenticatedShellProps) {
+  navigationSession = session;
   const pathname = usePathname();
   const router = useRouter();
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -189,6 +204,7 @@ export function AuthenticatedShell({ session, activePlanSection, children }: Aut
   const signOut = async () => {
     setSigningOut(true);
     await fetch("/api/auth/session", { method: "DELETE" }).catch(() => undefined);
+    clearNavigationSession();
     router.replace("/login");
     router.refresh();
   };

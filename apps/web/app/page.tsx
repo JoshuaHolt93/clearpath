@@ -31,6 +31,7 @@ export default function LandingPage() {
       <header className={styles.topbar}>
         <span className={styles.brand}>ClearPath Finance</span>
         <nav className={styles.topnav}>
+          <Link href="/pricing">Pricing</Link>
           <Link href="/login">Sign In</Link>
           <Link href="/register" className={styles.cta}>Create Account</Link>
         </nav>
@@ -90,6 +91,7 @@ export default function LandingPage() {
       <footer className={styles.footer}>
         <span>© ClearPath Finance</span>
         <nav>
+          <Link href="/pricing">Pricing</Link>
           <Link href="/privacy">Privacy</Link>
           <Link href="/terms">Terms</Link>
           <Link href="/ethics">Ethics</Link>

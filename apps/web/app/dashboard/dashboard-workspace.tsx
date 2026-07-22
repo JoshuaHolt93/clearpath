@@ -15,7 +15,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
-import { AuthenticatedShell } from "../authenticated-shell";
+import { AuthenticatedPageFrame } from "../authenticated-shell";
 import { refreshLiveBankData } from "@/lib/live-bank-refresh";
 import styles from "./dashboard.module.css";
 
@@ -173,7 +173,7 @@ export function DashboardWorkspace({ initialWelcome }: { initialWelcome: boolean
   };
 
   if (loading && !data) {
-    return <main className={styles.loadingPage}><span className="logo-mark">C</span><strong>Loading Today...</strong></main>;
+    return <AuthenticatedPageFrame><main className={styles.loadingPage}><span className="logo-mark">C</span><strong>Loading Today...</strong></main></AuthenticatedPageFrame>;
   }
   if (!data) {
     return <main className={styles.loadingPage}><div className={styles.loadError} role="alert"><strong>Dashboard Unavailable</strong><p>{error}</p><button type="button" onClick={() => void loadDashboard()}>Try Again</button></div></main>;
@@ -185,7 +185,7 @@ export function DashboardWorkspace({ initialWelcome }: { initialWelcome: boolean
   const maxCategory = Math.max(data.metrics.variableSpend, ...data.categoryTotals.map((row) => row.amount), 1);
 
   return (
-    <AuthenticatedShell session={data.session}>
+    <AuthenticatedPageFrame session={data.session}>
       <div className={styles.page}>
         <header className={styles.pageHeader}>
           <div><h1>Good {greeting}, {data.session.subject.firstName}</h1><p>{data.monthName} - Day {data.elapsedDays} of {data.totalDays}</p></div>
@@ -265,6 +265,6 @@ export function DashboardWorkspace({ initialWelcome }: { initialWelcome: boolean
           ) : null}
         </div>
       </div>
-    </AuthenticatedShell>
+    </AuthenticatedPageFrame>
   );
 }

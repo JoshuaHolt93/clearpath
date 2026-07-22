@@ -1805,6 +1805,24 @@ export const billingPlanSchema = z.object({
   priceConfigured: z.boolean(),
 });
 
+export const pricingPolicySchema = z.object({
+  title: z.string(),
+  version: z.string(),
+  effectiveDate: z.string(),
+  cancellationTerms: z.string(),
+  paymentCollection: z.string(),
+});
+
+export const pricingViewSchema = z.object({
+  session: signedInSessionSchema.nullable(),
+  plans: z.array(billingPlanSchema),
+  pricingPolicy: pricingPolicySchema,
+});
+
+export const helpViewSchema = z.object({
+  session: signedInSessionSchema,
+});
+
 export const billingTutorialItemSchema = z.object({
   title: z.string(),
   body: z.string(),
@@ -1856,6 +1874,8 @@ export const billingCancellationInputSchema = z.object({
 
 export type BillingView = z.infer<typeof billingViewSchema>;
 export type BillingPlan = z.infer<typeof billingPlanSchema>;
+export type PricingView = z.infer<typeof pricingViewSchema>;
+export type HelpView = z.infer<typeof helpViewSchema>;
 export type BillingPlanSelectionInput = z.infer<typeof billingPlanSelectionInputSchema>;
 export type BillingCancellationInput = z.infer<typeof billingCancellationInputSchema>;
 
