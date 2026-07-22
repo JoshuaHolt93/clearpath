@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
+import { iterPages } from "@/lib/paginate";
 import { refreshLiveBankData } from "@/lib/live-bank-refresh";
 import { usePendingMutations } from "@/lib/use-pending-mutations";
 
@@ -214,7 +215,9 @@ export function TransactionReviewWorkspace({ query }: { query: TransactionQuery 
         {data?.items.map((transaction) => (
           <TransactionRow key={transaction.id} transaction={transaction} categories={data.categories} budgetAction={data.budgetActions[String(transaction.id)]} amortizationAction={data.amortizationActions[String(transaction.id)]} recurring={data.recurringTransactionIds.includes(transaction.id)} canEdit={canEdit} busy={isPendingMatching(`/transactions/${transaction.id}`)} onMutate={mutate} />
         ))}
-        {data && totalPages > 1 ? <nav className={styles.pagination} aria-label="Transaction pages"><button type="button" disabled={data.page <= 1} onClick={() => navigate({ page: String(data.page - 1) })}><ChevronLeft size={17} /><span>Previous</span></button><strong>Page {data.page} of {totalPages}</strong><button type="button" disabled={data.page >= totalPages} onClick={() => navigate({ page: String(data.page + 1) })}><span>Next</span><ChevronRight size={17} /></button></nav> : null}
+        {data && totalPages > 1 ? <nav className={styles.pagination} aria-label="Transaction pages"><button type="button" disabled={data.page <= 1} onClick={() => navigate({ page: String(data.page - 1) })}><ChevronLeft size={17} /><span>Previous</span></button><span className={styles.pageNumbers}>{iterPages(data.page, totalPages).map((entry, index) => entry === null
+            ? <span key={`gap-${index}`} className={styles.pageGap} aria-hidden="true">&hellip;</span>
+            : <button key={entry} type="button" className={entry === data.page ? styles.pageActive : undefined} aria-current={entry === data.page ? "page" : undefined} aria-label={`Page ${entry}`} onClick={() => navigate({ page: String(entry) })}>{entry}</button>)}</span><button type="button" disabled={data.page >= totalPages} onClick={() => navigate({ page: String(data.page + 1) })}><span>Next</span><ChevronRight size={17} /></button></nav> : null}
       </section>
 
       {data && canEdit ? (

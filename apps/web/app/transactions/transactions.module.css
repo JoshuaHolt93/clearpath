@@ -512,3 +512,30 @@
   flex: none;
   background: var(--cp-surface);
 }
+
+/* Numbered page controls (Flask parity: iter_pages with edges + ellipsis). */
+.pageNumbers {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+}
+
+.pageNumbers button {
+  min-width: 34px;
+  min-height: 34px;
+  padding: 4px 8px;
+  font-variant-numeric: tabular-nums;
+}
+
+.pageNumbers button.pageActive {
+  border-color: var(--cp-brand);
+  background: var(--cp-brand);
+  color: var(--cp-surface);
+  cursor: default;
+}
+
+.pageGap {
+  padding: 0 2px;
+  color: var(--cp-text-secondary);
+}

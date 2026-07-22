@@ -123,6 +123,25 @@ describe("TransactionReviewWorkspace", () => {
     expect(screen.queryByRole("link", { name: /Back to/ })).toBeNull();
   });
 
+  it("offers numbered pages so you can jump instead of stepping", async () => {
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (input) =>
+      String(input).includes("refresh-stale")
+        ? jsonResponse({ synced: 0, errors: [] })
+        : jsonResponse({ ...view(), total: 200, page: 5, perPage: 20 }));
+    render(<TransactionReviewWorkspace query={{ ...query, page: "5" }} />);
+
+    // 200/20 = 10 pages, viewing 5: first, gap, 3..7, gap, last.
+    expect(await screen.findByRole("button", { name: "Page 3" })).toBeDefined();
+    expect(screen.getByRole("button", { name: "Page 7" })).toBeDefined();
+    expect(screen.getByRole("button", { name: "Page 1" })).toBeDefined();
+    expect(screen.getByRole("button", { name: "Page 10" })).toBeDefined();
+    // The current page is marked for assistive tech, not just visually.
+    expect(screen.getByRole("button", { name: "Page 5" }).getAttribute("aria-current")).toBe("page");
+
+    fireEvent.click(screen.getByRole("button", { name: "Page 7" }));
+    expect(navigation.push).toHaveBeenCalledWith(expect.stringContaining("page=7"));
+  });
+
   it("enforces split totals before sending the exact lines", async () => {
     const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
       if (String(input).includes("refresh-stale")) return jsonResponse({ synced: 0, errors: [] });
