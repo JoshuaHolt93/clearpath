@@ -77,6 +77,7 @@ export function mapSettings(data: ApiSettings, me: ApiMe) {
     })),
     plaidStatus: data.plaid_status,
     pushMfa: data.push_mfa,
+    mfaEnabled: data.mfa_enabled,
     mfaPreferredMethod: data.mfa_preferred_method,
     mfaPushEnabled: data.mfa_push_enabled,
     billingStatus: data.billing_status,

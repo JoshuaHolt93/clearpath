@@ -57,6 +57,8 @@ def test_settings_dashboard_aggregate(client):
     assert body["household_role_options"] == {"editor": "Can Edit", "viewer": "View Only"}
     # MFA was skipped during setup, so the stored preference is "none".
     assert body["mfa_preferred_method"] == "none"
+    # The dashboard reports enrolment state so the UI can offer "Set Up MFA".
+    assert body["mfa_enabled"] is False
     assert body["billing_status"]["enabled"] is False
     assert len(body["feedback_options"]["reasons"]) == 4
     # Starter categories seed the manager rows; all are user-owned/manageable

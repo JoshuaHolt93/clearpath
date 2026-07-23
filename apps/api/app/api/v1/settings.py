@@ -106,6 +106,7 @@ def get_settings_dashboard(
         rules_count=rules_count,
         plaid_status=plaid_status(),
         push_mfa=push_mfa_status(),
+        mfa_enabled=user.mfa_enabled,
         mfa_preferred_method=user.mfa_preferred_method,
         mfa_push_enabled=user.mfa_push_enabled,
         billing_status=billing_status(),

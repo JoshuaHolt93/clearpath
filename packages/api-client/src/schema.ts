@@ -5544,6 +5544,8 @@ export interface components {
             household_role_options: {
                 [key: string]: string;
             };
+            /** Mfa Enabled */
+            mfa_enabled: boolean;
             /** Mfa Preferred Method */
             mfa_preferred_method: string;
             /** Mfa Push Enabled */

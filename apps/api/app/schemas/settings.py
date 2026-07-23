@@ -45,6 +45,7 @@ class SettingsDashboardResponse(BaseModel):
     rules_count: int
     plaid_status: dict
     push_mfa: dict
+    mfa_enabled: bool
     mfa_preferred_method: str
     mfa_push_enabled: bool
     billing_status: dict

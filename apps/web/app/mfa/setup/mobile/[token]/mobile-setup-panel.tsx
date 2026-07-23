@@ -84,7 +84,7 @@ export function MobileSetupPanel({ token }: Readonly<{ token: string }>) {
     <>
       <p className="panel-intro">Your phone should prompt you to add ClearPath Finance.</p>
       <a href={provisioningUri} className="btn btn-primary full-button">Open Authenticator App</a>
-      <p className="panel-footnote">If nothing opens, install an authenticator app and tap the button again.</p>
+      <p className="panel-footnote">On iPhone this may open the built-in <strong>Passwords</strong> app &mdash; that is expected: choose &ldquo;Set Up Verification Code&rdquo; there, or tap the button again to use a dedicated authenticator app instead. Either way, enter the 6-digit code back on your computer to finish.</p>
       <div className="mfa-app-actions mobile-download-actions">
         <a href="https://duo.com/product/multi-factor-authentication-mfa/duo-mobile-app" target="_blank" rel="noopener noreferrer" className="btn btn-secondary">Download Duo Mobile</a>
         <a href="https://www.microsoft.com/en-us/security/mobile-authenticator-app" target="_blank" rel="noopener noreferrer" className="btn btn-secondary">Use Microsoft Authenticator</a>

@@ -10,11 +10,12 @@ import {
 } from "@clearpath/validation";
 import Image from "next/image";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import QRCode from "qrcode";
 import { type FormEvent, useEffect, useState } from "react";
 
 import { AUTH_NEXT_STEP_PATHS } from "@/lib/auth-navigation";
+import { safeLocalReturnUrl } from "@/lib/safe-return-url";
 
 function messageFrom(payload: unknown, fallback: string): string {
   if (payload && typeof payload === "object" && "message" in payload) {
@@ -28,6 +29,10 @@ function messageFrom(payload: unknown, fallback: string): string {
 
 export function MfaSetupPanel() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  // When enrolment is launched from Settings it passes ?next=/settings so the
+  // user lands back where they started rather than at onboarding/dashboard.
+  const nextOverride = safeLocalReturnUrl(searchParams.get("next"));
   const [setup, setSetup] = useState<MfaSetup | null>(null);
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
   const [mobileSetupUrl, setMobileSetupUrl] = useState<string | null>(null);
@@ -104,7 +109,7 @@ export function MfaSetupPanel() {
         setError("ClearPath returned an unexpected setup result.");
         return;
       }
-      const destination = AUTH_NEXT_STEP_PATHS[result.data.nextStep];
+      const destination = nextOverride || AUTH_NEXT_STEP_PATHS[result.data.nextStep];
       if (result.data.recoveryCodes?.length) {
         setRecoveryCodes(result.data.recoveryCodes);
         setNextPath(destination);

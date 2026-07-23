@@ -13,6 +13,7 @@ const navigation = vi.hoisted(() => ({
 
 vi.mock("next/navigation", () => ({
   useRouter: () => navigation,
+  useSearchParams: () => new URLSearchParams(),
 }));
 
 vi.mock("qrcode", () => ({

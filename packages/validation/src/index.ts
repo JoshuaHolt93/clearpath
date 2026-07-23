@@ -1735,6 +1735,7 @@ export const settingsViewSchema = z.object({
   // tab rendered only "data did not match the expected contract".
   plaidStatus: z.object({ ready: z.boolean() }).passthrough(),
   pushMfa: z.object({ available: z.boolean() }).passthrough(),
+  mfaEnabled: z.boolean(),
   mfaPreferredMethod: z.string(),
   mfaPushEnabled: z.boolean(),
   billingStatus: z.record(z.string(), z.unknown()),

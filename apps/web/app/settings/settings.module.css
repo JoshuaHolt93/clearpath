@@ -335,3 +335,29 @@
 .danger h2 {
   color: var(--cp-danger);
 }
+
+/* MFA enrolment prompt shown when multi-factor auth is off. */
+.mfaSetup {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.6rem;
+}
+
+.mfaOffNote {
+  margin: 0;
+  border-left: 4px solid var(--cp-warning, #ca8a04);
+  border-radius: var(--cp-radius-sm);
+  background: var(--cp-warning-light, #fefce8);
+  padding: 0.6rem 0.8rem;
+  color: var(--cp-text);
+  font-size: 0.9rem;
+  text-transform: none;
+  font-weight: 400;
+  letter-spacing: 0;
+}
+
+/* Link styled as a button still needs to lose underline + inherit centring. */
+.mfaSetup .primaryButton {
+  text-decoration: none;
+}

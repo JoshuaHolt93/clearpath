@@ -323,3 +323,53 @@ def test_duo_state_is_signed_and_bound_to_the_subject(monkeypatch, db):
             code="approved",
             redirect_uri="https://web.example.test/mfa/push/callback",
         )
+
+
+def test_full_session_user_can_enroll_mfa_from_settings(client):
+    # A user who skipped MFA at registration holds a full (verified) session
+    # with mfa_enabled=False. They must be able to enrol later from Settings.
+    # Before the guard change this GET 409'd because the endpoint was
+    # pending-session only, so enrolment was unreachable after skipping.
+    registered = _register(client, "late-enroll@example.com")
+    skip = client.post(
+        "/v1/auth/mfa/setup",
+        headers=_auth_header(registered["access_token"]),
+        json={"action": "skip", "mfa_push_opt_in": False},
+    )
+    assert skip.status_code == 200
+    full_token = skip.json()["access_token"]
+
+    setup = client.get("/v1/auth/mfa/setup", headers=_auth_header(full_token))
+    assert setup.status_code == 200, setup.text
+    secret = parse_qs(urlparse(setup.json()["provisioning_uri"]).query)["secret"][0]
+
+    confirm = client.post(
+        "/v1/auth/mfa/setup",
+        headers=_auth_header(full_token),
+        json={"action": "verify_totp", "code": totp_code(secret)},
+    )
+    assert confirm.status_code == 200, confirm.text
+
+    # A second setup attempt now 409s, proving MFA is enrolled and the secret
+    # is locked. (The /v1/me/settings dashboard itself is gated on completed
+    # onboarding, which this minimal flow skips.)
+    enrolled_token = confirm.json()["access_token"]
+    reattempt = client.get("/v1/auth/mfa/setup", headers=_auth_header(enrolled_token))
+    assert reattempt.status_code == 409
+
+
+def test_full_session_user_cannot_reset_mfa_secret_once_enrolled(client):
+    # Once enrolled, re-hitting setup must 409 rather than silently rotating the
+    # secret -- the service guard, now reachable by full sessions, still holds.
+    registered = _register(client, "already-enrolled@example.com")
+    setup = client.get("/v1/auth/mfa/setup", headers=_auth_header(registered["access_token"])).json()
+    secret = parse_qs(urlparse(setup["provisioning_uri"]).query)["secret"][0]
+    confirmed = client.post(
+        "/v1/auth/mfa/setup",
+        headers=_auth_header(registered["access_token"]),
+        json={"action": "verify_totp", "code": totp_code(secret)},
+    )
+    full_token = confirmed.json()["access_token"]
+
+    reattempt = client.get("/v1/auth/mfa/setup", headers=_auth_header(full_token))
+    assert reattempt.status_code == 409

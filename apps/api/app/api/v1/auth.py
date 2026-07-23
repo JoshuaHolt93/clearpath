@@ -17,7 +17,7 @@ from app.core.feature_access import (
     user_has_feature,
 )
 from app.core.security import password_policy_errors, totp_provisioning_uri
-from app.dependencies import Principal, require_full_session, require_pending_auth
+from app.dependencies import Principal, get_principal, require_full_session, require_pending_auth
 from app.models import HouseholdMember, User
 from app.schemas.auth import (
     AuthLoginResponse,
@@ -168,8 +168,12 @@ def me(principal: Annotated[Principal, Depends(require_full_session)]) -> MeResp
     )
 
 
+# Enrollment is reachable both mid-login (pending session) and later from
+# Settings (full session), matching Flask's auth.mfa_setup, which gated on
+# current_user. setup_response_for_pending 409s if MFA is already enabled, so a
+# full session cannot silently rotate an existing secret.
 @router.get("/auth/mfa/setup", response_model=MfaSetupResponse)
-def mfa_setup(principal: Annotated[Principal, Depends(require_pending_auth)], db: Annotated[Session, Depends(get_db)]) -> dict:
+def mfa_setup(principal: Annotated[Principal, Depends(get_principal)], db: Annotated[Session, Depends(get_db)]) -> dict:
     return setup_response_for_pending(principal, db)
 
 
@@ -178,7 +182,7 @@ def mfa_setup_confirm(
     payload: MfaSetupConfirmRequest,
     request: Request,
     response: Response,
-    principal: Annotated[Principal, Depends(require_pending_auth)],
+    principal: Annotated[Principal, Depends(get_principal)],
     db: Annotated[Session, Depends(get_db)],
 ) -> AuthSessionResponse:
     recovery_codes = None
@@ -215,7 +219,7 @@ def mfa_setup_confirm(
 @router.post("/auth/mfa/setup/email-code", response_model=MfaEmailCodeSendResponse)
 def mfa_setup_email_code(
     payload: MfaEmailCodeSendRequest,
-    principal: Annotated[Principal, Depends(require_pending_auth)],
+    principal: Annotated[Principal, Depends(get_principal)],
 ) -> MfaEmailCodeSendResponse:
     if principal.subject.mfa_enabled and payload.purpose == "setup":
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="MFA is already enabled; verification is required.")

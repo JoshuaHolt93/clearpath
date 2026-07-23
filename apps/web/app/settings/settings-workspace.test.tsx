@@ -25,6 +25,7 @@ function view(overrides: Partial<SettingsView> = {}): SettingsView {
     categoryRows: [{ id: 10, name: "Groceries", kind: "expense", monthlyTarget: 600, canManage: true, usage: { transactions: 4 } }],
     plaidStatus: { ready: true, sdkInstalled: true, environment: "sandbox" },
     pushMfa: { available: false },
+    mfaEnabled: true,
     mfaPreferredMethod: "totp",
     mfaPushEnabled: false,
     billingStatus: { enabled: false },
@@ -60,6 +61,23 @@ describe("SettingsWorkspace", () => {
     expect(screen.getByText(/cousin@example.com/)).toBeDefined();
     expect(screen.getByRole("heading", { name: "Delete Account" })).toBeDefined();
     expect(screen.getByRole("button", { name: "Acknowledge Policy" })).toBeDefined();
+  });
+
+  it("offers Set Up MFA and disables the preference form when MFA is off", async () => {
+    // A user who skipped MFA at registration must be able to enrol from here;
+    // the preference radios only choose between methods you already have.
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(json(view({ mfaEnabled: false, mfaPreferredMethod: "none" })));
+    render(<SettingsWorkspace />);
+
+    const setUp = await screen.findByRole("link", { name: /Set Up MFA/ });
+    expect(setUp.getAttribute("href")).toBe("/mfa/setup?next=%2Fsettings");
+    // No point offering "Save MFA Preference" when there is no MFA to prefer.
+    expect(screen.queryByRole("button", { name: "Save MFA Preference" })).toBeNull();
+    // The radios are inert until MFA exists: they sit inside a disabled
+    // fieldset (jsdom keeps the child's own .disabled false, so assert the
+    // fieldset, which is what actually gates the controls).
+    const radioFieldset = (screen.getByLabelText("Authenticator codes") as HTMLInputElement).closest("fieldset");
+    expect(radioFieldset?.disabled).toBe(true);
   });
 
   it("submits a password change and surfaces the API error text", async () => {

@@ -10322,6 +10322,10 @@
             "title": "Household Role Options",
             "type": "object"
           },
+          "mfa_enabled": {
+            "title": "Mfa Enabled",
+            "type": "boolean"
+          },
           "mfa_preferred_method": {
             "title": "Mfa Preferred Method",
             "type": "string"
@@ -10358,6 +10362,7 @@
           "rules_count",
           "plaid_status",
           "push_mfa",
+          "mfa_enabled",
           "mfa_preferred_method",
           "mfa_push_enabled",
           "billing_status",

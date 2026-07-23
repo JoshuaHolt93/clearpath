@@ -6,6 +6,7 @@ import {
   type SettingsView,
 } from "@clearpath/validation";
 import { KeyRound, RefreshCw, Send, ShieldCheck, Trash2, UserMinus, Users } from "lucide-react";
+import Link from "next/link";
 import { FormEvent, useCallback, useEffect, useState } from "react";
 
 import { AuthenticatedPageFrame } from "../authenticated-shell";
@@ -219,12 +220,22 @@ export function SettingsWorkspace() {
                   <button type="submit" className={styles.primaryButton} disabled={busy}>Update Password</button>
                 </form>
                 <form onSubmit={(event) => void submitMfaPreference(event)} className={styles.mfaForm}>
-                  <fieldset disabled={busy}>
+                  {/* The preference only chooses between methods you already
+                      have. When MFA is off, offer enrolment instead of a form
+                      that silently does nothing (Flask settings parity). */}
+                  <fieldset disabled={busy || !data.mfaEnabled}>
                     <legend>Sign-In Verification</legend>
                     <label><input type="radio" name="mfa_preferred_method" value="totp" defaultChecked={data.mfaPreferredMethod !== "push"} />Authenticator codes</label>
-                    <label><input type="radio" name="mfa_preferred_method" value="push" defaultChecked={data.mfaPreferredMethod === "push"} />Duo Push approval{data.pushMfa.available ? "" : " (not configured)"}</label>
+                    <label><input type="radio" name="mfa_preferred_method" value="push" defaultChecked={data.mfaPreferredMethod === "push"} disabled={!data.pushMfa.available} />Duo Push approval{data.pushMfa.available ? "" : " (not configured)"}</label>
                   </fieldset>
-                  <button type="submit" className={styles.primaryButton} disabled={busy}>Save MFA Preference</button>
+                  {!data.mfaEnabled ? (
+                    <div className={styles.mfaSetup}>
+                      <p className={styles.mfaOffNote}>Multi-factor authentication is off. Set it up to protect your household&apos;s financial data.</p>
+                      <Link href="/mfa/setup?next=%2Fsettings" className={styles.primaryButton}><ShieldCheck size={16} aria-hidden="true" />Set Up MFA</Link>
+                    </div>
+                  ) : (
+                    <button type="submit" className={styles.primaryButton} disabled={busy}>Save MFA Preference</button>
+                  )}
                 </form>
               </section>
             ) : null}
