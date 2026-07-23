@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 
 import { PendingAuthShell } from "../pending-auth-shell";
 import { MfaSetupPanel } from "./mfa-setup-panel";
@@ -14,7 +15,12 @@ export default function MfaSetupPage() {
       subtitle="Protect your financial data with a one-time code from an authenticator app or email."
       panelTitle="Authenticator App Setup"
     >
-      <MfaSetupPanel />
+      {/* MfaSetupPanel reads useSearchParams() (the ?next= return target);
+          Next 15 requires a Suspense boundary around it or the static
+          prerender of this route fails the build. */}
+      <Suspense fallback={<p className="pending-status" role="status">Loading setup...</p>}>
+        <MfaSetupPanel />
+      </Suspense>
     </PendingAuthShell>
   );
 }
